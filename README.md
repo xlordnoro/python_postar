@@ -5,7 +5,7 @@ A modern version of postar written in python
 The script is currently at version **32**.
 
 # Installation
-Any modern stable version of python will work with this project. At the time of writing this guide, it's currently 3.13.9.
+Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
 
 I've included a written guide and command readme in the guides folder which will break things down more than the version below which covers the bare minimum needed to get the project running on windows or linux.
 
