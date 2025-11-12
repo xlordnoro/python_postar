@@ -1,0 +1,101 @@
+# Intro
+
+Another project, another guide in the books for everyone on the team.
+As I stated on discord, this version of postar uses python to generate the html code for posts.
+Any version of python in theory will work with this script, even older ones. However, I would recommend installing the latest stable build to ensure errors aren't caused by random bugs that were patched in later revisions of python.
+
+# Getting thisssss sssssslithery sssssnake installed on our sssssssystem
+
+All the windows builds for python can found here: https://www.python.org/downloads/windows/
+Make sure to select the stable 64-bit version of 3.13.9.
+It's never a good idea to run the beta builds unless you're a developer since most of the dependencies for python haven't been rebuilt for beta builds due to the constant changes in the codebase.
+When installing python, MAKE SURE YOU CHECK THE BOX THAT SAYS ADD PYTHON TO SYSTEM PATH. It's in the bottom left corner of the installer.
+That will allow you to call python and pip anywhere on your system without having to specify the path to python or pip which is needed for the script to work effortlessly.
+Go through the rest of the installer and let the install finish. It might take a bit to complete, but at least it's smaller than the last COD release xD
+
+# Finalizing the python install 
+
+Once the install is complete, close the installer and open a command prompt or terminal window.
+Windows 11 uses windows terminal as the default IIRC, while windows 10 uses command prompt or powershell.
+If you're unsure, search for cmd (command prompt) or terminal in the search bar. Windows 10 can run terminal but I'm not going to cover that since either will work fine for our use.
+The script uses mostly default dependencies but requests is needed to retrieve mal information so we'll need to install that on our system via pip.
+
+# Installing requests and optionally upgrading pip
+
+Type pip install requests pymediainfo
+It will take a moment to look up requests from their database and prompt you to install requests.
+Type y and press enter to install requests.
+It's a really small dependency so it shouldn't take very long to install.
+Once requests is installed, we're almost ready to start running the script.
+It might also ask you to update pip, it's not required, but you can run the command it outputs in the terminal and it will update pip to the latest version.
+
+# Ensuring we're running in the correct directory
+
+Windows 11 has a right-click option that will allow you to open a terminal window anywhere on the system.
+That will make it easier to run the script from the folder it's been placed in.
+If you're running windows 10, you can still do a shortcut in a different way.
+Click on the path in file explorer and type cmd.
+That will open a cmd window in the same directory as the python script so you don't need to run cd commands.
+The only side-effect to cmd path method is that path will point to the cmd.exe instead of folder's actual location on your system if you wanted to grab at any point while following along.
+
+# Running the help command 
+
+Once you have a terminal or cmd window open in the same directory as the python script,
+Type python python_postar_v32.py -h << (this is the help command btw.)
+Python is needed so windows knows to run the script using python or it will error out. Linux is the same way but it uses python3 instead to run scripts/programs that utilize python.
+I made every command have a shorthand version to make the commands shorter overall. There is no difference when running commands with the longer or shorthand versions. Either will work.
+
+# Args breakdown
+
+The script does have some required arguments that are needed for it to run. 
+It needs -p -a -d -m -c and if one or more is missing it will produce an error stating what is required to run.
+I'll break down the args since the help command just gives you guys what it allowed, not required.
+-p is the paths argument for non-BD's and that will point to the folder(s) you want to make a post for on the site.
+-p1080 & -p720 are also path arguments, but these are strictly meant for BD posts since I needed a way for the script to map where the folders should be placed in the post code.
+-a is for the airing/cover image.
+-d is for the donation image.
+-m is for the mal-id which is used to grab the titles and synopsis directly from mal's API backend.
+e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
+-c is for the span color on the table headers for the title of the series/season.
+-b is used to tell the script that it's a bd post vs a non-BD post
+-bi is for the resolution button images which function in pairs 1080p 720p, 1080p 720p, etc. The order does matter if u want them to be in the proper place!
+-s is used to tell the script that it's a seasonal airings post and to sort the entries by series instead of the episode number first (Pcool airings)
+-o allows you to change the filename of the txt file that is going to be generated.
+e.g. test_v32.txt since it took me that many revisions to get to this point after wrestling the AI to the ground and pinning it for the victory rofl OOOH! I AM THE MACHO MAN!
+
+# Modifications needed inside the script (very few are required)
+To edit the python script, you can use IDLE which is installed alongside python by default, but you can use notepad++ as well.
+Near the top of the script, you'll see a bunch of variables (B2_SHOWS_BASE, B2_TORRENTS_BASE). You'll need to update the b2 paths to reflect where you store the files in your b2 bucket.
+I put mine in shows and torrents to keep the main files and torrents separate from each other.
+The last thing you'll need to change is the ENCODER_NAME variable to match your name. That's used when creating the encoding settings table. Otherwise, it'll
+always show my name instead of yours.
+
+# Various commands & I'm sick and tired of these motherfucking snakes on this motherfucking plane!
+
+I'll include the commands in a readme file along with the script in the zip folder on the discord dev channel so you guys don't need to replicate the commands by hand.
+The only thing you'll need to change is the paths to reflect actual folders on your system since these are unique to mine and it won't be able to find them if they don't exist.
+
+# Everyone's got a basic bitch nearby, right? The bare minimum needed to run the script.
+
+python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -o test_v32.txt
+
+# This command increases the post to 2 series/seasons. Most of the commands allow more than one btw.
+
+python python_postar_v32.py -p "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue red -m 42310 59457 -o test_v32.txt
+
+# This command increases the post to 3 series/seasons.
+
+python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue green red -m 41623 42310 59457 -o test_v32.txt
+
+# This command shows 3 series/seasons and multiple donation images. Only the first donation image remains visible outside of the button.
+
+python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" "https://i.imgur.com/3ZRmC6U.jpg" "https://i.imgur.com/XZEGRLv.jpg" -c blue green red -m 41623 42310 59457 -o test_v32.txt
+
+# This command shows the seasonal argument
+python python_postar_v32.py -p "F:\test\[Hi10]_Airings_Folder_[1080p]" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt
+
+# Lastly, what in the holy fuck sort of black magic is this? Definitely not -8πα xD
+# This is the only BD post example, but you can use multiple donation images with this command as well.
+# As I stated in the args section, the bi images function as pairs. If you don't have enough images for all the seasons, it will loop the last two images to ensure something is there.
+
+python python_postar_v32.py -p1080 "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -p720 "F:\(Hi10)_Isekai_Maou_Omega_(BD_720p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_720p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_720p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue green red -m 41623 42310 59457 -b -bi "https://imgur.com/vEZOJr3.jpg" "https://imgur.com/lKLs0hN.jpg" "https://imgur.com/Ho3EZDh.jpg" "https://imgur.com/BI8chCK.jpg" "https://imgur.com/y3hHGFU.jpg" "https://imgur.com/1yntsON.jpg" -o test_v32.txt
