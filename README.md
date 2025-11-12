@@ -28,8 +28,8 @@ If you get a message about updating pip after install requests and pymediainfo, 
 
 - -p is the paths argument for non-BD's and that will point to the folder(s) you want to make a post for on the site.
 - -p1080 & -p720 are also path arguments, but these are strictly meant for BD posts since I needed a way for the script to map where the folders should be placed in the post code.
-- -a is for the airing/cover image.
-- -d is for the donation image.
+- -a is for the airing/cover image(s).
+- -d is for the donation image(s).
 - -m is for the mal-id which is used to grab the titles and synopsis directly from mal's API backend.
 - e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 - -c is for the span color on the table headers for the title of the series/season.
@@ -39,7 +39,24 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -o allows you to change the filename of the txt file that is going to be generated.
 
 # Windows Command Examples
-`python python_postar_v32.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt`
+## One Series
+`python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -o test_v32.txt`
+
+## Two Series
+`python python_postar_v32.py -p "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue red -m 42310 59457 -o test_v32.txt`
+
+## Three Series
+`python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue green red -m 41623 42310 59457 -o test_v32.txt`
+
+## Three Series With Multiple Donation Images (Airing/Cover Images Work The Same Way)
+`python python_postar_v32.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" "https://i.imgur.com/3ZRmC6U.jpg" "https://i.imgur.com/XZEGRLv.jpg" -c blue green red -m 41623 42310 59457 -o test_v32.txt`
+
+## BD Post With Three Series/Seasons
+`python python_postar_v32.py -p1080 "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_1080p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_1080p]" -p720 "F:\(Hi10)_Isekai_Maou_Omega_(BD_720p)" "F:\(Hi10)_Cyberpunk_Edgerunners_(BD_720p)" "F:\[Hi10]_Haite_Kudasai_Takamine_San_[BD_720p]" -a "https://i.imgur.com/Y4aH7ZB.jpg" "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue green red -m 41623 42310 59457 -b -bi "https://imgur.com/vEZOJr3.jpg" "https://imgur.com/lKLs0hN.jpg" "https://imgur.com/Ho3EZDh.jpg" "https://imgur.com/BI8chCK.jpg" "https://imgur.com/y3hHGFU.jpg" "https://imgur.com/1yntsON.jpg" -o test_v32_bd.txt`
+
+## PCool Airings Post Via Seasonal Argument
+`python python_postar_v32.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
 
 # Linux Command Examples
-`python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt`
+## The Linux commands are the exact same as windows minus the pathing differences between Linux and Windows
+`python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
