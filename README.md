@@ -57,5 +57,5 @@ If you get a message about updating pip after install requests and pymediainfo, 
 ## PCool Airings Post Via Seasonal Argument
 `python python_postar_v32.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
 
-# The Linux commands are virtually the same as windows minus the pathing differences between Linux and Windows and that you need to use python3 instead of python
+## The Linux commands are virtually the same. Use python3 and adjust the pathing format.
 `python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
