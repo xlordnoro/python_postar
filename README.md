@@ -39,7 +39,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -o allows you to change the filename of the txt file that is going to be generated.
 
 # Windows Command Examples
-python python_postar_v32.py -p "F:/test/(Hi10)___Airings___Folder___(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt
+`python python_postar_v32.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt`
 
 # Linux Command Examples
-python3 python_postar_v32.py -p "/home/noro/(Hi10)___Airings___Folder___(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt
+`python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt`
