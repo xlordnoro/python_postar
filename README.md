@@ -1,7 +1,6 @@
 # python_postar
 A modern version of postar written in python
 
-# Version
 The script is currently at version **32**.
 
 # Installation
