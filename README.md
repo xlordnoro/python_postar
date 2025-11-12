@@ -15,6 +15,7 @@ I've included a written guide and command readme in the guides folder which will
 **MAKE SURE YOU CHECK THE BOX LABELED "ADD PYTHON TO SYSTEM PATH" IN THE PYTHON INSTALLER. WITHOUT THAT SETUP, YOU WON'T BE ABLE TO CALL PYTHON OR PIP GLOGALLY ON YOUR SYSTEM.**
 
 Once python is fully installed, run the following command in cmd, powershell, or terminal if you're running windows 11 to install the required pip libraries.
+
 NOTE: You can also run pip install -r requirements.txt if you're running the terminal window in the same location as the folder containing python postar to achieve the same result.
 
 **pip install requests pymediainfo**
@@ -58,4 +59,4 @@ If you get a message about updating pip after install requests and pymediainfo, 
 `python python_postar_v32.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
 
 ## The Linux commands are virtually the same. Use python3 and adjust the pathing format.
-`python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v32_airing.txt`
+`python3 python_postar_v32.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v32_airing.txt`
