@@ -1,7 +1,7 @@
 # python_postar
 A modern version of postar written in python
 
-The script is currently at version **32**.
+The script is currently at version **0.34**.
 
 # Installation
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
@@ -22,9 +22,7 @@ NOTE: You can also run pip install -r requirements.txt if you're running the ter
 If you get a message about updating pip after install requests and pymediainfo, feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
 
 # Args breakdown
-**The script does have some required arguments that are needed for it to run.**
-
-**It needs -p -a -d -m -c and if one or more is missing it will produce an error stating what is required to run.**
+**The script needs -p -a -d -m -c and if one or more is missing it will produce an error.**
 
 - -p is the paths argument for non-BD's and that will point to the folder(s) you want to make a post for on the site.
 - -p1080 & -p720 are also path arguments, but these are strictly meant for BD posts since I needed a way for the script to map where the folders should be placed in the post code.
@@ -37,6 +35,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -bi is for the resolution button images which function in pairs 1080p 720p, 1080p 720p, etc. The order does matter if u want them to be in the proper place!
 - -s is used to tell the script that it's a seasonal airings post and to sort the entries by series instead of the episode number first (Pcool airings)
 - -o allows you to change the filename of the txt file that is going to be generated.
+- -v shows the version of the script. Older versions had it marked in the file itself.
 
 # Windows Command Examples
 ## One Series

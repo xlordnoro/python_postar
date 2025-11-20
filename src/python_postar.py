@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """
-python_postar_v32.py
+python_postar_v34.py
 
-v32 extended with:
-- Added MediaInfo encoding info above episode tables which was missing before
-- Fixed the OP/ED filename bug
-- Added naming support for extra folders
-- Ensured that the sort order is respected and files are labeled correctly
-- Added -seasonal to enable a toggle for the sorting order (group vs non-group)
+v34:
+- Fixed a file processing bug which caused new files to not be marked as new
+- When they were all in the same folder (Playcool airing post)
 """
 
 # --- Imports and constants ---
@@ -30,6 +27,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = "XLordnoro"
+VERSION = "0.34"
 
 KB = 1024
 MB = KB * 1024
@@ -41,27 +39,58 @@ PROCESSED_FILE = Path(__file__).with_name("processed.json")
 # -----------------------------
 def load_processed():
     if PROCESSED_FILE.exists():
-        try: return json.load(open(PROCESSED_FILE, "r", encoding="utf-8"))
-        except: return {}
+        try:
+            return json.load(open(PROCESSED_FILE, "r", encoding="utf-8"))
+        except:
+            return {}
     return {}
+
 def save_processed(data):
-    try: open(PROCESSED_FILE, "w", encoding="utf-8").write(json.dumps(data, indent=2))
-    except Exception as e: print(f"Warning: could not save processed file ({e})")
-def mark_new(folder_basename, episode_label=None):
+    try:
+        open(PROCESSED_FILE, "w", encoding="utf-8").write(json.dumps(data, indent=2))
+    except Exception as e:
+        print(f"Warning: could not save processed file ({e})")
+
+def mark_new(folder_basename, episode_label=None, filename=None):
+    """
+    Tracks processed episodes by filename and label.
+    Handles old entries (strings) for backward compatibility.
+    
+    folder_basename: str, name of the series/folder
+    episode_label: str, episode code like '01', 'SP1', 'ED', etc.
+    filename: str, actual filename of the file being processed
+    """
     data = load_processed()
     show_entry = data.setdefault(folder_basename, {"episodes": [], "batch": False})
+
+    # Migrate old entries if they are just strings
+    for i, ep in enumerate(show_entry["episodes"]):
+        if isinstance(ep, str):
+            show_entry["episodes"][i] = {"label": ep, "filename": None}
+
+    # Batch marker
     if episode_label is None:
         if not show_entry.get("batch", False):
             show_entry["batch"] = True
             save_processed(data)
             return True
         return False
-    else:
-        if episode_label not in show_entry["episodes"]:
-            show_entry["episodes"].append(episode_label)
-            save_processed(data)
-            return True
-        return False
+
+    if filename is None:
+        raise ValueError("mark_new must be called with 'filename' for episodes")
+
+    # Check if this exact filename has already been processed
+    already = any(ep.get("filename") == filename for ep in show_entry["episodes"])
+
+    if not already:
+        show_entry["episodes"].append({
+            "label": episode_label,
+            "filename": filename
+        })
+        save_processed(data)
+        return True
+
+    return False
 
 # -----------------------------
 # Helpers
@@ -129,6 +158,14 @@ def safe_txt_filename(folder_path: str) -> str:
     s = sanitize_display_name_from_folder(Path(folder_path).name)
     s = re.sub(r'[<>:"/\\|?*]+', '', s).strip()
     return (s if s else "output") + ".txt"
+
+# -----------------------------
+# Helper for HTML indentation
+# -----------------------------
+def append_html(out_lines, line, level=0):
+    """Append HTML line with indentation based on nesting level."""
+    indent = "    " * level  # 4 spaces per level
+    out_lines.append(f"{indent}{line}")
 
 # -----------------------------
 # MediaInfo / Encoding Table
@@ -433,11 +470,10 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
 # -----------------------------
 def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False):
     mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip")]
-
     episodes = []
     folder_basename = folder_path.name
 
-    # OP/ED detection
+    # --- Helper functions ---
     def is_op_ed(fname: str):
         return bool(re.search(r'(?<![A-Za-z0-9])(OP|ED)[ _-]?\d{1,2}(?![A-Za-z0-9])', fname, re.IGNORECASE))
 
@@ -445,7 +481,6 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
         m = re.search(r'(OP|ED)[ _-]?\d{1,2}', fname, re.IGNORECASE)
         return m.group(0).upper().replace("_", "").replace("-", "") if m else fname
 
-    # Special detection
     def is_special(name: str, tag: str):
         return bool(re.search(rf'(?<![A-Za-z0-9]){tag}(?:[ _\-]*?(\d{{1,3}}))?(?![A-Za-z0-9])', name, re.IGNORECASE))
 
@@ -457,11 +492,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     def is_extras(name: str):
         return "extras" in name.lower()
 
-    # Generic label extractor that allows full underscore names
     def extract_dash_label(name: str):
-        # Capture everything after "-_" up to the next "_(" or end
-        # Example: "-_fujimaru_S1_(BD_1080p)" -> "fujimaru_S1"
-        # Require at least one letter in the label so pure numeric parts like "-_01" don't match
         m = re.search(r'-_([A-Za-z0-9_]*[A-Za-z][A-Za-z0-9_]*)(?=_\(|$)', name)
         if m:
             label = m.group(1).strip()
@@ -469,22 +500,17 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
                 return label
         return None
 
-    # Build episodes list
+    # --- Build episodes list ---
     for p in mkv_files:
         fname = p.name
         fsize = p.stat().st_size
-
-        # Compute dash_label early
         dash_label = extract_dash_label(fname)
 
-        # OP/ED detection first
         if is_op_ed(fname):
-            raw = op_ed_label(fname)  # ex: OP1, ED2
+            raw = op_ed_label(fname)
             category = "op" if raw.startswith("OP") else "ed"
             label = raw
             epnum = None
-
-        # Specials (OVA/ONA/OAD/SP)
         elif is_special(fname, "OVA"):
             category = "ova"
             label = special_label(fname, "OVA")
@@ -501,22 +527,15 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             category = "sp"
             label = special_label(fname, "SP")
             epnum = None
-
-        # Extras explicit
         elif is_extras(fname):
             category = "extras"
             label = "Extras"
             epnum = None
-
-        # IMPORTANT: prefer dash_label (when it contains letters) over numeric-episode detection
         elif dash_label:
-            # dash_label contains a letter (per extract_dash_label), treat as dash file
             category = "dash"
             label = dash_label.upper()
             epnum = None
-
         else:
-            # Fallback: try numeric episode detection
             epnum = find_episode_number(fname)
             if isinstance(epnum, int):
                 category = "episode"
@@ -526,9 +545,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
                 label = fname
                 epnum = None
 
-        # Extract series name for alphabetical grouping
         series_name = re.split(r'_-\s*\d{1,3}', fname)[0].strip()
-
         episodes.append({
             "series": series_name,
             "filename": fname,
@@ -539,128 +556,105 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             "category": category
         })
 
-    # debug print (you can remove this later)
-    #for x in episodes:
-        #print(x["filename"], "=>", x["category"])
-
-    # --- Sorting logic (switches based on --airing flag) ---
+    # --- Sorting ---
     def build_sorted_episodes(episodes, is_airing=False):
-        #print("DEBUG: build_sorted_episodes called with is_airing =", is_airing)
-        """
-        Sorts episode entries based on whether --airing mode is active.
-        Airing mode: group by series, then sort by category and episode number.
-        Default: sort all episodes flat by category/episode number only.
-        """
-
         if is_airing:
-            #print("DEBUG: Using SERIES-GROUPED sorting")
-            # --- Airing mode: grouped by series ---
             def ep_sort_key(item):
                 cat = item["category"].lower()
                 if cat in ("ova", "oad", "ona", "sp"):
                     cat = "special"
-
-                order = {
-                    "episode": 0,   # main episodes first
-                    "special": 1,   # then specials
-                    "ed": 2,
-                    "op": 3,
-                    "dash": 4,
-                    "extras": 5,
-                }
-
+                order = {"episode": 0, "special": 1, "ed": 2, "op": 3, "dash": 4, "extras": 5}
                 cat_order = order.get(cat, 999)
-
-                return (
-                    item["series"].lower(),
-                    cat_order,
-                    item.get("episode", 9999),
-                    item["filename"].lower(),
-                )
-
+                return (item["series"].lower(), cat_order, item.get("episode", 9999), item["filename"].lower())
             return sorted(episodes, key=ep_sort_key)
-
         else:
-            #print("DEBUG: Using DEFAULT sorting")
-            # --- Default mode: not grouped by series ---
             def ep_sort_key(item):
                 cat = item["category"].lower()
                 if cat in ("ova", "oad", "ona", "sp"):
                     cat = "special"
-
-                order = {
-                    "episode": 0,
-                    "special": 1,
-                    "ed": 2,
-                    "op": 3,
-                    "dash": 4,
-                    "extras": 5,
-                }
-
+                order = {"episode": 0, "special": 1, "ed": 2, "op": 3, "dash": 4, "extras": 5}
                 cat_order = order.get(cat, 999)
-
                 if cat == "episode":
                     return (cat_order, item.get("episode", 9999))
                 else:
                     return (cat_order, item["filename"].lower())
-
             return sorted(episodes, key=ep_sort_key)
 
-    # --- Sort episodes using airing flag ---
     episodes_sorted = build_sorted_episodes(episodes, is_airing=is_airing)
 
-    # --- HTML generation (unchanged) ---
+    # --- HTML Generation with proper indentation ---
     total_bytes = sum((p.stat().st_size for p in folder_path.rglob("*") if p.is_file()), 0)
     total_size_str = total_size_gb_str(total_bytes)
     batch_is_new = mark_new(folder_basename)
     batch_sup = "<sup>New</sup>" if batch_is_new else ""
     torrent_path_for_folder = torrent_url_for_folder(folder_basename)
-    out_lines = []
-
-    # Batch torrent row
-    out_lines.append('<table class="batchLinksTable">')
-    out_lines.append(f'<thead><tr><th colspan="5"><span style="color: {heading_color};"><strong>{sanitize_display_name_from_folder(folder_basename)} Batch Torrent</strong></span></th></tr></thead>')
-    out_lines.append('<tbody><tr><th>Quality</th><th>Size</th><th>Spaste</th><th>Ouo.io</th><th>Fc.lc</th></tr></tbody>')
-    out_lines.append('<tbody><tr>')
-    quality_label = "1080p" if "1080" in folder_basename else "720p"
-    out_lines.append(f'<td>{quality_label}{batch_sup}</td>')
-    out_lines.append(f'<td>{total_size_str}</td>')
-    out_lines.append(f'<td><a href="{SPASTE_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
-    out_lines.append(f'<td><a href="{OUO_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
-    out_lines.append(f'<td><a href="{FC_LC_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
-    out_lines.append('</tr></tbody></table>')
-
     anime_title = mal_info["short_title"] if mal_info else sanitize_display_name_from_folder(folder_path.name)
 
-    # --- BD / Airing button ---
-    is_bd = bool(re.search(r'[\(\[]BD_[0-9]{3,4}p[\)\]]', folder_basename, re.IGNORECASE))
-    button_title = anime_title if is_bd else f"{anime_title} Airing_BUTTON"
+    out_lines = []
 
+    # Batch torrent table
+    out_lines.append('<table class="batchLinksTable">')
+    out_lines.append('    <thead>')
+    out_lines.append(f'        <tr><th colspan="5"><span style="color: {heading_color};"><strong>{anime_title} Batch Torrent</strong></span></th></tr>')
+    out_lines.append('    </thead>')
+    out_lines.append('    <tbody>')
+    out_lines.append('        <tr>')
+    out_lines.append('            <th>Quality</th>')
+    out_lines.append('            <th>Size</th>')
+    out_lines.append('            <th>Spaste</th>')
+    out_lines.append('            <th>Ouo.io</th>')
+    out_lines.append('            <th>Fc.lc</th>')
+    out_lines.append('        </tr>')
+    out_lines.append('        <tr>')
+    quality_label = "BD 1080p" if "1080" in folder_basename else "BD 720p"
+    out_lines.append(f'            <td>{quality_label}{batch_sup}</td>')
+    out_lines.append(f'            <td>{total_size_str}</td>')
+    out_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
+    out_lines.append(f'            <td><a href="{OUO_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
+    out_lines.append(f'            <td><a href="{FC_LC_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
+    out_lines.append('        </tr>')
+    out_lines.append('    </tbody>')
+    out_lines.append('</table>')
+
+    # Episodes table toggle
     out_lines.append(f'<p style="text-align:center;">')
-    out_lines.append(
-        f'<button class="button1" title="Click to Show / Hide Links" type="button" '
-        f'onclick="var e=document.getElementById(\'{folder_basename}_hidden\'); e.style.display=(e.style.display==\'none\'?\'\':\'none\')">'
-        f'{button_title}</button></p>'
-    )
+    out_lines.append(f'    <button class="button1" title="Click to Show / Hide Links" type="button" onclick="var e=document.getElementById(\'{folder_basename}_hidden\'); e.style.display=(e.style.display==\'none\'?\'\':\'none\')">{anime_title}</button>')
+    out_lines.append('</p>')
     out_lines.append(f'<div id="{folder_basename}_hidden" style="display:none; align:center">')
-    out_lines.append('<table class="showLinksTable"><thead>')
-    out_lines.append(f'<tr><th colspan="5"><span style="color: {heading_color};"><strong>{anime_title}</strong></span></th></tr></thead>')
-    out_lines.append('<thead><tr><th>Episode</th><th>Size</th><th>Spaste</th><th>Ouo.io</th><th>Fc.lc</th></tr></thead><tbody>')
+    out_lines.append('    <table class="showLinksTable">')
+    out_lines.append('        <thead>')
+    out_lines.append(f'            <tr><th colspan="5"><span style="color: {heading_color};"><strong>{anime_title}</strong></span></th></tr>')
+    out_lines.append('        </thead>')
+    out_lines.append('        <thead>')
+    out_lines.append('            <tr>')
+    out_lines.append('                <th>Episode</th>')
+    out_lines.append('                <th>Size</th>')
+    out_lines.append('                <th>Spaste</th>')
+    out_lines.append('                <th>Ouo.io</th>')
+    out_lines.append('                <th>Fc.lc</th>')
+    out_lines.append('            </tr>')
+    out_lines.append('        </thead>')
+    out_lines.append('        <tbody>')
 
-    for e in episodes_sorted:  # <-- use sorted list
+    for e in episodes_sorted:
         label = e["label"]
-        if mark_new(folder_basename, label):
+        filename = e["filename"]
+        if mark_new(folder_basename, label, filename):
             label += "<sup>New</sup>"
-        file_url = url_for_show_file(folder_basename, e["filename"])
-        out_lines.append('<tr>')
-        out_lines.append(f'<td>{label}</td>')
-        out_lines.append(f'<td>{e["size_human"]}</td>')
-        out_lines.append(f'<td><a href="{SPASTE_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
-        out_lines.append(f'<td><a href="{OUO_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
-        out_lines.append(f'<td><a href="{FC_LC_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
-        out_lines.append('</tr>')
+        file_url = url_for_show_file(folder_basename, filename)
 
-    out_lines.append('</tbody></table></div>')
+        out_lines.append('            <tr>')
+        out_lines.append(f'                <td>{label}</td>')
+        out_lines.append(f'                <td>{e["size_human"]}</td>')
+        out_lines.append(f'                <td><a href="{SPASTE_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
+        out_lines.append(f'                <td><a href="{OUO_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
+        out_lines.append(f'                <td><a href="{FC_LC_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
+        out_lines.append('            </tr>')
+
+    out_lines.append('        </tbody>')
+    out_lines.append('    </table>')
+    out_lines.append('</div>')
+
     return out_lines
 
 # -----------------------------
@@ -787,6 +781,7 @@ def main():
     parser.add_argument("--seasonal", "-s", action="store_true", help="When set, group episodes by series (airing-style)")
     parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="One or more donation image URLs")
     parser.add_argument("-o", "--output", help="Output TXT filename (optional)")
+    parser.add_argument("-v", "--version", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
     args = parser.parse_args()
 
     
