@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-python_postar_v34.py
+python_postar.py
 
-v34:
+v35:
 - Fixed a file processing bug which caused new files to not be marked as new
 - When they were all in the same folder (Playcool airing post)
+- Added a number of helper functions to handle crc extraction/version extraction for v2 files
+- Added a toggle for a crc32 column in the episode table via the new --crc/-crc arg
+- Fixed a sorting bug which caused files that had v2 in their name to be marked as dash files instead of episodes
 """
 
 # --- Imports and constants ---
@@ -12,6 +15,8 @@ import os, re, json, argparse
 from pathlib import Path
 from urllib.parse import quote
 import requests
+import zlib
+import re
 
 try:
     from pymediainfo import MediaInfo
@@ -27,7 +32,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = "XLordnoro"
-VERSION = "0.34"
+VERSION = "0.35"
 
 KB = 1024
 MB = KB * 1024
@@ -158,6 +163,32 @@ def safe_txt_filename(folder_path: str) -> str:
     s = sanitize_display_name_from_folder(Path(folder_path).name)
     s = re.sub(r'[<>:"/\\|?*]+', '', s).strip()
     return (s if s else "output") + ".txt"
+
+# ----------------------------
+# CRC32 Hash Extractor
+# ----------------------------
+def compute_crc32(path: Path) -> str:
+    """Return uppercase 8-digit CRC32."""
+    crc = 0
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            crc = zlib.crc32(chunk, crc)
+    return f"{crc & 0xffffffff:08X}"   # <-- uppercase
+
+def extract_crc_from_filename(fname: str) -> str | None:
+    """
+    Match CRC inside brackets: [A1B2C3D4] or [a1b2c3d4]
+    """
+    m = re.search(r'\[([0-9A-Fa-f]{8})\]', fname)
+    return m.group(1).upper() if m else None   # <-- normalize to uppercase
+
+# ----------------------------
+# Version Extractor
+# ----------------------------
+def extract_version_suffix(name: str):
+    # Matches 01v2, 05v3, 12v10 etc.
+    m = re.search(r'(\d{1,3})(v\d{1,3})', name, re.IGNORECASE)
+    return m.group(2).lower() if m else ""
 
 # -----------------------------
 # Helper for HTML indentation
@@ -388,7 +419,7 @@ def get_mal_info(mal_id: str) -> dict:
 # -----------------------------
 # BD / season block
 # -----------------------------
-def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False):
+def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False, crc_enabled=False):
     idx_name = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"]
     season_id = idx_name[season_index] if season_index < len(idx_name) else f"season{season_index + 1}"
     out_lines = []
@@ -427,21 +458,21 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
             '</div></div>'
         )
         out_lines.append(f'<div id="{season_id}_season_bd1080pane">')
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
         out_lines.append('</div>')
         out_lines.append(f'<div id="{season_id}_season_bd720pane">')
-        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing))
+        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
         out_lines.append('</div>')
     else:
         # Non-BD normal table
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled))
 
     return "\n".join(out_lines)
 
 # -----------------------------
 # Non-BD block with MAL synopsis
 # -----------------------------
-def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False):
+def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False):
     out_lines = []
     mal_info = get_mal_info(mal_id)
     header_title = mal_info["full_title"]
@@ -462,13 +493,13 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 
     # Episode table
-    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing))
+    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
     return "\n".join(out_lines)
 
 # -----------------------------
 # Episode tables
 # -----------------------------
-def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False):
+def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False):
     mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip")]
     episodes = []
     folder_basename = folder_path.name
@@ -493,11 +524,19 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
         return "extras" in name.lower()
 
     def extract_dash_label(name: str):
+        # Original regex but we capture the label
         m = re.search(r'-_([A-Za-z0-9_]*[A-Za-z][A-Za-z0-9_]*)(?=_\(|$)', name)
-        if m:
-            label = m.group(1).strip()
-            if label:
-                return label
+        if not m:
+            return None
+
+        label = m.group(1).strip()
+
+        # Reject things that start with a number → it's an episode, not dash label
+        # Examples: 01, 01v2, 12, 24a
+        if re.match(r'^\d', label):
+            return None
+
+        return label
         return None
 
     # --- Build episodes list ---
@@ -539,13 +578,23 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             epnum = find_episode_number(fname)
             if isinstance(epnum, int):
                 category = "episode"
-                label = f"{epnum:02d}"
+
+                # Detect v2/v3/etc
+                ver = extract_version_suffix(fname)
+
+                if ver:
+                    label = f"{epnum:02d}{ver}"
+                else:
+                    label = f"{epnum:02d}"
             else:
                 category = "extras"
                 label = fname
                 epnum = None
 
         series_name = re.split(r'_-\s*\d{1,3}', fname)[0].strip()
+        crc_in_name = extract_crc_from_filename(fname)
+        crc_val = crc_in_name if crc_in_name else compute_crc32(p)
+
         episodes.append({
             "series": series_name,
             "filename": fname,
@@ -553,8 +602,13 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             "size_human": human_size_bytes(fsize),
             "episode": epnum,
             "label": label,
-            "category": category
+            "category": category,
+            "crc32": crc_val,
+            "crc_from_name": bool(crc_in_name)
         })
+
+    #for x in episodes:
+        #print(x["filename"], "=>", x["category"])
 
     # --- Sorting ---
     def build_sorted_episodes(episodes, is_airing=False):
@@ -623,12 +677,14 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append(f'<div id="{folder_basename}_hidden" style="display:none; align:center">')
     out_lines.append('    <table class="showLinksTable">')
     out_lines.append('        <thead>')
-    out_lines.append(f'            <tr><th colspan="5"><span style="color: {heading_color};"><strong>{anime_title}</strong></span></th></tr>')
+    out_lines.append(f'            <tr><th colspan="6"><span style="color: {heading_color};"><strong>{anime_title}</strong></span></th></tr>')
     out_lines.append('        </thead>')
     out_lines.append('        <thead>')
     out_lines.append('            <tr>')
     out_lines.append('                <th>Episode</th>')
     out_lines.append('                <th>Size</th>')
+    if crc_enabled:
+        out_lines.append('                <th>CRC32</th>')
     out_lines.append('                <th>Spaste</th>')
     out_lines.append('                <th>Ouo.io</th>')
     out_lines.append('                <th>Fc.lc</th>')
@@ -637,6 +693,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append('        <tbody>')
 
     for e in episodes_sorted:
+        #print(f"{e['filename']} -> CRC32: {e['crc32']}")
         label = e["label"]
         filename = e["filename"]
         if mark_new(folder_basename, label, filename):
@@ -646,6 +703,8 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
         out_lines.append('            <tr>')
         out_lines.append(f'                <td>{label}</td>')
         out_lines.append(f'                <td>{e["size_human"]}</td>')
+        if crc_enabled:
+            out_lines.append(f'                <td>{e["crc32"]}</td>')
         out_lines.append(f'                <td><a href="{SPASTE_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
         out_lines.append(f'                <td><a href="{OUO_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
         out_lines.append(f'                <td><a href="{FC_LC_PREFIX}{file_url}"><img src="{DDL_IMAGE}"></a></td>')
@@ -661,7 +720,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 # Build HTML block (modified to use single s2If and add href to donations)
 # Also integrated encoding table generation before cover images.
 # -----------------------------
-def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False):
+def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False):
     out_lines = []
 
     # single s2If opens once for all show content
@@ -679,7 +738,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full season block ---
-        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing)
+        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing, crc_enabled=crc_enabled)
 
         # --- 1080p encoding table ---
         enc_1080 = build_encoding_table(folder1080, display_name, heading_color)
@@ -693,7 +752,6 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         if folder720.exists():
             enc_720 = build_encoding_table(folder720, display_name, heading_color)
             if enc_720:
-                import re
                 def insert_720_table(match):
                     div_id = match.group(1)
                     div_content = match.group(2)
@@ -725,7 +783,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full non-BD block ---
-        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing)
+        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled)
 
         # --- Encoding table for non-BD above episodes ---
         enc_table = build_encoding_table(folder, display_name, heading_color)
@@ -782,6 +840,7 @@ def main():
     parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="One or more donation image URLs")
     parser.add_argument("-o", "--output", help="Output TXT filename (optional)")
     parser.add_argument("-v", "--version", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
+    parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     args = parser.parse_args()
 
     
@@ -798,7 +857,8 @@ def main():
         args.donation_image,
         args.bd,
         args.bd_image,
-        is_airing=args.seasonal
+        is_airing=args.seasonal,
+        crc_enabled=args.crc
     )
 
     out_file = args.output or default_filename
