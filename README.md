@@ -36,6 +36,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -s is used to tell the script that it's a seasonal airings post and to sort the entries by series instead of the episode number first (Pcool airings)
 - -o allows you to change the filename of the txt file that is going to be generated.
 - -v shows the version of the script. Older versions had it marked in the file itself.
+- -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
 
 # Windows Command Examples
 ## One Series
