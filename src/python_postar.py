@@ -2,10 +2,11 @@
 """
 python_postar.py
 
-v36.1:
-- Added a new helper function which creates and stores the staff members settings in .postar_settings.json
-- This will allow them to have the script auto-update and not require them to re-enter their settings after an update
-- The settings can be re-configured via the -configure arg or by editing the .json file directly
+v37:
+- Fixed a regex issue which was causing it to grab numbers in the anime title and using them as the episode number.
+- Tweaked the format of the encoding settings table when it's just html to make it more readable.
+- Fixed the quality label which was always being set as BD 1080p or BD 720p on airing due to a hardcoded line.
+- It now pulls it directly from the foldername and will only apply BD if BD is present in the resolution tag.
 """
 
 # --- Imports and constants ---
@@ -106,7 +107,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.36.1"
+VERSION = "0.37"
 
 KB = 1024
 MB = KB * 1024
@@ -261,55 +262,38 @@ def sanitize_display_name_from_folder(folder_name: str) -> str:
     s = re.sub(r'[\[\(\{][^\]\)\}]*[\]\)\}]', ' ', folder_name)
     s = s.replace('_', ' ').replace('.', ' ')
     return re.sub(r'\s+', ' ', s).strip()
+
 def find_episode_number(filename: str):
     """
-    Try several patterns to find a real episode number.
-    Ignore numbers that are part of release tags or adjacent to letters (e.g. 'Hi10').
+    Extract the episode number from the filename.
+    Ignores series numbering, resolution numbers (720/1080), CRC hashes, 
+    release group tags, and properly handles v1/v2 suffixes.
     """
-    patterns = [
-        r'[_\-]\s*(\d{1,3})(?=[_\s\)\[]|$)',                 # -01_ or - 01
-        r'episode[ _\-\.]?(\d{1,3})(?=[_\s\)\[]|$)',         # episode01
-        r'ep[ _\-\.]?(\d{1,3})(?=[_\s\)\[]|$)',              # ep01
-        r'[_\(\[\s](\d{1,3})[_\]\)\s]',                      # (01) or _01_
-        r'-(\d{1,3})-',                                      # -01-
-        r's?(\d{1,2})e(\d{1,2})'                             # S01E01 or 1E01
-    ]
-    for p in patterns:
-        m = re.search(p, filename, re.IGNORECASE)
-        if not m:
-            continue
-        # find the group index containing digits
-        for gi in range(1, len(m.groups()) + 1):
-            try:
-                span = m.span(gi)
-            except:
-                continue
-            if span == (-1, -1):
-                continue
-            start = span[0]
-            val_str = m.group(gi)
-            if not val_str or not val_str.isdigit():
-                continue
-            # if the char before the matched digits is a letter, skip (handles Hi10 etc)
-            if start > 0 and filename[start - 1].isalpha():
-                continue
-            try:
-                val = int(val_str)
-            except:
-                continue
-            if val in (720, 1080) or val >= 1000:
-                continue
+    ignore_numbers = {720, 1080}
+
+    # Remove all parentheses blocks (CRC, resolution, release group)
+    filename_clean = re.sub(r'\([^\)]*\)', '', filename)
+
+    # Focus on part after the last dash
+    last_dash_index = filename_clean.rfind('-')
+    search_str = filename_clean[last_dash_index + 1:] if last_dash_index != -1 else filename_clean
+
+    # Search for first number (episode) with optional v1/v2
+    match = re.search(r'(\d{1,3})(v\d)?', search_str)
+    if match:
+        val = int(match.group(1))
+        if val not in ignore_numbers and val < 1000:
             return val
-    # fallback: look for standalone digit groups but skip ones adjacent to letters
-    for mo in re.finditer(r'(\d{1,3})', filename):
-        start = mo.start(1)
-        if start > 0 and filename[start - 1].isalpha():
-            continue
-        v = int(mo.group(1))
-        if v in (720, 1080) or v >= 1000:
-            continue
-        return v
+
+    # Fallback: last valid number in the whole filename
+    matches = re.findall(r'(\d{1,3})(v\d)?', filename_clean)
+    for number_str, _ in reversed(matches):
+        val = int(number_str)
+        if val not in ignore_numbers and val < 1000:
+            return val
+
     return None
+
 def url_for_show_file(folder_basename: str, filename: str) -> str:
     return B2_SHOWS_BASE + quote(f"{folder_basename}/{filename}", safe="/[]()")
 def torrent_url_for_folder(folder_basename: str) -> str:
@@ -508,12 +492,16 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
     folder_lower = folder_path.name.lower()
     mkv_names = " ".join([m.name.lower() for m in mkvs]) if mkvs else ""
 
-    # Flexible BD detection
-    is_bd = bool(re.search(r'bd|blu[-_ ]?ray', folder_lower, re.I)) or \
-        bool(re.search(r'bd|blu[-_ ]?ray', mkv_names, re.I))
+    # --- Tag-based BD detection ---
+    m = re.search(r'\[(.*?)\]$', folder_lower)
+    tag = m.group(1) if m else ""
+    tag = tag.lower()
 
-    has_1080 = "1080" in folder_lower or "1080" in mkv_names
-    has_720  = "720" in folder_lower or "720" in mkv_names
+    is_bd     = "bd" in tag
+    has_1080  = "1080" in tag
+    has_720   = "720" in tag
+
+    #print("BT-QUALITY CHECK:", folder_lower, "BD?", is_bd)  # <-- here, inside processing
 
     if is_bd and has_1080:
         quality_label = "BD 1080p"
@@ -526,19 +514,24 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
     else:
         quality_label = "Unknown Quality"
 
+    #print("Quality label:", quality_label)  # optional
+
     title_extra = f"{quality_label}, {audio_label}"
     source_str = f"{ENCODER_NAME} from {subgroup_str}"
 
     return (
-        '<table class="showInfoTable">'
-        '<thead>'
-        f'<tr><th colspan="2"><span style="color:{heading_color};"><strong>Encoding Settings - {display_name} [{title_extra}]</strong></span></th></tr>'
-        '</thead>'
-        '<tbody>'
-        f'<tr><td>Source</td><td>{source_str}</td></tr>'
-        f'<tr><td>Video</td><td>{video_str}</td></tr>'
-        f'<tr><td>Audio</td><td>{audio_str}</td></tr>'
-        '</tbody></table>'
+        '<table class="showInfoTable">\n'
+        '<thead>\n'
+        '<tr>\n'
+        f'<th colspan="2"><span style="color:{heading_color};"><strong>Encoding Settings - {display_name} [{title_extra}]</strong></span></th>\n'
+        '</tr>\n'
+        '</thead>\n'
+        '<tbody>\n'
+        f'<tr>\n<td>Source</td>\n<td>{source_str}</td>\n</tr>\n'
+        f'\t<tr>\n\t<td>Video</td>\n\t<td>{video_str}</td>\n\t</tr>\n'
+        f'\t<tr>\n\t<td>Audio</td>\n\t<td>{audio_str}</td>\n\t</tr>\n'
+        '</tbody>\n'
+        '</table>'
     )
 
 # -----------------------------
@@ -815,7 +808,11 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append('            <th>Fc.lc</th>')
     out_lines.append('        </tr>')
     out_lines.append('        <tr>')
-    quality_label = "BD 1080p" if "1080" in folder_basename else "BD 720p"
+    quality_label = ("BD 1080p" if "bd" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() and "1080" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
+                 "BD 720p" if "bd" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() and "720" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
+                 "1080p" if "1080" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
+                 "720p" if "720" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
+                 "Unknown Quality")
     out_lines.append(f'            <td>{quality_label}{batch_sup}</td>')
     out_lines.append(f'            <td>{total_size_str}</td>')
     out_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
@@ -1014,6 +1011,7 @@ def main():
     check_for_github_update()
     
     # --- DEBUG ---
+    #print("DEBUG: args.bd =", args.bd)
     print("DEBUG: --seasonal flag is set to:", args.seasonal)
 
     output_text, default_filename = build_html_block(
