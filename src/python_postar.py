@@ -2,19 +2,18 @@
 """
 python_postar.py
 
-v35:
-- Fixed a file processing bug which caused new files to not be marked as new
-- When they were all in the same folder (Playcool airing post)
+v36:
 - Added a number of helper functions to handle crc extraction/version extraction for v2 files
 - Added a toggle for a crc32 column in the episode table via the new --crc/-crc arg
 - Fixed a sorting bug which caused files that had v2 in their name to be marked as dash files instead of episodes
+- Added an auto-updater function to pull the latest version of the script
 """
 
 # --- Imports and constants ---
 import os, re, json, argparse
 from pathlib import Path
 from urllib.parse import quote
-import requests
+import requests, sys
 import zlib
 import re
 
@@ -32,12 +31,59 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = "XLordnoro"
-VERSION = "0.35"
+VERSION = "0.36"
 
 KB = 1024
 MB = KB * 1024
 GB = MB * 1024
 PROCESSED_FILE = Path(__file__).with_name("processed.json")
+
+# ----------------------
+# Auto-Updater
+# ----------------------
+VERSION_URL = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/VERSION"
+SCRIPT_URL  = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/src/python_postar.py"
+
+def check_for_github_update():
+    try:
+        resp = requests.get(VERSION_URL, timeout=5)
+        resp.raise_for_status()
+        remote_ver = resp.text.strip()
+    except Exception as e:
+        print(f"[Update] Could not get version info: {e}")
+        return
+
+    if remote_ver <= VERSION:
+        return  # no update available
+
+    print(f"[Update] New version {remote_ver} available (current: {VERSION})")
+    print("[Update] Downloading new script...")
+
+    try:
+        script_resp = requests.get(SCRIPT_URL, timeout=5)
+        script_resp.raise_for_status()
+    except Exception as e:
+        print(f"[Update] Failed to download script: {e}")
+        return
+
+    script_path = Path(__file__).resolve()
+    backup_path = script_path.with_suffix(".backup.py")
+
+    try:
+        script_path.replace(backup_path)  # backup old script
+    except Exception as e:
+        print(f"[Update] Backup failed: {e}")
+        return
+
+    try:
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script_resp.text)
+    except Exception as e:
+        print(f"[Update] Writing new script failed: {e}")
+        return
+
+    print("[Update] Update successful — please restart the script.")
+    sys.exit(0)
 
 # -----------------------------
 # Processed tracking
@@ -865,6 +911,8 @@ def main():
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(output_text)
     print(f"TXT generated: {out_file}")
+
+check_for_github_update()
 
 if __name__ == "__main__":
     main()
