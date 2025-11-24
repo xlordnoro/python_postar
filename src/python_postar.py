@@ -6,10 +6,11 @@ v36:
 - Added a number of helper functions to handle crc extraction/version extraction for v2 files
 - Added a toggle for a crc32 column in the episode table via the new --crc/-crc arg
 - Fixed a sorting bug which caused files that had v2 in their name to be marked as dash files instead of episodes
-- Added an auto-updater function to pull the latest version of the script
+- Added an auto-updater function to check the latest version of the script once per day 
 """
 
 # --- Imports and constants ---
+from datetime import date
 import os, re, json, argparse
 from pathlib import Path
 from urllib.parse import quote
@@ -44,7 +45,41 @@ PROCESSED_FILE = Path(__file__).with_name("processed.json")
 VERSION_URL = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/VERSION"
 SCRIPT_URL  = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/src/python_postar.py"
 
+# Timestamp file stored next to the script
+def get_timestamp_file():
+    script_path = Path(__file__).resolve()
+    return script_path.parent / ".postar_update_check"
+
+
+def should_check_update():
+    stamp_file = get_timestamp_file()
+
+    if not stamp_file.exists():
+        return True  # no file → check now
+
+    try:
+        last_date_str = stamp_file.read_text().strip()
+        last_date = date.fromisoformat(last_date_str)
+    except:
+        return True  # corrupt file → check now
+
+    # If it's a different day → check
+    return last_date != date.today()
+
+
+def update_timestamp():
+    stamp_file = get_timestamp_file()
+    stamp_file.write_text(date.today().isoformat())
+
+
 def check_for_github_update():
+    # Only run once per day
+    if not should_check_update():
+        return
+    update_timestamp()
+
+    print("[Update] Checking for updates...")
+
     try:
         resp = requests.get(VERSION_URL, timeout=5)
         resp.raise_for_status()
@@ -54,10 +89,10 @@ def check_for_github_update():
         return
 
     if remote_ver <= VERSION:
-        return  # no update available
+        return  # Already up to date
 
     print(f"[Update] New version {remote_ver} available (current: {VERSION})")
-    print("[Update] Downloading new script...")
+    print("[Update] Downloading updated script...")
 
     try:
         script_resp = requests.get(SCRIPT_URL, timeout=5)
@@ -70,7 +105,7 @@ def check_for_github_update():
     backup_path = script_path.with_suffix(".backup.py")
 
     try:
-        script_path.replace(backup_path)  # backup old script
+        script_path.replace(backup_path)
     except Exception as e:
         print(f"[Update] Backup failed: {e}")
         return
@@ -82,7 +117,7 @@ def check_for_github_update():
         print(f"[Update] Writing new script failed: {e}")
         return
 
-    print("[Update] Update successful — please restart the script.")
+    print("[Update] Update complete — restart the script.")
     sys.exit(0)
 
 # -----------------------------
@@ -889,7 +924,7 @@ def main():
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     args = parser.parse_args()
 
-    # Runs auto-update check on runtime
+    # Runs auto-update check on runtime once per day
     check_for_github_update()
     
     # --- DEBUG ---
