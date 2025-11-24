@@ -1,7 +1,7 @@
 # python_postar
 A modern version of postar written in python
 
-The script is currently at version **0.36.1**.
+The script is currently at version **0.37**.
 
 # Installation
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
