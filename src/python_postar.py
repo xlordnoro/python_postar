@@ -889,6 +889,8 @@ def main():
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     args = parser.parse_args()
 
+    # Runs auto-update check on runtime
+    check_for_github_update()
     
     # --- DEBUG ---
     print("DEBUG: --seasonal flag is set to:", args.seasonal)
@@ -911,8 +913,6 @@ def main():
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(output_text)
     print(f"TXT generated: {out_file}")
-
-check_for_github_update()
 
 if __name__ == "__main__":
     main()
