@@ -2,11 +2,10 @@
 """
 python_postar.py
 
-v36:
-- Added a number of helper functions to handle crc extraction/version extraction for v2 files
-- Added a toggle for a crc32 column in the episode table via the new --crc/-crc arg
-- Fixed a sorting bug which caused files that had v2 in their name to be marked as dash files instead of episodes
-- Added an auto-updater function to check the latest version of the script once per day 
+v36.1:
+- Added a new helper function which creates and stores the staff members settings in .postar_settings.json
+- This will allow them to have the script auto-update and not require them to re-enter their settings after an update
+- The settings can be re-configured via the -configure arg or by editing the .json file directly
 """
 
 # --- Imports and constants ---
@@ -24,15 +23,90 @@ try:
 except Exception:
     HAVE_PYMEDIAINFO = False
 
-B2_SHOWS_BASE = "https://f005.backblazeb2.com/file/noro-27be5839/Shows/"
-B2_TORRENTS_BASE = "https://f005.backblazeb2.com/file/noro-27be5839/Torrents/"
+# ----------------------
+# Settings Loader
+# ----------------------
+SETTINGS_FILE = Path.cwd() / ".postar_settings.json"
+
+DEFAULT_SETTINGS = {
+    "B2_SHOWS_BASE": "",
+    "B2_TORRENTS_BASE": "",
+    "ENCODER_NAME": ""
+}
+
+def load_settings(force_reconfigure=False):
+    """Ensure postar_settings.json exists and load settings from it."""
+
+    # If user passed --configure, force a new prompt
+    if force_reconfigure:
+        settings = prompt_for_settings()
+        SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+        print("[Settings] Settings updated.\n")
+        return settings
+    
+    if not SETTINGS_FILE.exists():
+        print("[Settings] No settings file found. Creating postar_settings.json...")
+        SETTINGS_FILE.write_text(json.dumps(DEFAULT_SETTINGS, indent=2), encoding="utf-8")
+
+        # Prompt user to fill in values
+        print("\nPlease enter your Backblaze B2 URLs & encoder name:")
+        shows = input("B2_SHOWS_BASE: ").strip()
+        torrents = input("B2_TORRENTS_BASE: ").strip()
+        encoder = input("ENCODER_NAME: ").strip()
+
+        settings = {
+            "B2_SHOWS_BASE": shows,
+            "B2_TORRENTS_BASE": torrents,
+            "ENCODER_NAME": encoder
+        }
+
+        SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+        print("[Settings] Settings saved to .postar_settings.json\n")
+        return settings
+
+    # Load existing settings
+    try:
+        settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        print("[Settings] ERROR: Could not read .postar_settings.json — recreating...")
+        SETTINGS_FILE.write_text(json.dumps(DEFAULT_SETTINGS, indent=2), encoding="utf-8")
+        return load_settings()
+
+    # Validate keys (in case future versions add/remove settings)
+    modified = False
+    for k, v in DEFAULT_SETTINGS.items():
+        if k not in settings:
+            settings[k] = v
+            modified = True
+    if modified:
+        SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+
+    return settings
+
+# Re-prompt if a user wishes to change their postar settings via -configure instead of editing the .postar_settings.json
+def prompt_for_settings():
+    print("\n[Settings] Reconfigure postar settings:")
+    shows = input("B2_SHOWS_BASE: ").strip()
+    torrents = input("B2_TORRENTS_BASE: ").strip()
+    encoder = input("ENCODER_NAME: ").strip()
+
+    return {
+        "B2_SHOWS_BASE": shows,
+        "B2_TORRENTS_BASE": torrents,
+        "ENCODER_NAME": encoder
+    }
+
+# Load settings + override globals
+SETTINGS = load_settings()
+B2_SHOWS_BASE = SETTINGS["B2_SHOWS_BASE"]
+B2_TORRENTS_BASE = SETTINGS["B2_TORRENTS_BASE"]
 FC_LC_PREFIX = "https://fc.lc/st?api=3053afcd9e6bde75550be021b9d8aa183f18d5ae&url="
 SPASTE_PREFIX = "https://www.spaste.com/r/LRZdw6?link="
 OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
-ENCODER_NAME = "XLordnoro"
-VERSION = "0.36"
+ENCODER_NAME = SETTINGS["ENCODER_NAME"]
+VERSION = "0.36.1"
 
 KB = 1024
 MB = KB * 1024
@@ -919,10 +993,22 @@ def main():
     parser.add_argument("--airing-image", "-a", nargs="+", required=True, help="URL to airing image")
     parser.add_argument("--seasonal", "-s", action="store_true", help="When set, group episodes by series (airing-style)")
     parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="One or more donation image URLs")
-    parser.add_argument("-o", "--output", help="Output TXT filename (optional)")
-    parser.add_argument("-v", "--version", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
+    parser.add_argument("--output", "-o", help="Output TXT filename (optional)")
+    parser.add_argument("--version", "-v", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
+    parser.add_argument("--configure", "-configure", action="store_true", help="Reconfigure postar settings and overwrite postar_settings.json")
     args = parser.parse_args()
+
+    # ----------------------------------------
+    # Load settings (with forced reconfigure)
+    # ----------------------------------------
+    SETTINGS = load_settings(force_reconfigure=args.configure)
+
+    # Override globals after loading settings
+    global B2_SHOWS_BASE, B2_TORRENTS_BASE, ENCODER_NAME
+    B2_SHOWS_BASE = SETTINGS["B2_SHOWS_BASE"]
+    B2_TORRENTS_BASE = SETTINGS["B2_TORRENTS_BASE"]
+    ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 
     # Runs auto-update check on runtime once per day
     check_for_github_update()

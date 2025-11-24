@@ -1,10 +1,3 @@
-# Modifications needed inside the script (very few are required)
-To edit the python script, you can use IDLE which is installed alongside python by default, but you can use notepad++ as well.
-Near the top of the script, you'll see a bunch of variables (B2_SHOWS_BASE, B2_TORRENTS_BASE). You'll need to update the b2 paths to reflect where you store the files in your b2 bucket.
-I put mine in shows and torrents to keep the main files and torrents separate from each other.
-The last thing you'll need to change is the ENCODER_NAME variable to match your name. That's used when creating the encoding settings table. Otherwise, it'll
-always show my name instead of yours.
-
 # Everyone's got a basic bitch nearby, right? The bare minimum needed to run the script.
 
 python python_postar.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -o test_v34.txt

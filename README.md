@@ -1,7 +1,7 @@
 # python_postar
 A modern version of postar written in python
 
-The script is currently at version **0.36**.
+The script is currently at version **0.36.1**.
 
 # Installation
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
@@ -37,6 +37,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -o allows you to change the filename of the txt file that is going to be generated.
 - -v shows the version of the script. Older versions had it marked in the file itself.
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
+- -configure allows the user to re-configure their settings for postar or they can edit the .postar_settings.json file directly.
 
 # Windows Command Examples
 ## One Series

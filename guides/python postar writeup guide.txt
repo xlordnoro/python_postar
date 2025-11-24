@@ -63,6 +63,7 @@ e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 -o allows you to change the filename of the txt file that is going to be generated.
 -v shows the version of the script. Older versions had it marked in the file itself.
 -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
+-configure allows users to re-configure their settings if a mistake is made. They can also edit the settings file directly.
 e.g. test_v34.txt since it took me that many revisions to get to this point after wrestling the AI to the ground and pinning it for the victory rofl OOOH! I AM THE MACHO MAN!
 
 # Modifications needed inside the script (very few are required)
