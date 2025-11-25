@@ -2,11 +2,8 @@
 """
 python_postar.py
 
-v37:
-- Fixed a regex issue which was causing it to grab numbers in the anime title and using them as the episode number.
-- Tweaked the format of the encoding settings table when it's just html to make it more readable.
-- Fixed the quality label which was always being set as BD 1080p or BD 720p on airing due to a hardcoded line.
-- It now pulls it directly from the foldername and will only apply BD if BD is present in the resolution tag.
+v37.1:
+- Fixed a regex issue which was causing the resolution to not be grabbed on folders with () for the resolution
 """
 
 # --- Imports and constants ---
@@ -107,7 +104,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.37"
+VERSION = "0.37.1"
 
 KB = 1024
 MB = KB * 1024
@@ -493,7 +490,7 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
     mkv_names = " ".join([m.name.lower() for m in mkvs]) if mkvs else ""
 
     # --- Tag-based BD detection ---
-    m = re.search(r'\[(.*?)\]$', folder_lower)
+    m = re.search(r'[\(\[](?P<val>.*?)[\)\]]$', folder_lower)
     tag = m.group(1) if m else ""
     tag = tag.lower()
 
@@ -808,11 +805,15 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append('            <th>Fc.lc</th>')
     out_lines.append('        </tr>')
     out_lines.append('        <tr>')
-    quality_label = ("BD 1080p" if "bd" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() and "1080" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
-                 "BD 720p" if "bd" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() and "720" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
-                 "1080p" if "1080" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
-                 "720p" if "720" in (re.search(r'\[(.*?)\]$', folder_basename.lower()) or [None,""])[1].lower() else
-                 "Unknown Quality")
+    quality_label = (
+        "BD 1080p" if "bd" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() 
+                      and "1080" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "BD 720p"  if "bd" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() 
+                      and "720" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "1080p"    if "1080" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "720p"     if "720"  in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "Unknown Quality"
+    )
     out_lines.append(f'            <td>{quality_label}{batch_sup}</td>')
     out_lines.append(f'            <td>{total_size_str}</td>')
     out_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_for_folder}"><img src="{TORRENT_IMAGE}"></a></td>')
