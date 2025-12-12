@@ -2,8 +2,9 @@
 """
 python_postar.py
 
-v37.1:
-- Fixed a regex issue which was causing the resolution to not be grabbed on folders with () for the resolution
+v38:
+- Modified the batch torrent table generation to place both resolutions above the button code when using -b per season
+- Otherwise, it will place it in the default spot for airings
 """
 
 # --- Imports and constants ---
@@ -104,7 +105,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.37.1"
+VERSION = "0.38"
 
 KB = 1024
 MB = KB * 1024
@@ -612,6 +613,37 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
         # Non-BD normal table
         out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled))
 
+    # -------------------------
+    # REORDER: Batch table vs Button block
+    # If bd_toggle/args.bd is True → batch table goes ABOVE the buttons
+    # -------------------------
+    if bd_toggle:  # or args.bd if passed in directly
+        # Find first </table> (end of batch table)
+        batch_end = None
+        for i, line in enumerate(out_lines):
+            if "</table>" in line:
+                batch_end = i + 1
+                break
+
+        if batch_end:
+            batch_block = out_lines[:batch_end]
+
+            # Button block is always the next 2–3 lines (<p> + <div>)
+            # We detect the <p> that contains the BD toggle button
+            button_start = None
+            for i in range(batch_end, len(out_lines)):
+                if "<p" in out_lines[i] and "hide" in out_lines[i]:
+                    button_start = i
+                    break
+
+            if button_start:
+                # button block = <p>...</p> AND <div ...>
+                button_block = out_lines[button_start:button_start + 2]
+                episode_block = out_lines[button_start + 2:]
+
+                # Rebuild in the new order
+                out_lines[:] = batch_block + button_block + episode_block
+
     return "\n".join(out_lines)
 
 # -----------------------------
@@ -923,6 +955,72 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
                     flags=re.DOTALL
                 )
 
+        # ----------------------------------------------------------
+        # Build single batch table with BD 1080p and BD 720p
+        # ----------------------------------------------------------
+        if bd_toggle:
+            # Remove any existing batch table for this season
+            start_tag = '<table class="batchLinksTable">'
+            end_tag = '</table>'
+            start_idx = season_block.find(start_tag)
+            while start_idx != -1:
+                end_idx = season_block.find(end_tag, start_idx)
+                if end_idx == -1:
+                    break
+                season_block = season_block[:start_idx] + season_block[end_idx + len(end_tag):]
+                start_idx = season_block.find(start_tag)
+
+            # Build new batch table
+            batch_lines = []
+            batch_lines.append('<table class="batchLinksTable">')
+            batch_lines.append('    <thead>')
+            batch_lines.append(f'        <tr><th colspan="5"><span style="color: {heading_color};"><strong>{display_name} Batch Torrent</strong></span></th></tr>')
+            batch_lines.append('    </thead>')
+            batch_lines.append('    <tbody>')
+            batch_lines.append('        <tr>')
+            batch_lines.append('            <th>Quality</th>')
+            batch_lines.append('            <th>Size</th>')
+            batch_lines.append('            <th>Spaste</th>')
+            batch_lines.append('            <th>Ouo.io</th>')
+            batch_lines.append('            <th>Fc.lc</th>')
+            batch_lines.append('        </tr>')
+            batch_lines.append('    </tbody>')
+            batch_lines.append('    <tbody>')
+
+            # 1080p row
+            total_bytes_1080 = sum((p.stat().st_size for p in folder1080.rglob("*") if p.is_file()), 0)
+            total_size_1080 = total_size_gb_str(total_bytes_1080)
+            torrent_path_1080 = torrent_url_for_folder(folder1080.name)
+            batch_lines.append(f'        <tr>')
+            batch_lines.append(f'            <td>BD 1080p<sup>{"New" if mark_new(folder1080.name) else ""}</sup></td>')
+            batch_lines.append(f'            <td>{total_size_1080}</td>')
+            batch_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_1080}"><img src="{TORRENT_IMAGE}"></a></td>')
+            batch_lines.append(f'            <td><a href="{OUO_PREFIX}{torrent_path_1080}"><img src="{TORRENT_IMAGE}"></a></td>')
+            batch_lines.append(f'            <td><a href="{FC_LC_PREFIX}{torrent_path_1080}"><img src="{TORRENT_IMAGE}"></a></td>')
+            batch_lines.append(f'        </tr>')
+
+            # 720p row (only if exists)
+            if folder720.exists():
+                total_bytes_720 = sum((p.stat().st_size for p in folder720.rglob("*") if p.is_file()), 0)
+                total_size_720 = total_size_gb_str(total_bytes_720)
+                torrent_path_720 = torrent_url_for_folder(folder720.name)
+                batch_lines.append(f'        <tr>')
+                batch_lines.append(f'            <td>BD 720p<sup>{"New" if mark_new(folder720.name) else ""}</sup></td>')
+                batch_lines.append(f'            <td>{total_size_720}</td>')
+                batch_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_720}"><img src="{TORRENT_IMAGE}"></a></td>')
+                batch_lines.append(f'            <td><a href="{OUO_PREFIX}{torrent_path_720}"><img src="{TORRENT_IMAGE}"></a></td>')
+                batch_lines.append(f'            <td><a href="{FC_LC_PREFIX}{torrent_path_720}"><img src="{TORRENT_IMAGE}"></a></td>')
+                batch_lines.append(f'        </tr>')
+
+            batch_lines.append('    </tbody>')
+            batch_lines.append('</table>')
+
+            batch_table = "\n".join(batch_lines)
+
+            # Insert **once** after the synopsis but before the BD buttons
+            insert_pos = season_block.find('<div style="width: 100%; text-align: center;">')
+            season_block = season_block[:insert_pos] + batch_table + "\n" + season_block[insert_pos:]
+                
         out_lines.append(season_block)
 
     # Non-BD folders
