@@ -2,13 +2,13 @@
 """
 python_postar.py
 
-v38.1:
-- Split the main script and the helper functions to make managing the project easier.
-- All helper functions including the auto-updater are now inside helpers.py
-- When performing updates, both the helpers.py & python_postar.py are backed up if I need to add more helper functions in the future.
+v39.1:
+- Fixed a sorting bug that incorrectly marked some movie files as episodes when combining numbers and titles
+- Ensured that the full titles on movie files are extracted since earlier versions would sometimes not processing the whole title.
 """
 
 # --- Imports and constants ---
+from datetime import date
 import time
 import os, re, json, argparse
 from pathlib import Path
@@ -152,6 +152,25 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     def is_extras(name: str):
         return "extras" in name.lower()
 
+    def is_movie(name: str):
+        return bool(re.search(r'(?<![A-Za-z0-9])movie(?![A-Za-z0-9])', name, re.IGNORECASE))
+
+    def extract_movie_label(name: str):
+        """
+        Extracts full movie label, including decimals:
+        Movie_08.5_vs_Detective_Conan_Special
+        """
+
+        m = re.search(
+            r'-_\s*(Movie(?:[ _\-]?\d{1,2}(?:\.\d)?)?(?:_[^_()]+)*)',
+            name,
+            re.IGNORECASE
+        )
+        if not m:
+            return None
+
+        return m.group(1).rstrip('_')
+
     def extract_dash_label(name: str):
         # Original regex but we capture the label
         m = re.search(r'-_([A-Za-z0-9_]*[A-Za-z][A-Za-z0-9_]*)(?=_\(|$)', name)
@@ -198,6 +217,14 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
         elif is_extras(fname):
             category = "extras"
             label = "Extras"
+            epnum = None
+        elif is_movie(fname):
+            category = "dash"
+            movie_dash = extract_movie_label(fname)
+            if movie_dash:
+                label = movie_dash
+            else:
+                label = "MOVIE"
             epnum = None
         elif dash_label:
             category = "dash"
