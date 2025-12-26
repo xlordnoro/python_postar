@@ -2,9 +2,8 @@
 """
 python_postar.py
 
-v39.1:
-- Fixed a sorting bug that incorrectly marked some movie files as episodes when combining numbers and titles
-- Ensured that the full titles on movie files are extracted since earlier versions would sometimes not processing the whole title.
+v40:
+- Added a new argument named -kage which adds the discord widget and modifies how the donation images are positioned
 """
 
 # --- Imports and constants ---
@@ -17,7 +16,7 @@ from helper import *
 # -----------------------------
 # BD / season block
 # -----------------------------
-def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False, crc_enabled=False):
+def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False, crc_enabled=False, kage=False):
     idx_name = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"]
     season_id = idx_name[season_index] if season_index < len(idx_name) else f"season{season_index + 1}"
     out_lines = []
@@ -384,7 +383,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 # Build HTML block (modified to use single s2If and add href to donations)
 # Also integrated encoding table generation before cover images.
 # -----------------------------
-def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False):
+def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False):
     out_lines = []
 
     # single s2If opens once for all show content
@@ -402,7 +401,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full season block ---
-        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing, crc_enabled=crc_enabled)
+        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage)
 
         # --- 1080p encoding table ---
         enc_1080 = build_encoding_table(folder1080, display_name, heading_color)
@@ -528,9 +527,16 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
     # Close single s2If before donations
     out_lines.append('[/s2If]')
 
-    # Donation section
-    if donate_imgs:
-        out_lines.append(f'<a class="donateImage" href="https://hi10anime.com/?page_id=70"><img src="{donate_imgs[0]}" alt="Please Donate" title="Please Donate"></a>')
+    # ----------------------------------------
+    # Donation section (disabled when kage)
+    # ----------------------------------------
+    if donate_imgs and not kage:
+        out_lines.append(
+            f'<a class="donateImage" href="https://hi10anime.com/?page_id=70">'
+            f'<img src="{donate_imgs[0]}" alt="Please Donate" title="Please Donate">'
+            f'</a>'
+        )
+
         if len(donate_imgs) > 1:
             donate_id = "Donate_Global"
             out_lines.append(
@@ -542,8 +548,54 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
             )
             out_lines.append(f'<div id="{donate_id}" style="display:none; align:center">')
             for img in donate_imgs[1:]:
-                out_lines.append(f'<a class="donateImage" href="https://hi10anime.com/?page_id=70"><img src="{img}" alt="Please Donate" title="Please Donate"></a>')
+                out_lines.append(
+                    f'<a class="donateImage" href="https://hi10anime.com/?page_id=70">'
+                    f'<img src="{img}" alt="Please Donate" title="Please Donate">'
+                    f'</a>'
+                )
             out_lines.append("</div>")
+
+    # ----------------------------------------
+    # Kage Discord widget (end of post)
+    # ----------------------------------------
+    if kage:
+        banner_html = ""
+        donate_img_html = ""
+
+        if donate_imgs:
+            if len(donate_imgs) > 1:
+                # First donation image becomes the banner
+                banner_html = (
+                    '<div style="margin-left: auto; margin-right: auto;">'
+                    f'<img src="{donate_imgs[0]}">'
+                    '</div>'
+                )
+                donate_img = donate_imgs[1]
+            else:
+                # Single donation image stays inside widget
+                donate_img = donate_imgs[0]
+
+            donate_img_html = (
+                f'<a class="donateImage" href="https://hi10anime.com/?page_id=70">'
+                f'<img src="{donate_img}" alt="Please Donate" title="Please Donate" />'
+                f'</a>'
+            )
+
+        if banner_html:
+            out_lines.append(banner_html)
+
+        out_lines.append(
+            '<div style="margin-left: auto; margin-right: auto; text-align: center;'
+            'padding-top: 10px; padding-bottom: 10px; background-color: #7289da;'
+            'border-radius: 10px; color: white; font-weight: 600;'
+            'letter-spacing: 1px; font-variant: all-petite-caps;">'
+            f'{donate_img_html}'
+            'Join us at Discord!'
+            '<iframe title="Discord" '
+            'src="https://discordapp.com/widget?id=155549815466491904&amp;theme=dark" '
+            'style="margin-bottom: -10px" width="100%" height="250"></iframe>'
+            '</div>'
+        )
 
     # JS include
     out_lines.append('<script type="text/javascript" src="https://xlordnoro.github.io/playcools_js_code.js"></script>')
@@ -572,6 +624,7 @@ def main():
     parser.add_argument("--version", "-v", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     parser.add_argument("--configure", "-configure", action="store_true", help="Reconfigure postar settings and overwrite postar_settings.json")
+    parser.add_argument("--kage", "-kage", action="store_true", help="Modifies the post layout to include the discord widget and various minor changes in the layout")
     args = parser.parse_args()
 
     # ----------------------------------------
@@ -604,7 +657,8 @@ def main():
         args.bd,
         args.bd_image,
         is_airing=args.seasonal,
-        crc_enabled=args.crc
+        crc_enabled=args.crc,
+        kage=args.kage
     )
 
     out_file = args.output or default_filename
