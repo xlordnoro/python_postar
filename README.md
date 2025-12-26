@@ -38,6 +38,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -v shows the version of the script. Older versions had it marked in the file itself.
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
 - -configure allows the user to re-configure their settings for postar or they can edit the .postar_settings.json file directly.
+- -kage adds a discord widget and modifies how the donation images are placed at the bottom of posts.
 
 # Windows Command Examples
 ## One Series
