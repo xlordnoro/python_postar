@@ -2,8 +2,9 @@
 """
 python_postar.py
 
-v40:
-- Added a new argument named -kage which adds the discord widget and modifies how the donation images are positioned
+v40.1:
+- Added a new argument named -kage which adds the discord widget and modifies how the donation images are positioned.
+- Finally got the kage argument properly passed through the various functions to remove the green buttons that hides the episode tables.
 """
 
 # --- Imports and constants ---
@@ -55,14 +56,14 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
             '</div></div>'
         )
         out_lines.append(f'<div id="{season_id}_season_bd1080pane">')
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
         out_lines.append('</div>')
         out_lines.append(f'<div id="{season_id}_season_bd720pane">')
-        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
+        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
         out_lines.append('</div>')
     else:
         # Non-BD normal table
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled, kage=kage))
 
     # -------------------------
     # REORDER: Batch table vs Button block
@@ -100,7 +101,7 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
 # -----------------------------
 # Non-BD block with MAL synopsis
 # -----------------------------
-def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False):
+def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False):
     out_lines = []
     mal_info = get_mal_info(mal_id)
     header_title = mal_info["full_title"]
@@ -121,13 +122,13 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 
     # Episode table
-    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled))
+    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
     return "\n".join(out_lines)
 
 # -----------------------------
 # Episode tables
 # -----------------------------
-def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False):
+def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False):
     mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip")]
     episodes = []
     folder_basename = folder_path.name
@@ -333,11 +334,22 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append('    </tbody>')
     out_lines.append('</table>')
 
-    # Episodes table toggle
-    out_lines.append(f'<p style="text-align:center;">')
-    out_lines.append(f'    <button class="button1" title="Click to Show / Hide Links" type="button" onclick="var e=document.getElementById(\'{folder_basename}_hidden\'); e.style.display=(e.style.display==\'none\'?\'\':\'none\')">{anime_title}</button>')
-    out_lines.append('</p>')
-    out_lines.append(f'<div id="{folder_basename}_hidden" style="display:none; align:center">')
+    # Episodes table (toggle unless -kage is used)
+    if not kage:
+        out_lines.append('<p style="text-align:center;">')
+        out_lines.append(
+            f'    <button class="button1" title="Click to Show / Hide Links" '
+            f'type="button" '
+            f'onclick="var e=document.getElementById(\'{folder_basename}_hidden\'); '
+            f'e.style.display=(e.style.display==\'none\'?\'\':\'none\')">'
+            f'{anime_title}</button>'
+        )
+        out_lines.append('</p>')
+        out_lines.append(f'<div id="{folder_basename}_hidden" style="display:none; align:center">')
+    else:
+        # No toggle, no hidden div
+        out_lines.append('<div style="align:center">')
+
     out_lines.append('    <table class="showLinksTable">')
     out_lines.append('        <thead>')
     out_lines.append(f'            <tr><th colspan="6"><span style="color: {heading_color};"><strong>{anime_title}</strong></span></th></tr>')
@@ -512,7 +524,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full non-BD block ---
-        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled)
+        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage)
 
         # --- Encoding table for non-BD above episodes ---
         enc_table = build_encoding_table(folder, display_name, heading_color)
