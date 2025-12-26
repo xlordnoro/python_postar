@@ -1,7 +1,6 @@
+[![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar)  ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar) 
 # python_postar
 A modern version of postar written in python
-
-The script is currently at version **0.40.1**.
 
 # Installation
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
