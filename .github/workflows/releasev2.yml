@@ -1,4 +1,4 @@
-name: Build python_postar Release ZIPs
+name: Build python_postar Release ZIPs v2
 
 on:
   release:
