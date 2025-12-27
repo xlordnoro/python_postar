@@ -3,6 +3,11 @@ name: Build python_postar Release ZIPs
 on:
   release:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      test_tag:
+        description: 'Tag name to use for ZIP (only for manual testing)'
+        default: 'vTEST'
 
 # -------------------------
 # Permissions for GitHub Actions
@@ -18,6 +23,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Determine tag for ZIP naming
+      - name: Set ZIP tag
+        id: zip_tag
+        run: |
+          echo "ZIP_TAG=${GITHUB_EVENT_NAME == 'workflow_dispatch' && echo ${{ github.event.inputs.test_tag }} || echo ${{ github.ref_name }}}" >> $GITHUB_ENV
+
       # -------------------------
       # Windows ZIP
       # -------------------------
@@ -30,11 +41,12 @@ jobs:
           cp requirements.txt python_postar_windows/
 
           cp -r guides python_postar_windows/
-          cp -r scripts/postar_batch.bat python_postar_windows/scripts || mkdir -p python_postar_windows/scripts && cp scripts/postar_batch.bat python_postar_windows/scripts/
+          mkdir -p python_postar_windows/scripts
+          cp scripts/postar_batch.bat python_postar_windows/scripts/
 
       - name: Create Windows ZIP
         run: |
-          zip -r python_postar_windows_${{ github.ref_name }}.zip python_postar_windows
+          zip -r python_postar_windows_${ZIP_TAG}.zip python_postar_windows
 
       # -------------------------
       # Linux ZIP
@@ -57,14 +69,15 @@ jobs:
 
       - name: Create Linux ZIP
         run: |
-          zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
+          zip -r python_postar_linux_${ZIP_TAG}.zip python_postar_linux
 
       # -------------------------
       # Upload to Release
       # -------------------------
       - name: Upload ZIPs to GitHub Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            python_postar_windows_${{ github.ref_name }}.zip
-            python_postar_linux_${{ github.ref_name }}.zip
+            python_postar_windows_${ZIP_TAG}.zip
+            python_postar_linux_${ZIP_TAG}.zip
