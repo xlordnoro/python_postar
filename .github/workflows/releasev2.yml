@@ -4,9 +4,6 @@ on:
   release:
     types: [created]
 
-# -------------------------
-# Permissions for GitHub Actions
-# -------------------------
 permissions:
   contents: write
 
@@ -23,18 +20,11 @@ jobs:
       # -------------------------
       - name: Create Windows release folder
         run: |
-          # Create directories
           mkdir -p python_postar_windows/scripts
-
-          # Copy main source files
           cp src/python_postar.py python_postar_windows/
           cp src/helper.py python_postar_windows/
           cp requirements.txt python_postar_windows/
-
-          # Copy guides folder
           cp -r guides python_postar_windows/
-
-          # Copy Windows batch script
           cp scripts/postar_batch.bat python_postar_windows/scripts/
 
       - name: Create Windows ZIP
@@ -47,11 +37,9 @@ jobs:
       - name: Create Linux release folder
         run: |
           mkdir -p python_postar_linux/scripts
-
           cp src/python_postar.py python_postar_linux/
           cp src/helper.py python_postar_linux/
           cp requirements.txt python_postar_linux/
-
           cp -r guides python_postar_linux/
           cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
 
@@ -64,6 +52,26 @@ jobs:
           zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
 
       # -------------------------
+      # macOS ZIP
+      # -------------------------
+      - name: Create macOS release folder
+        run: |
+          mkdir -p python_postar_macos/scripts
+          cp src/python_postar.py python_postar_macos/
+          cp src/helper.py python_postar_macos/
+          cp requirements.txt python_postar_macos/
+          cp -r guides python_postar_macos/
+          cp scripts/postar_batch_linux.sh python_postar_macos/scripts/  # Use Linux shell script
+
+      - name: Make macOS script executable
+        run: |
+          chmod +x python_postar_macos/scripts/postar_batch_linux.sh
+
+      - name: Create macOS ZIP
+        run: |
+          zip -r python_postar_macos_${{ github.ref_name }}.zip python_postar_macos
+
+      # -------------------------
       # Upload to Release
       # -------------------------
       - name: Upload ZIPs to GitHub Release
@@ -72,3 +80,4 @@ jobs:
           files: |
             python_postar_windows_${{ github.ref_name }}.zip
             python_postar_linux_${{ github.ref_name }}.zip
+            python_postar_macos_${{ github.ref_name }}.zip
