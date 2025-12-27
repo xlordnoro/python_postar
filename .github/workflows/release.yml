@@ -25,10 +25,13 @@ jobs:
 
       # Determine tag for ZIP naming
       - name: Set ZIP tag
-        id: zip_tag
         run: |
-          echo "ZIP_TAG=${GITHUB_EVENT_NAME == 'workflow_dispatch' && echo ${{ github.event.inputs.test_tag }} || echo ${{ github.ref_name }}}" >> $GITHUB_ENV
-
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "ZIP_TAG=${{ github.event.inputs.test_tag }}" >> $GITHUB_ENV
+          else
+            echo "ZIP_TAG=${GITHUB_REF_NAME#refs/tags/}" >> $GITHUB_ENV
+          fi
+          
       # -------------------------
       # Windows ZIP
       # -------------------------
