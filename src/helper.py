@@ -1,9 +1,11 @@
 from datetime import date
-import os, re, json, argparse
+import os, re, json, argparse, io
 from pathlib import Path
 from urllib.parse import quote
 import requests, sys
 import zlib
+import zipfile
+import shutil
 
 try:
     from pymediainfo import MediaInfo
@@ -94,7 +96,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.40.1"
+VERSION = "0.40.2"
 
 KB = 1024
 MB = KB * 1024
@@ -102,67 +104,46 @@ GB = MB * 1024
 PROCESSED_FILE = Path(__file__).with_name("processed.json")
 
 # ----------------------
-# Auto-Updater
+# Auto-Updater via GitHub release ZIP with backup
 # ----------------------
-VERSION_URL = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/VERSION"
-HELPER_URL  = "https://raw.githubusercontent.com/xlordnoro/python_postar/main/src/helper.py"
-
-FILES_TO_UPDATE = {
-    "python_postar.py": "https://raw.githubusercontent.com/xlordnoro/python_postar/main/src/python_postar.py",
-    "helper.py":        "https://raw.githubusercontent.com/xlordnoro/python_postar/main/src/helper.py",
-}
+REPO_OWNER = "xlordnoro"
+REPO_NAME  = "python_postar"
+VERSION_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/VERSION"
 
 # Timestamp file stored next to the script
 def get_timestamp_file():
-    script_path = Path(__file__).resolve()
-    return script_path.parent / ".postar_update_check"
-
+    return Path(__file__).resolve().parent / ".postar_update_check"
 
 def should_check_update():
     stamp_file = get_timestamp_file()
-
     if not stamp_file.exists():
-        return True  # no file → check now
-
+        return True
     try:
-        last_date_str = stamp_file.read_text().strip()
-        last_date = date.fromisoformat(last_date_str)
+        last_date = date.fromisoformat(stamp_file.read_text().strip())
     except Exception:
-        return True  # corrupt file → check now
-
+        return True
     return last_date != date.today()
 
-
 def update_timestamp():
-    stamp_file = get_timestamp_file()
-    stamp_file.write_text(date.today().isoformat())
+    get_timestamp_file().write_text(date.today().isoformat())
 
+def detect_platform_zip():
+    """Return platform string used in release ZIP naming."""
+    if sys.platform.startswith("win"):
+        return "windows"
+    elif sys.platform.startswith("darwin"):
+        return "macos"
+    else:
+        return "linux"
 
-def ensure_helper_present():
-    """Bootstrap helper.py for older single-file installs."""
-    base_dir = Path(__file__).resolve().parent
-    helper_path = base_dir / "helper.py"
-
-    if helper_path.exists():
-        return
-
-    print("[Update] helper.py missing — downloading required helper file...")
-
-    try:
-        resp = requests.get(HELPER_URL, timeout=5)
-        resp.raise_for_status()
-        helper_path.write_text(resp.text, encoding="utf-8")
-        print("[Update] helper.py successfully installed.")
-    except Exception as e:
-        print(f"[Update] ERROR: Failed to download helper.py: {e}")
-        print("[Update] Cannot continue without helper.py.")
-        sys.exit(1)
-
+def backup_file(target_path: Path):
+    """Create a backup of the file if it exists."""
+    if target_path.exists():
+        backup_path = target_path.with_suffix(target_path.suffix + ".backup")
+        shutil.copy2(target_path, backup_path)
+        print(f"[Update] Backup created: {backup_path}")
 
 def check_for_github_update():
-    # Ensure helper.py exists for newer versions
-    ensure_helper_present()
-
     # Only run once per day
     if not should_check_update():
         return
@@ -170,6 +151,7 @@ def check_for_github_update():
 
     print("[Update] Checking for updates...")
 
+    # Get latest version
     try:
         resp = requests.get(VERSION_URL, timeout=5)
         resp.raise_for_status()
@@ -182,33 +164,50 @@ def check_for_github_update():
         return  # Already up to date
 
     print(f"[Update] New version {remote_ver} available (current: {VERSION})")
-    print("[Update] Updating files...")
+
+    # Determine platform
+    platform = detect_platform_zip()
+    zip_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{REPO_NAME}_{platform}_{remote_ver}.zip"
+    print(f"[Update] Downloading {platform} release ZIP from {zip_url} ...")
+
+    try:
+        resp = requests.get(zip_url, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"[Update] Failed to download release ZIP: {e}")
+        return
 
     base_dir = Path(__file__).resolve().parent
 
-    for filename, url in FILES_TO_UPDATE.items():
-        target_path = base_dir / filename
-        backup_path = target_path.with_suffix(".backup.py")
+    # Extract ZIP contents
+    try:
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            print(f"[Update] Extracting files to {base_dir} ...")
+            for member in z.namelist():
+                if member.endswith("/"):
+                    continue  # skip directories
 
-        try:
-            resp = requests.get(url, timeout=5)
-            resp.raise_for_status()
-        except Exception as e:
-            print(f"[Update] Failed to download {filename}: {e}")
-            return
+                parts = Path(member).parts
+                # Remove top-level folder in ZIP
+                relative_path = Path(*parts[1:]) if len(parts) > 1 else Path(*parts)
+                target_path = base_dir / relative_path
 
-        try:
-            if target_path.exists():
-                target_path.replace(backup_path)
+                target_path.parent.mkdir(parents=True, exist_ok=True)
 
-            target_path.write_text(resp.text, encoding="utf-8")
-            print(f"[Update] Updated {filename}")
-        except Exception as e:
-            print(f"[Update] Failed to write {filename}: {e}")
-            return
+                # Backup existing file before overwriting
+                backup_file(target_path)
 
-    print("[Update] Update complete — restart the script.")
-    sys.exit(0)
+                # Extract new file
+                with z.open(member) as src, open(target_path, "wb") as dst:
+                    dst.write(src.read())
+                print(f"[Update] Updated: {target_path}")
+
+        print("[Update] Update complete — restart the script.")
+        sys.exit(0)
+
+    except Exception as e:
+        print(f"[Update] Failed to extract ZIP: {e}")
+        return
 
 # -----------------------------
 # Processed tracking
