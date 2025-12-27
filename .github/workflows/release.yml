@@ -23,14 +23,19 @@ jobs:
       # -------------------------
       - name: Create Windows release folder
         run: |
-          mkdir python_postar_windows
+          # Create directories
+          mkdir -p python_postar_windows/scripts
 
+          # Copy main source files
           cp src/python_postar.py python_postar_windows/
           cp src/helper.py python_postar_windows/
           cp requirements.txt python_postar_windows/
 
+          # Copy guides folder
           cp -r guides python_postar_windows/
-          cp -r scripts/postar_batch.bat python_postar_windows/scripts || mkdir -p python_postar_windows/scripts && cp scripts/postar_batch.bat python_postar_windows/scripts/
+
+          # Copy Windows batch script
+          cp scripts/postar_batch.bat python_postar_windows/scripts/
 
       - name: Create Windows ZIP
         run: |
@@ -41,14 +46,13 @@ jobs:
       # -------------------------
       - name: Create Linux release folder
         run: |
-          mkdir python_postar_linux
+          mkdir -p python_postar_linux/scripts
 
           cp src/python_postar.py python_postar_linux/
           cp src/helper.py python_postar_linux/
           cp requirements.txt python_postar_linux/
 
           cp -r guides python_postar_linux/
-          mkdir -p python_postar_linux/scripts
           cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
 
       - name: Make Linux script executable
