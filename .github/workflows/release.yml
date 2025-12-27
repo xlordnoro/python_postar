@@ -39,8 +39,8 @@ jobs:
         run: |
           mkdir python_postar_windows
 
-          cp python_postar.py python_postar_windows/
-          cp helper.py python_postar_windows/
+          cp src/python_postar.py python_postar_windows/
+          cp src/helper.py python_postar_windows/
           cp requirements.txt python_postar_windows/
 
           cp -r guides python_postar_windows/
@@ -58,8 +58,8 @@ jobs:
         run: |
           mkdir python_postar_linux
 
-          cp python_postar.py python_postar_linux/
-          cp helper.py python_postar_linux/
+          cp src/python_postar.py python_postar_linux/
+          cp src/helper.py python_postar_linux/
           cp requirements.txt python_postar_linux/
 
           cp -r guides python_postar_linux/
