@@ -96,7 +96,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.40.2"
+VERSION = "0.40.3"
 
 KB = 1024
 MB = KB * 1024
@@ -167,7 +167,7 @@ def check_for_github_update():
 
     # Determine platform
     platform = detect_platform_zip()
-    zip_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{REPO_NAME}_{platform}_{remote_ver}.zip"
+    zip_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{REPO_NAME}_{platform}_v{remote_ver}.zip"
     print(f"[Update] Downloading {platform} release ZIP from {zip_url} ...")
 
     try:
