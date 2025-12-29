@@ -18,11 +18,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.13.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13.9"
-
       - name: Create portable folder structure
         shell: bash
         run: |
@@ -33,8 +28,8 @@ jobs:
       - name: Copy application files
         shell: bash
         run: |
-          cp src/python_postar.py dist/python_portable/
-          cp src/helper.py dist/python_portable/
+          cp src/python_postar.py dist/python_portable/scripts/
+          cp src/helper.py dist/python_portable/scripts/
           cp requirements.txt dist/python_portable/
           cp -r guides dist/python_portable/
 
@@ -43,11 +38,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Download embedded Python
           curl -L https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip -o python.zip
           Expand-Archive python.zip dist/python_portable/python
           Add-Content dist/python_portable/python/python313._pth "`nimport site"
-          python -m pip install --upgrade pip
-          python -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
+
+          # Upgrade pip and install packages into site-packages
+          dist\python_portable\python\python.exe -m ensurepip
+          dist\python_portable\python\python.exe -m pip install --upgrade pip
+          dist\python_portable\python\python.exe -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
 
       - name: Copy Windows batch script
         if: runner.os == 'Windows'
@@ -65,7 +64,6 @@ jobs:
           print(pathlib.Path(sys.executable).parents[2])
           END_PY
           )
-          
           cp -R "$PYROOT" dist/python_portable/python
           python3 -m pip install --upgrade pip
           python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
@@ -82,7 +80,6 @@ jobs:
           print(pathlib.Path(sys.executable).parents[2])
           END_PY
           )
-          
           cp -R "$PYROOT" dist/python_portable/python
           python3 -m pip install --upgrade pip
           python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
