@@ -70,41 +70,32 @@ jobs:
           cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
           chmod +x dist/python_portable/scripts/postar_batch_linux.sh
 
-      # ---------------- macOS ----------------
+      # ---------------- macOS portable Python ----------------
       - name: macOS portable Python
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          # Download macOS Universal2 installer pkg for Python 3.13.9
-          curl -L -o python.pkg "https://www.python.org/ftp/python/3.13.9/python-3.13.9-macos11.pkg"
+          # Create a virtual environment in the portable folder
+          python3 -m venv dist/python_portable/python
 
-          # Prepare extraction directory
-          mkdir -p dist/python_portable/python
+          # Activate the venv
+          source dist/python_portable/python/bin/activate
 
-          # Extract the .pkg contents
-          pkgutil --expand python.pkg python_pkg_expanded
+          # Upgrade pip and install required packages
+          pip install --upgrade pip
+          pip install requests pymediainfo
 
-          # Find the main .pkg inside and extract again
-          inner_pkg=$(find python_pkg_expanded -name "*.pkg" | head -n 1)
-          pkgutil --expand "$inner_pkg" python_inner_expanded
+          # Deactivate venv
+          deactivate
 
-          # Copy the actual Python framework install into the portable folder
-          cp -R python_inner_expanded/Payload/Library/Frameworks/Python.framework dist/python_portable/python/
-
-          # Make a symlinked python3 executable and bin layout
-          mkdir -p dist/python_portable/python/bin
-          ln -s ../Python.framework/Versions/3.13/bin/python3 dist/python_portable/python/bin/python3
-          ln -s ../Python.framework/Versions/3.13/bin/pip3 dist/python_portable/python/bin/pip3
-
-          # Install dependencies into our portable folder
-          export PATH="$(pwd)/dist/python_portable/python/bin:$PATH"
-          python3 -m ensurepip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
-
-          # Copy scripts and make launch script
+          # Copy scripts
+          mkdir -p dist/python_portable/scripts
           cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
           chmod +x dist/python_portable/scripts/postar_batch_linux.sh
+
+          # Symlink python3 and pip3 for convenience
+          ln -s bin/python dist/python_portable/python/bin/python3
+          ln -s bin/pip dist/python_portable/python/bin/pip3
 
       # ---------------- CLEANUP ----------------
       - name: Cleanup runtime bloat
