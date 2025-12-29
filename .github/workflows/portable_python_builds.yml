@@ -75,14 +75,34 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          PYROOT=$(python3 - <<'END_PY'
-          import sys, pathlib
-          print(pathlib.Path(sys.executable).parents[2])
-          END_PY
-          )
-          cp -R "$PYROOT" dist/python_portable/python
+          # Download macOS Universal2 installer pkg for Python 3.13.9
+          curl -L -o python.pkg "https://www.python.org/ftp/python/3.13.9/python-3.13.9-macos11.pkg"
+
+          # Prepare extraction directory
+          mkdir -p dist/python_portable/python
+
+          # Extract the .pkg contents
+          pkgutil --expand python.pkg python_pkg_expanded
+
+          # Find the main .pkg inside and extract again
+          inner_pkg=$(find python_pkg_expanded -name "*.pkg" | head -n 1)
+          pkgutil --expand "$inner_pkg" python_inner_expanded
+
+          # Copy the actual Python framework install into the portable folder
+          cp -R python_inner_expanded/Payload/Library/Frameworks/Python.framework dist/python_portable/python/
+
+          # Make a symlinked python3 executable and bin layout
+          mkdir -p dist/python_portable/python/bin
+          ln -s ../Python.framework/Versions/3.13/bin/python3 dist/python_portable/python/bin/python3
+          ln -s ../Python.framework/Versions/3.13/bin/pip3 dist/python_portable/python/bin/pip3
+
+          # Install dependencies into our portable folder
+          export PATH="$(pwd)/dist/python_portable/python/bin:$PATH"
+          python3 -m ensurepip
           python3 -m pip install --upgrade pip
           python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
+
+          # Copy scripts and make launch script
           cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
           chmod +x dist/python_portable/scripts/postar_batch_linux.sh
 
