@@ -1,4 +1,4 @@
-name: Build Portable Python 3.13.9 with Scripts
+name: Build Portable Python 3.13.9 (All OS, Python + Scripts)
 
 on:
   release:
@@ -29,25 +29,49 @@ jobs:
           mkdir -p dist/python_portable/Lib/site-packages
           mkdir -p dist/python_portable/scripts
 
-      # ---------------- WINDOWS ----------------
-      - name: Windows embedded Python 3.13.9
+      # ---------------- COPY COMMON FILES ----------------
+      - name: Copy application files
+        shell: bash
+        run: |
+          cp src/python_postar.py dist/python_portable/
+          cp src/helper.py dist/python_portable/
+          cp requirements.txt dist/python_portable/
+          cp -r guides dist/python_portable/
+
+      # ---------------- PLATFORM SPECIFIC ----------------
+      - name: Windows portable Python
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # Embedded Python
           curl -L https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip -o python.zip
           Expand-Archive python.zip dist/python_portable/python
           Add-Content dist/python_portable/python/python313._pth "`nimport site"
           python -m pip install --upgrade pip
           python -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
-
-      - name: Copy Windows scripts
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
+          
+          # Copy Windows batch
           cp scripts/postar_batch.bat dist/python_portable/scripts/
 
-      # ---------------- macOS ----------------
-      - name: macOS portable Python 3.13.9
+      - name: Linux portable Python
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          PYROOT=$(python3 - <<'END_PY'
+          import sys, pathlib
+          print(pathlib.Path(sys.executable).parents[2])
+          END_PY
+          )   
+          
+          cp -R "$PYROOT" dist/python_portable/python
+          python3 -m pip install --upgrade pip
+          python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
+          
+          # Copy Linux batch
+          cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
+          chmod +x dist/python_portable/scripts/postar_batch_linux.sh
+
+      - name: macOS portable Python
         if: runner.os == 'macOS'
         shell: bash
         run: |
@@ -60,12 +84,10 @@ jobs:
           cp -R "$PYROOT" dist/python_portable/python
           python3 -m pip install --upgrade pip
           python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
-
-      - name: Copy macOS/Linux scripts
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
+          
+          # Copy macOS/Linux batch
           cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
+          chmod +x dist/python_portable/scripts/postar_batch_linux.sh
 
       # ---------------- CLEANUP ----------------
       - name: Cleanup runtime bloat
@@ -75,25 +97,24 @@ jobs:
           rm -rf dist/python_portable/Lib/site-packages/pip* setuptools* wheel*
 
       # ---------------- LAUNCHERS ----------------
+      - name: Create Windows launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo @echo off > dist\python_portable\run.bat
+          echo scripts\postar_batch.bat %* >> dist\python_portable\run.bat
+
       - name: Create Unix launcher
         if: runner.os != 'Windows'
         shell: bash
         run: |
           cat << 'EOF' > dist/python_portable/run.sh
-          
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
           "$DIR/scripts/postar_batch_linux.sh" "$@"
           EOF
           
           chmod +x dist/python_portable/run.sh
-
-      - name: Create Windows launcher
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          echo @echo off > dist\python_portable\run.bat
-          echo python\python.exe scripts\postar_batch.bat %* >> dist\python_portable\run.bat
 
       # ---------------- PACKAGE ----------------
       - name: Package portable build
