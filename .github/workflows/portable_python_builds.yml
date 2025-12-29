@@ -1,4 +1,4 @@
-name: Build Portable Python 3.13.9 (Python-only)
+name: Build Portable Python 3.13.9 with Scripts
 
 on:
   release:
@@ -27,19 +27,24 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist/python_portable/Lib/site-packages
+          mkdir -p dist/python_portable/scripts
 
       # ---------------- WINDOWS ----------------
       - name: Windows embedded Python 3.13.9
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Download official embedded Python zip
           curl -L https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip -o python.zip
           Expand-Archive python.zip dist/python_portable/python
           Add-Content dist/python_portable/python/python313._pth "`nimport site"
-          # Install Python packages into portable Lib
           python -m pip install --upgrade pip
           python -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
+
+      - name: Copy Windows scripts
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cp scripts/postar_batch.bat dist/python_portable/scripts/
 
       # ---------------- macOS ----------------
       - name: macOS portable Python 3.13.9
@@ -56,26 +61,11 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
 
-      # ---------------- LINUX ----------------
-      - name: Linux portable Python 3.13.9
-        if: runner.os == 'Linux'
+      - name: Copy macOS/Linux scripts
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          PYROOT=$(python3 - <<'END_PY'
-          import sys, pathlib
-          print(pathlib.Path(sys.executable).parents[2])
-          END_PY
-          )
-          
-          cp -R "$PYROOT" dist/python_portable/python
-          python3 -m pip install --upgrade pip
-          python3 -m pip install requests pymediainfo --target dist/python_portable/Lib/site-packages
-
-      # ---------------- COPY APP SOURCE ----------------
-      - name: Copy application entry
-        shell: bash
-        run: |
-          cp src/main.py dist/python_portable/
+          cp scripts/postar_batch_linux.sh dist/python_portable/scripts/
 
       # ---------------- CLEANUP ----------------
       - name: Cleanup runtime bloat
@@ -93,7 +83,7 @@ jobs:
           
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
-          "$DIR/python/bin/python3" "$DIR/main.py" "$@"
+          "$DIR/scripts/postar_batch_linux.sh" "$@"
           EOF
           
           chmod +x dist/python_portable/run.sh
@@ -103,7 +93,7 @@ jobs:
         shell: pwsh
         run: |
           echo @echo off > dist\python_portable\run.bat
-          echo python\python.exe main.py %* >> dist\python_portable\run.bat
+          echo python\python.exe scripts\postar_batch.bat %* >> dist\python_portable\run.bat
 
       # ---------------- PACKAGE ----------------
       - name: Package portable build
