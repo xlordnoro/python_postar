@@ -658,10 +658,6 @@ def main():
     print("DEBUG: --seasonal flag is set to:", args.seasonal)
     start_time = time.perf_counter()
 
-    # Progress message BEFORE writing
-    early_out = args.output if args.output else "insert_something_here.txt"
-    print(f"Processing TXT: {early_out}")
-
     output_text, default_filename = build_html_block(
         [Path(p) for p in args.p1080] if args.p1080 else [],
         [Path(p) for p in args.p720] if args.p720 else [],
@@ -677,14 +673,15 @@ def main():
         kage=args.kage
     )
 
-    out_file = args.output or default_filename    
+    out_file = args.output or default_filename
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(output_text)
+    print(f"TXT generated: {out_file}")
 
     # Records the time taken to build the html code
     end_time = time.perf_counter()
     elapsed = end_time - start_time
-    print(f"{out_file} completed in {elapsed:.3f} seconds")
+    print(f"[Timing] HTML build completed in {elapsed:.3f} seconds")
 
 if __name__ == "__main__":
     main()
