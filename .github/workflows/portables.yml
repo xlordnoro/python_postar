@@ -34,22 +34,45 @@ jobs:
         cd src
         pyinstaller --onedir python_postar.py
 
+    - name: Add extra files to portable build
+      shell: bash
+      run: |
+        DIST="src/dist/python_postar"
+
+        mkdir -p "$DIST/scripts"
+
+        # Core files
+        cp src/python_postar.py "$DIST/"
+        cp src/helper.py "$DIST/"
+        cp requirements.txt "$DIST/"
+
+        # Guides folder
+        cp -r guides "$DIST/"
+
+        # Platform-specific script
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          cp scripts/postar_batch.bat "$DIST/scripts/"
+        else
+          cp scripts/postar_batch_linux.sh "$DIST/scripts/"
+          chmod +x "$DIST/scripts/postar_batch_linux.sh"
+        fi
+
     - name: Package dist folder
       shell: pwsh
       run: |
         if ($env:RUNNER_OS -eq "Windows") {
-            # Windows: use PowerShell Compress-Archive
-            $DIST_FOLDER = "src\dist"
-            $PLATFORM = "windows"
-            $ZIP_NAME = "python_postar_${PLATFORM}_${env:GITHUB_REF_NAME}_portable.zip"
+            $DIST_FOLDER = "src\dist\python_postar"
+            $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
             Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
             Write-Host "Created $ZIP_NAME"
         } else {
-            # Linux / macOS: run Bash for zip
             bash -c '
-              DIST_FOLDER="src/dist"
-              if [[ "$RUNNER_OS" == "Linux" ]]; then PLATFORM="linux"; else PLATFORM="macos"; fi
-              ZIP_NAME="python_postar_${PLATFORM}_${GITHUB_REF_NAME}_portable.zip"
+              DIST_FOLDER="src/dist/python_postar"
+              if [[ "$RUNNER_OS" == "Linux" ]]; then
+                ZIP_NAME="python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
+              else
+                ZIP_NAME="python_postar_macos_${GITHUB_REF_NAME}_portable.zip"
+              fi
               zip -r "$ZIP_NAME" "$DIST_FOLDER"
               echo "Created $ZIP_NAME"
             '
