@@ -96,13 +96,12 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.41"
+VERSION = "0.40.3"
 
 KB = 1024
 MB = KB * 1024
 GB = MB * 1024
 PROCESSED_FILE = Path(__file__).with_name("processed.json")
-ORIGINAL_ARGV = sys.argv.copy()
 
 # ----------------------
 # Auto-Updater via GitHub release ZIP with backup
@@ -203,12 +202,8 @@ def check_for_github_update():
                     dst.write(src.read())
                 print(f"[Update] Updated: {target_path}")
 
-        print("[Update] Update complete — restarting with original command...")
-
-        python = sys.executable
-        script = Path(__file__).resolve()
-
-        os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
+        print("[Update] Update complete — restart the script.")
+        sys.exit(0)
 
     except Exception as e:
         print(f"[Update] Failed to extract ZIP: {e}")
