@@ -96,7 +96,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.41.1"
+VERSION = "0.41.2"
 
 KB = 1024
 MB = KB * 1024
@@ -145,10 +145,13 @@ def backup_file(target_path: Path):
         print(f"[Update] Backup created: {backup_path}")
 
 def check_for_github_update():
-    # Only run once per day
+    # Prevent recursive updates if "--no-update" is set
+    if "--no-update" in sys.argv:
+        return
+
+    # Only check once per day
     if not should_check_update():
         return
-    update_timestamp()
 
     print("[Update] Checking for updates...")
 
@@ -205,10 +208,16 @@ def check_for_github_update():
 
         print("[Update] Update complete — restarting with original command...")
 
-        python = sys.executable
-        script = Path(__file__).resolve()
+        # Mark update timestamp AFTER successful extraction
+        update_timestamp()
 
-        os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
+        # Restart the main script with the original arguments
+        python = sys.executable
+
+        # Make sure this points to the main script, not helper.py
+        script = Path(__file__).resolve().parent / "python_postar_v52.py"
+
+        os.execv(python, [python, str(script), "--no-update", *ORIGINAL_ARGV[1:]])
 
     except Exception as e:
         print(f"[Update] Failed to extract ZIP: {e}")
