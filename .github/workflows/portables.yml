@@ -2,10 +2,10 @@ name: Build Portable Python App
 
 on:
   release:
-    types: [created]  # Trigger when a new release is created
+    types: [created]
 
 permissions:
-  contents: write  # Needed for uploading release assets
+  contents: write  # required for uploading release assets
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -31,30 +31,30 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        # Navigate to src folder
         cd src
         pyinstaller --onedir python_postar.py
 
     - name: Package dist folder
+      shell: pwsh
       run: |
-        OS_NAME="${{ matrix.os }}"
-        DIST_FOLDER="src/dist"
-        # Remove "latest-" from OS name for nicer zip names
-        case "$OS_NAME" in
-          ubuntu-latest) PLATFORM="linux" ;;
-          windows-latest) PLATFORM="windows" ;;
-          macos-latest) PLATFORM="macos" ;;
-        esac
-        ZIP_NAME="python_postar_${PLATFORM}_v${GITHUB_REF_NAME}_portable.zip"
-
-        # Windows uses PowerShell for zipping
-        if [[ "$OS_NAME" == "windows-latest" ]]; then
-          powershell Compress-Archive -Path $DIST_FOLDER\* -DestinationPath $ZIP_NAME
-        else
-          zip -r $ZIP_NAME $DIST_FOLDER
-        fi
+        if ($env:RUNNER_OS -eq "Windows") {
+            $DIST_FOLDER = "src\dist"
+            $PLATFORM = "windows"
+            $ZIP_NAME = "python_postar_${PLATFORM}_v${env:GITHUB_REF_NAME}_portable.zip"
+            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
+        } else {
+            # Linux or macOS
+            DIST_FOLDER="src/dist"
+            if ($env:RUNNER_OS -eq "Linux") { PLATFORM="linux" }
+            else { PLATFORM="macos" }
+            ZIP_NAME="python_postar_${PLATFORM}_v${env:GITHUB_REF_NAME}_portable.zip"
+            bash -c "zip -r $ZIP_NAME $DIST_FOLDER"
+        }
 
     - name: Upload release asset
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
-        files: python_postar_${PLATFORM}_v${GITHUB_REF_NAME}_portable.zip
+        files: |
+          python_postar_windows_v${{ github.ref_name }}_portable.zip
+          python_postar_linux_v${{ github.ref_name }}_portable.zip
+          python_postar_macos_v${{ github.ref_name }}_portable.zip
