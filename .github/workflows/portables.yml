@@ -38,17 +38,21 @@ jobs:
       shell: pwsh
       run: |
         if ($env:RUNNER_OS -eq "Windows") {
+            # Windows: use PowerShell Compress-Archive
             $DIST_FOLDER = "src\dist"
             $PLATFORM = "windows"
             $ZIP_NAME = "python_postar_${PLATFORM}_v${env:GITHUB_REF_NAME}_portable.zip"
             Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
+            Write-Host "Created $ZIP_NAME"
         } else {
-            # Linux or macOS
-            DIST_FOLDER="src/dist"
-            if ($env:RUNNER_OS -eq "Linux") { PLATFORM="linux" }
-            else { PLATFORM="macos" }
-            ZIP_NAME="python_postar_${PLATFORM}_v${env:GITHUB_REF_NAME}_portable.zip"
-            bash -c "zip -r $ZIP_NAME $DIST_FOLDER"
+            # Linux / macOS: run Bash for zip
+            bash -c '
+              DIST_FOLDER="src/dist"
+              if [[ "$RUNNER_OS" == "Linux" ]]; then PLATFORM="linux"; else PLATFORM="macos"; fi
+              ZIP_NAME="python_postar_${PLATFORM}_v${GITHUB_REF_NAME}_portable.zip"
+              zip -r "$ZIP_NAME" "$DIST_FOLDER"
+              echo "Created $ZIP_NAME"
+            '
         }
 
     - name: Upload release asset
