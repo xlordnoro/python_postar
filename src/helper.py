@@ -96,7 +96,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.41.2"
+VERSION = "0.41.3"
 
 KB = 1024
 MB = KB * 1024
@@ -110,10 +110,18 @@ ORIGINAL_ARGV = sys.argv.copy()
 REPO_OWNER = "xlordnoro"
 REPO_NAME  = "python_postar"
 VERSION_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/VERSION"
+ORIGINAL_ARGV = sys.argv.copy()  # Save original arguments for restart
 
-# Timestamp file stored next to the script
+# ----------------------
+# Timestamp helpers
+# ----------------------
 def get_timestamp_file():
-    return Path(__file__).resolve().parent / ".postar_update_check"
+    """Return path to .postar_update_check file, works for script or PyInstaller exe."""
+    if getattr(sys, "frozen", False):
+        base_dir = Path(sys.executable).parent
+    else:
+        base_dir = Path(__file__).resolve().parent
+    return base_dir / ".postar_update_check"
 
 def should_check_update():
     stamp_file = get_timestamp_file()
@@ -126,8 +134,14 @@ def should_check_update():
     return last_date != date.today()
 
 def update_timestamp():
-    get_timestamp_file().write_text(date.today().isoformat())
+    try:
+        get_timestamp_file().write_text(date.today().isoformat())
+    except Exception as e:
+        print(f"[Update] Warning: could not write timestamp file: {e}")
 
+# ----------------------
+# Platform detection
+# ----------------------
 def detect_platform_zip():
     """Return platform string used in release ZIP naming."""
     if sys.platform.startswith("win"):
@@ -137,6 +151,9 @@ def detect_platform_zip():
     else:
         return "linux"
 
+# ----------------------
+# Backup helper
+# ----------------------
 def backup_file(target_path: Path):
     """Create a backup of the file if it exists."""
     if target_path.exists():
@@ -144,10 +161,41 @@ def backup_file(target_path: Path):
         shutil.copy2(target_path, backup_path)
         print(f"[Update] Backup created: {backup_path}")
 
+# ----------------------
+# Portable detection
+# ----------------------
+def is_portable():
+    """
+    Detect portable build:
+    - PyInstaller one-dir exe (parent folder named 'dist')
+    - ZIP portable folder (parent folder named 'python_postar')
+    """
+    exe_path = Path(sys.executable).resolve()
+    if getattr(sys, "frozen", False):
+        # PyInstaller one-dir exe inside dist
+        return "dist" in exe_path.parts
+    else:
+        # ZIP portable folder
+        return exe_path.parent.name == "python_postar"
+
+def get_release_url(remote_ver: str):
+    platform = detect_platform_zip()
+    if is_portable():
+        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}_portable.zip"
+    else:
+        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}.zip"
+    return f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{zip_name}"
+
+# ----------------------
+# Main auto-update function
+# ----------------------
 def check_for_github_update():
-    # Only check once per day
+    global VERSION
+
+    # Only run once per day
     if not should_check_update():
         return
+    update_timestamp()  # Mark the check now, even if update fails
 
     print("[Update] Checking for updates...")
 
@@ -165,10 +213,9 @@ def check_for_github_update():
 
     print(f"[Update] New version {remote_ver} available (current: {VERSION})")
 
-    # Determine platform
-    platform = detect_platform_zip()
-    zip_url = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{REPO_NAME}_{platform}_v{remote_ver}.zip"
-    print(f"[Update] Downloading {platform} release ZIP from {zip_url} ...")
+    # Determine download URL based on portable vs normal
+    zip_url = get_release_url(remote_ver)
+    print(f"[Update] Downloading release ZIP from {zip_url} ...")
 
     try:
         resp = requests.get(zip_url, timeout=15)
@@ -177,12 +224,13 @@ def check_for_github_update():
         print(f"[Update] Failed to download release ZIP: {e}")
         return
 
-    base_dir = Path(__file__).resolve().parent
+    # Determine extraction folder
+    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+    print(f"[Update] Extracting files to {base_dir} ...")
 
     # Extract ZIP contents
     try:
         with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-            print(f"[Update] Extracting files to {base_dir} ...")
             for member in z.namelist():
                 if member.endswith("/"):
                     continue  # skip directories
@@ -193,27 +241,17 @@ def check_for_github_update():
                 target_path = base_dir / relative_path
 
                 target_path.parent.mkdir(parents=True, exist_ok=True)
-
-                # Backup existing file before overwriting
                 backup_file(target_path)
 
-                # Extract new file
                 with z.open(member) as src, open(target_path, "wb") as dst:
                     dst.write(src.read())
                 print(f"[Update] Updated: {target_path}")
 
         print("[Update] Update complete — restarting with original command...")
-
-        # Mark update timestamp AFTER successful extraction
-        update_timestamp()
-
-        # Restart the main script with the original arguments
+        # Restart the main script/exe
         python = sys.executable
-
-        # Make sure this points to the main script, not helper.py
-        script = Path(__file__).resolve().parent / "python_postar.py"
-
-        os.execv(python, [python, str(script),  *ORIGINAL_ARGV[1:]])
+        script = Path(sys.executable).resolve() if is_portable() else Path(__file__).resolve().parent / "python_postar.py"
+        os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
 
     except Exception as e:
         print(f"[Update] Failed to extract ZIP: {e}")
