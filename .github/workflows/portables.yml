@@ -41,7 +41,7 @@ jobs:
             # Windows: use PowerShell Compress-Archive
             $DIST_FOLDER = "src\dist"
             $PLATFORM = "windows"
-            $ZIP_NAME = "python_postar_${PLATFORM}_v${env:GITHUB_REF_NAME}_portable.zip"
+            $ZIP_NAME = "python_postar_${PLATFORM}_${env:GITHUB_REF_NAME}_portable.zip"
             Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
             Write-Host "Created $ZIP_NAME"
         } else {
@@ -49,7 +49,7 @@ jobs:
             bash -c '
               DIST_FOLDER="src/dist"
               if [[ "$RUNNER_OS" == "Linux" ]]; then PLATFORM="linux"; else PLATFORM="macos"; fi
-              ZIP_NAME="python_postar_${PLATFORM}_v${GITHUB_REF_NAME}_portable.zip"
+              ZIP_NAME="python_postar_${PLATFORM}_${GITHUB_REF_NAME}_portable.zip"
               zip -r "$ZIP_NAME" "$DIST_FOLDER"
               echo "Created $ZIP_NAME"
             '
@@ -59,6 +59,6 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          python_postar_windows_v${{ github.ref_name }}_portable.zip
-          python_postar_linux_v${{ github.ref_name }}_portable.zip
-          python_postar_macos_v${{ github.ref_name }}_portable.zip
+          python_postar_windows_${{ github.ref_name }}_portable.zip
+          python_postar_linux_${{ github.ref_name }}_portable.zip
+          python_postar_macos_${{ github.ref_name }}_portable.zip
