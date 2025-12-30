@@ -41,11 +41,6 @@ jobs:
 
         mkdir -p "$DIST/scripts"
 
-        # Core files
-        cp src/python_postar.py "$DIST/"
-        cp src/helper.py "$DIST/"
-        cp requirements.txt "$DIST/"
-
         # Guides folder
         cp -r guides "$DIST/"
 
