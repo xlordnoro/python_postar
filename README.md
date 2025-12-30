@@ -1,4 +1,5 @@
-[![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar)  ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar) 
+[![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar)  ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar)
+![mbwZck5_xl](https://github.com/user-attachments/assets/c73fd906-e66d-4844-8c78-9673fde9636c)
 # python_postar
 A modern version of postar written in python
 
