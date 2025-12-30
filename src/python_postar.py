@@ -10,13 +10,9 @@ v40.1:
 # --- Imports and constants ---
 from datetime import date
 import time
-import sys
 import os, re, json, argparse
 from pathlib import Path
 from helper import *
-
-ORIGINAL_ARGV = sys.argv.copy()
-check_for_github_update()
 
 # -----------------------------
 # BD / season block
@@ -653,6 +649,9 @@ def main():
     B2_SHOWS_BASE = SETTINGS["B2_SHOWS_BASE"]
     B2_TORRENTS_BASE = SETTINGS["B2_TORRENTS_BASE"]
     ENCODER_NAME = SETTINGS["ENCODER_NAME"]
+
+    # Runs auto-update check on runtime once per day
+    check_for_github_update()
     
     # --- DEBUG ---
     #print("DEBUG: args.bd =", args.bd)
