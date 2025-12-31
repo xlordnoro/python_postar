@@ -96,7 +96,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.41.3"
+VERSION = "0.42"
 
 KB = 1024
 MB = KB * 1024
@@ -117,10 +117,7 @@ ORIGINAL_ARGV = sys.argv.copy()  # Save original arguments for restart
 # ----------------------
 def get_timestamp_file():
     """Return path to .postar_update_check file, works for script or PyInstaller exe."""
-    if getattr(sys, "frozen", False):
-        base_dir = Path(sys.executable).parent
-    else:
-        base_dir = Path(__file__).resolve().parent
+    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
     return base_dir / ".postar_update_check"
 
 def should_check_update():
@@ -162,28 +159,38 @@ def backup_file(target_path: Path):
         print(f"[Update] Backup created: {backup_path}")
 
 # ----------------------
-# Portable detection
+# Portable detection (FINAL)
 # ----------------------
 def is_portable():
     """
-    Detect portable build:
-    - PyInstaller one-dir exe (parent folder named 'dist')
-    - ZIP portable folder (parent folder named 'python_postar')
+    Detect portable build by presence of python_postar.exe.
+    Portable builds always ship as an EXE.
     """
-    exe_path = Path(sys.executable).resolve()
-    if getattr(sys, "frozen", False):
-        # PyInstaller one-dir exe inside dist
-        return "dist" in exe_path.parts
-    else:
-        # ZIP portable folder
-        return exe_path.parent.name == "python_postar"
+    exe_name = "python_postar.exe"
 
+    # PyInstaller exe (one-file or one-dir)
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).name.lower() == exe_name
+
+    # ZIP portable (exe sitting beside .py)
+    base_dir = Path(__file__).resolve().parent
+    return (base_dir / exe_name).exists()
+
+def get_base_dir():
+    """Return directory where files should be updated."""
+    return Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+
+def get_install_type():
+    """Human-readable install type (for testing detection)."""
+    return "portable (EXE)" if is_portable() else "source (.py)"
+
+# ----------------------
+# Release URL
+# ----------------------
 def get_release_url(remote_ver: str):
     platform = detect_platform_zip()
-    if is_portable():
-        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}_portable.zip"
-    else:
-        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}.zip"
+    suffix = "_portable" if is_portable() else ""
+    zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}{suffix}.zip"
     return f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{zip_name}"
 
 # ----------------------
@@ -192,14 +199,20 @@ def get_release_url(remote_ver: str):
 def check_for_github_update():
     global VERSION
 
-    # Only run once per day
+    # ---- Detection output (safe test) ----
+    print(f"Installed version : {get_install_type()}")
+    print(f"Running from      : {get_base_dir()}")
+    print(f"Current version   : {VERSION}")
+
+    # ---- Only run once per day ----
     if not should_check_update():
         return
-    update_timestamp()  # Mark the check now, even if update fails
+
+    update_timestamp()
 
     print("[Update] Checking for updates...")
 
-    # Get latest version
+    # ---- Get latest version ----
     try:
         resp = requests.get(VERSION_URL, timeout=5)
         resp.raise_for_status()
@@ -209,11 +222,12 @@ def check_for_github_update():
         return
 
     if remote_ver <= VERSION:
-        return  # Already up to date
+        print("[Update] Already up to date.")
+        return
 
     print(f"[Update] New version {remote_ver} available (current: {VERSION})")
 
-    # Determine download URL based on portable vs normal
+    # ---- Download ZIP ----
     zip_url = get_release_url(remote_ver)
     print(f"[Update] Downloading release ZIP from {zip_url} ...")
 
@@ -224,19 +238,17 @@ def check_for_github_update():
         print(f"[Update] Failed to download release ZIP: {e}")
         return
 
-    # Determine extraction folder
-    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+    base_dir = get_base_dir()
     print(f"[Update] Extracting files to {base_dir} ...")
 
-    # Extract ZIP contents
+    # ---- Extract ZIP ----
     try:
         with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
             for member in z.namelist():
                 if member.endswith("/"):
-                    continue  # skip directories
+                    continue
 
                 parts = Path(member).parts
-                # Remove top-level folder in ZIP
                 relative_path = Path(*parts[1:]) if len(parts) > 1 else Path(*parts)
                 target_path = base_dir / relative_path
 
@@ -245,13 +257,17 @@ def check_for_github_update():
 
                 with z.open(member) as src, open(target_path, "wb") as dst:
                     dst.write(src.read())
+
                 print(f"[Update] Updated: {target_path}")
 
-        print("[Update] Update complete — restarting with original command...")
-        # Restart the main script/exe
-        python = sys.executable
-        script = Path(sys.executable).resolve() if is_portable() else Path(__file__).resolve().parent / "python_postar.py"
-        os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
+        print("[Update] Update complete — restarting...")
+
+        # ---- Restart ----
+        if is_portable():
+            os.execv(sys.executable, [sys.executable, *ORIGINAL_ARGV[1:]])
+        else:
+            script = Path(__file__).resolve()
+            os.execv(sys.executable, [sys.executable, str(script), *ORIGINAL_ARGV[1:]])
 
     except Exception as e:
         print(f"[Update] Failed to extract ZIP: {e}")
