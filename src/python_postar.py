@@ -2,9 +2,11 @@
 """
 python_postar.py
 
-v40.1:
-- Added a new argument named -kage which adds the discord widget and modifies how the donation images are positioned.
-- Finally got the kage argument properly passed through the various functions to remove the green buttons that hides the episode tables.
+v42:
+- Started working on portable builds which will bundle everything into a single exe
+- Allowing users to run the program without installing python on their systems.
+- It still has a few quirks that I need to figure out which is getting the exe to relaunch after an update
+- Along with cleaning up the updater.py script that is generated on updates.
 """
 
 # --- Imports and constants ---

@@ -3,15 +3,24 @@ import os, re, json, argparse, io
 from pathlib import Path
 from urllib.parse import quote
 import requests, sys
-import zlib
-import zipfile
-import shutil
+import zlib, zipfile, shutil, tempfile, subprocess
+import textwrap
 
 try:
     from pymediainfo import MediaInfo
     HAVE_PYMEDIAINFO = True
 except Exception:
     HAVE_PYMEDIAINFO = False
+
+# ----------------------
+# Application base directory (portable-safe, updater-safe)
+# ----------------------
+if "POSTAR_APP_DIR" in os.environ:
+    APP_DIR = Path(os.environ["POSTAR_APP_DIR"]).resolve()
+elif getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).resolve().parent
+else:
+    APP_DIR = Path(__file__).resolve().parent
 
 # ----------------------
 # Settings Loader
@@ -96,13 +105,13 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.41.3"
+VERSION = "0.42"
 
 KB = 1024
 MB = KB * 1024
 GB = MB * 1024
-PROCESSED_FILE = Path(__file__).with_name("processed.json")
-ORIGINAL_ARGV = sys.argv.copy()
+PROCESSED_FILE = APP_DIR / "processed.json"
+#print("[Debug] PROCESSED_FILE =", PROCESSED_FILE)
 
 # ----------------------
 # Auto-Updater via GitHub release ZIP with backup
@@ -117,10 +126,7 @@ ORIGINAL_ARGV = sys.argv.copy()  # Save original arguments for restart
 # ----------------------
 def get_timestamp_file():
     """Return path to .postar_update_check file, works for script or PyInstaller exe."""
-    if getattr(sys, "frozen", False):
-        base_dir = Path(sys.executable).parent
-    else:
-        base_dir = Path(__file__).resolve().parent
+    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
     return base_dir / ".postar_update_check"
 
 def should_check_update():
@@ -162,44 +168,66 @@ def backup_file(target_path: Path):
         print(f"[Update] Backup created: {backup_path}")
 
 # ----------------------
-# Portable detection
+# Portable detection (FINAL)
 # ----------------------
 def is_portable():
     """
-    Detect portable build:
-    - PyInstaller one-dir exe (parent folder named 'dist')
-    - ZIP portable folder (parent folder named 'python_postar')
+    Detect portable build by presence of python_postar.exe.
+    Portable builds always ship as an EXE.
     """
-    exe_path = Path(sys.executable).resolve()
-    if getattr(sys, "frozen", False):
-        # PyInstaller one-dir exe inside dist
-        return "dist" in exe_path.parts
-    else:
-        # ZIP portable folder
-        return exe_path.parent.name == "python_postar"
+    exe_name = "python_postar.exe"
 
+    # PyInstaller exe (one-file or one-dir)
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).name.lower() == exe_name
+
+    # ZIP portable (exe sitting beside .py)
+    base_dir = Path(__file__).resolve().parent
+    return (base_dir / exe_name).exists()
+
+def get_base_dir():
+    """Return directory where files should be updated."""
+    return Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+
+def get_install_type():
+    """Human-readable install type (for testing detection)."""
+    return "portable (EXE)" if is_portable() else "source (.py)"
+
+# ----------------------
+# Release URL
+# ----------------------
 def get_release_url(remote_ver: str):
     platform = detect_platform_zip()
-    if is_portable():
-        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}_portable.zip"
-    else:
-        zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}.zip"
+    suffix = "_portable" if is_portable() else ""
+    zip_name = f"{REPO_NAME}_{platform}_v{remote_ver}{suffix}.zip"
     return f"https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest/download/{zip_name}"
 
 # ----------------------
 # Main auto-update function
 # ----------------------
 def check_for_github_update():
+    """
+    Auto-update for portable EXE or source .py
+    - Downloads latest GitHub release ZIP
+    - Extracts to temp folder
+    - If portable EXE, launches updater batch and exits
+    - If source, overwrites files directly and restarts
+    """
+
     global VERSION
 
-    # Only run once per day
+    print(f"Installed version : {get_install_type()}")
+    print(f"Running from      : {get_base_dir()}")
+    print(f"Current version   : {VERSION}")
+
     if not should_check_update():
         return
-    update_timestamp()  # Mark the check now, even if update fails
+
+    update_timestamp()
 
     print("[Update] Checking for updates...")
 
-    # Get latest version
+    # ---- Get latest version ----
     try:
         resp = requests.get(VERSION_URL, timeout=5)
         resp.raise_for_status()
@@ -209,53 +237,185 @@ def check_for_github_update():
         return
 
     if remote_ver <= VERSION:
-        return  # Already up to date
+        print("[Update] Already up to date.")
+        return
 
     print(f"[Update] New version {remote_ver} available (current: {VERSION})")
 
-    # Determine download URL based on portable vs normal
+    # ---- Download ZIP ----
     zip_url = get_release_url(remote_ver)
     print(f"[Update] Downloading release ZIP from {zip_url} ...")
-
     try:
-        resp = requests.get(zip_url, timeout=15)
+        resp = requests.get(zip_url, timeout=30)
         resp.raise_for_status()
     except Exception as e:
         print(f"[Update] Failed to download release ZIP: {e}")
         return
 
-    # Determine extraction folder
-    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
-    print(f"[Update] Extracting files to {base_dir} ...")
-
-    # Extract ZIP contents
+    # ---- Extract to temporary folder ----
+    temp_dir = Path(tempfile.mkdtemp())
+    print(f"[Update] Preparing to update files in temporary folder {temp_dir} ...")
     try:
         with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-            for member in z.namelist():
-                if member.endswith("/"):
-                    continue  # skip directories
-
-                parts = Path(member).parts
-                # Remove top-level folder in ZIP
-                relative_path = Path(*parts[1:]) if len(parts) > 1 else Path(*parts)
-                target_path = base_dir / relative_path
-
-                target_path.parent.mkdir(parents=True, exist_ok=True)
-                backup_file(target_path)
-
-                with z.open(member) as src, open(target_path, "wb") as dst:
-                    dst.write(src.read())
-                print(f"[Update] Updated: {target_path}")
-
-        print("[Update] Update complete — restarting with original command...")
-        # Restart the main script/exe
-        python = sys.executable
-        script = Path(sys.executable).resolve() if is_portable() else Path(__file__).resolve().parent / "python_postar.py"
-        os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
-
+            z.extractall(temp_dir)
     except Exception as e:
         print(f"[Update] Failed to extract ZIP: {e}")
         return
+
+    base_dir = get_base_dir()
+
+    # ---- Portable EXE handling ----
+    if is_portable():
+        print("[Update] Portable updater launched. Exiting current program...")
+
+        updater_py = base_dir / "update_portable.py"
+        python_exe = Path(sys.executable).name
+        temp_dir_str = str(temp_dir)
+        base_dir_str = str(base_dir)
+        original_args = ORIGINAL_ARGV[1:]
+
+        py_text = textwrap.dedent(f'''
+            import os
+            import sys
+            import time
+            import shutil
+            import subprocess
+            from pathlib import Path
+
+            python_exe = "{python_exe}"
+            temp_dir = Path(r"{temp_dir_str}")
+            base_dir = Path(r"{base_dir_str}")
+            original_args = {original_args}
+
+            print(f"[Updater] Waiting for {{python_exe}} to exit...")
+
+            # ---- wait for main EXE to exit ----
+            while True:
+                try:
+                    result = subprocess.run(
+                        ["tasklist"],
+                        capture_output=True,
+                        text=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                    )
+                    if python_exe.lower() not in result.stdout.lower():
+                        break
+                except Exception:
+                    break
+                time.sleep(1)
+
+            # ---- detect correct extraction root ----
+            entries = list(temp_dir.iterdir())
+            if len(entries) == 1 and entries[0].is_dir():
+                source_root = entries[0]
+            else:
+                source_root = temp_dir
+
+            print(f"[Updater] Copying files from {{source_root}}")
+
+            # ---- helper: backup files ----
+            def backup_path(p: Path):
+                if p.exists():
+                    backup = p.with_suffix(p.suffix + ".backup")
+                    try:
+                        shutil.copy2(p, backup)
+                        print(f"[Updater] Backup created: {{backup}}")
+                    except Exception as e:
+                        print(f"[Updater] Backup failed for {{p}}: {{e}}")
+
+            # ---- BACKUP EXE FIRST ----
+            exe_path = base_dir / python_exe
+            backup_path(exe_path)
+
+            # ---- copy updated files ----
+            for item in source_root.iterdir():
+                dest = base_dir / item.name
+                try:
+                    # Skip EXE (already backed up)
+                    if dest.name.lower() == python_exe.lower():
+                        print(f"[Updater] Skipping backup for {{dest}} (already done)")
+                    elif item.is_file():
+                        backup_path(dest)
+
+                    # ---- COPY ----
+                    if item.is_dir():
+                        shutil.copytree(item, dest, dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(item, dest)
+
+                except Exception as e:
+                    print("[Updater] Copy failed:", e)
+
+            # ---- relaunch app ----
+            print("[Updater] Relaunching application...")
+            env = os.environ.copy()
+            env["POSTAR_APP_DIR"] = str(base_dir)
+
+            subprocess.Popen(
+                ["cmd", "/c", "python", str(updater_py)],
+                cwd=str(base_dir),
+                env=env,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+            )
+
+            # ---- cleanup ----
+            time.sleep(2)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+            # ---- self delete ----
+            updater = Path(sys.argv[0]).resolve()
+            subprocess.Popen(
+                ["cmd", "/c", "ping 127.0.0.1 -n 2 >nul & del", str(updater)],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        ''')
+
+        # Write updater script
+        with open(updater_py, "w", encoding="utf-8") as f:
+            f.write(py_text)
+            f.flush()
+            os.fsync(f.fileno())
+
+        # Launch updater via cmd so python resolves correctly
+        subprocess.Popen(
+            ["cmd", "/c", "python", str(updater_py)],
+            cwd=str(base_dir),
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+        )
+
+        sys.exit(0)
+
+    # ---- Source (.py) handling ----
+    else:
+        base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+        print(f"[Update] Extracting files directly to {base_dir} ...")
+        try:
+            with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+                for member in z.namelist():
+                    if member.endswith("/"):
+                        continue  # skip directories
+
+                    parts = Path(member).parts
+                    # Remove top-level folder in ZIP
+                    relative_path = Path(*parts[1:]) if len(parts) > 1 else Path(*parts)
+                    target_path = base_dir / relative_path
+
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    backup_file(target_path)
+
+                    with z.open(member) as src, open(target_path, "wb") as dst:
+                        dst.write(src.read())
+                    print(f"[Update] Updated: {target_path}")
+
+            print("[Update] Update complete — restarting with original command...")
+            # Restart the main script/exe
+            python = sys.executable
+            script = Path(sys.executable).resolve() if is_portable() else Path(__file__).resolve().parent / "python_postar.py"
+            os.execv(python, [python, str(script), *ORIGINAL_ARGV[1:]])
+
+        except Exception as e:
+            print(f"[Update] Failed to extract ZIP: {e}")
+            return
 
 # -----------------------------
 # Processed tracking
