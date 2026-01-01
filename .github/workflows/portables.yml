@@ -62,13 +62,15 @@ jobs:
             Write-Host "Created $ZIP_NAME"
         } else {
             bash -c '
-              DIST_FOLDER="src/dist/python_postar"
+              cd src/dist/python_postar || exit 1
+    
               if [[ "$RUNNER_OS" == "Linux" ]]; then
-                ZIP_NAME="python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
+                ZIP_NAME="../../../../python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
               else
-                ZIP_NAME="python_postar_macos_${GITHUB_REF_NAME}_portable.zip"
+                ZIP_NAME="../../../../python_postar_macos_${GITHUB_REF_NAME}_portable.zip"
               fi
-              zip -r "$ZIP_NAME" "$DIST_FOLDER"
+    
+              zip -r "$ZIP_NAME" .
               echo "Created $ZIP_NAME"
             '
         }
