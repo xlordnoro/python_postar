@@ -105,7 +105,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.42"
+VERSION = "0.42.1"
 
 KB = 1024
 MB = KB * 1024
@@ -125,9 +125,10 @@ ORIGINAL_ARGV = sys.argv.copy()  # Save original arguments for restart
 # Timestamp helpers
 # ----------------------
 def get_timestamp_file():
-    """Return path to .postar_update_check file, works for script or PyInstaller exe."""
-    base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
-    return base_dir / ".postar_update_check"
+    """
+    Return path to .postar_update_check file, works for script or PyInstaller.
+    """
+    return get_base_dir() / ".postar_update_check"
 
 def should_check_update():
     stamp_file = get_timestamp_file()
