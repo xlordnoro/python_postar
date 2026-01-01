@@ -172,26 +172,23 @@ def backup_file(target_path: Path):
 # ----------------------
 def is_portable():
     """
-    Detect portable build by presence of python_postar.exe.
-    Portable builds always ship as an EXE.
+    Detect PyInstaller portable build (Windows / Linux / macOS).
     """
-    exe_name = "python_postar.exe"
+    return getattr(sys, "frozen", False)
 
-    # PyInstaller exe (one-file or one-dir)
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).name.lower() == exe_name
-
-    # ZIP portable (exe sitting beside .py)
-    base_dir = Path(__file__).resolve().parent
-    return (base_dir / exe_name).exists()
 
 def get_base_dir():
-    """Return directory where files should be updated."""
-    return Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
+    """
+    Directory where the app lives and should be updated from.
+    """
+    return Path(sys.executable).resolve().parent if is_portable() else Path(__file__).resolve().parent
+
 
 def get_install_type():
-    """Human-readable install type (for testing detection)."""
-    return "portable (EXE)" if is_portable() else "source (.py)"
+    """
+    Human-readable install type.
+    """
+    return "portable" if is_portable() else "source (.py)"
 
 # ----------------------
 # Release URL
