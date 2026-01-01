@@ -46,10 +46,10 @@ jobs:
 
         # Platform-specific script
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          cp scripts/postar_batch.bat "$DIST/scripts/"
+          cp scripts/postar_batch_portable.bat "$DIST/scripts/"
         else
-          cp scripts/postar_batch_linux.sh "$DIST/scripts/"
-          chmod +x "$DIST/scripts/postar_batch_linux.sh"
+          cp scripts/postar_batch_linux_portable.sh "$DIST/scripts/"
+          chmod +x "$DIST/scripts/postar_batch_linux_portable.sh"
         fi
 
     - name: Package dist folder
