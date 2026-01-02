@@ -8,7 +8,7 @@ Since **v0.42.1** of the project, I've started releasing portable version of pos
 
 **NOTE: I don't own a mac so I won't have a good way of testing those builds, but they should work fine on any modern mac running any variant of their m series processors as they are built for arm when checking the file under Linux or wsl.**
 
-[Args Breakdown](#-args-breakdown)
+[Args Breakdown](#args-breakdown)
 
 # Manual Installation/Slightly Harder Way
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
