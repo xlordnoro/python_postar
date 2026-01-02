@@ -32,7 +32,7 @@ jobs:
     - name: Build with PyInstaller
       run: |
         cd src
-        pyinstaller --onedir python_postar.py
+        pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
 
     - name: Add extra files to portable build
       shell: bash
