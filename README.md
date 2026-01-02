@@ -3,7 +3,10 @@
 # python_postar
 A modern version of postar written in python
 
-# Installation
+# Portable Installation/Easy Way (Recommended for beginneers)
+Since **v0.42.1** of the project, I've started releasing portable version of postar for all OS's (mac os, linux, and windows) which includes everything needed to run the program into one, complete package without the need to install python on your system. The other benefit of the portable install is that it won't mess with any existing versions of python that might already be installed on the system. I don't own a mac so I won't have a good way of testing those builds, but they should work fine on any modern mac running any variant of their m series processors as they are built for arm when checking the file under Linux or wsl.
+
+# Manual Installation/Slightly Harder Way
 Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.13.9.**
 
 I've included a written guide and command readme in the guides folder which will break things down more than the version below which covers the bare minimum needed to get the project running on windows or linux.
