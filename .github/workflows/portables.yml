@@ -24,13 +24,6 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    # Install Inkscape only on Linux
-    - name: Install Inkscape (Linux only)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y inkscape
-
     - name: Convert icon.ico → icon.png (Linux only)
       if: runner.os == 'Linux'
       run: |
