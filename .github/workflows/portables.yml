@@ -34,7 +34,7 @@ jobs:
     - name: Convert icon.ico → icon.png (Linux only)
       if: runner.os == 'Linux'
       run: |
-        inkscape icon.ico --export-type=png --export-filename=icon.png
+        inkscape icon.ico --export-type=png --export-filename=icon.png --batch-process
 
     - name: Install Python dependencies
       run: |
