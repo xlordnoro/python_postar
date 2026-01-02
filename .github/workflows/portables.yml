@@ -62,15 +62,15 @@ jobs:
             cp icon.png "$DIST/"
 
             # Generate .desktop file
-            cat << 'EOF' > "$DIST/python_postar.desktop"
-            [Desktop Entry]
-            Type=Application
-            Name=Python Postar
-            Exec=./python_postar
-            Icon=./icon.png
-            Terminal=true
-            Categories=Utility;
-            EOF
+            cat <<-'EOF' > "$DIST/python_postar.desktop"
+        [Desktop Entry]
+        Type=Application
+        Name=Python Postar
+        Exec=./python_postar
+        Icon=./icon.png
+        Terminal=true
+        Categories=Utility;
+        EOF
 
             # Make the .desktop file executable
             chmod +x "$DIST/python_postar.desktop"
