@@ -34,7 +34,9 @@ jobs:
     - name: Convert icon.ico → icon.png (Linux only)
       if: runner.os == 'Linux'
       run: |
-        inkscape icon.ico --export-type=png --export-filename=icon.png --batch-process
+        sudo apt-get update
+        sudo apt-get install -y imagemagick
+        convert icon.ico -resize 256x256 icon.png
 
     - name: Install Python dependencies
       run: |
