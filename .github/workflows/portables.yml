@@ -59,7 +59,7 @@ jobs:
 
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             # Add PNG icon
-            cp icon.png "$DIST/"
+            cp ../icon.png "$DIST/"
 
             # Generate .desktop file
             cat <<-'EOF' > "$DIST/python_postar.desktop"
