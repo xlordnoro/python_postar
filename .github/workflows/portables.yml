@@ -53,7 +53,7 @@ jobs:
 
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             # Add PNG icon (repo root -> src relative)
-            cp icon.png "$DIST/"
+            cp icon_linux.png "$DIST/"
 
             # Generate .desktop file using tabs for indentation
             printf '%s\n' \
