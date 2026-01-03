@@ -61,7 +61,7 @@ jobs:
               'Type=Application' \
               'Name=Python Postar' \
               'Exec=./python_postar' \
-              'Icon=./icon.png' \
+              'Icon=./icon_linux.png' \
               'Terminal=true' \
               'Categories=Utility;' \
               > "$DIST/python_postar.desktop"
