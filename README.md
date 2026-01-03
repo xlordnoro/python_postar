@@ -11,7 +11,7 @@ Since **v0.42.1** of the project, I've started releasing portable versions of po
 [Args Breakdown](#args-breakdown)
 
 # Manual Installation/Slightly Harder Way
-Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently 3.14.2.**
+Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently [![Python](https://img.shields.io/badge/dynamic/json?label=Python&logo=python&logoColor=white&color=3776AB&url=https://endoflife.date/api/python.json&query=$[0].latest)](https://www.python.org/downloads/)**
 
 I've included a written guide and command readme in the guides folder which will break things down more than the version below which covers the bare minimum needed to get the project running on windows or linux.
 
