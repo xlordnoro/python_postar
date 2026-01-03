@@ -4,7 +4,7 @@
 A modern version of postar written in python
 
 # Portable Installation/Easy Way (Recommended for Beginneers)
-Since **v0.42.1** of the project, I've started releasing portable version of postar for all OS's (mac os, linux, and windows) which includes everything needed to run the program into one, complete package without the need to install python on your system. The other benefit of the portable install is that it won't mess with any existing versions of python that might already be installed on the system. 
+Since **v0.42.1** of the project, I've started releasing portable versions of postar for all OS's (mac os, linux, and windows) which includes everything needed to run the program into one, complete package without the need to install python on your system. The other benefit of the portable install is that it won't mess with any existing versions of python that might already be installed on the system. 
 
 **NOTE: I don't own a mac so I won't have a good way of testing those builds, but they should work fine on any modern mac running any variant of their m series processors as they are built for arm when checking the file under Linux or wsl.**
 
