@@ -38,18 +38,37 @@ jobs:
       shell: bash
       run: |
         DIST="src/dist/python_postar"
-
         mkdir -p "$DIST/scripts"
 
         # Guides folder
         cp -r guides "$DIST/"
 
-        # Platform-specific script
+        # Platform-specific scripts
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           cp scripts/postar_batch_portable.bat "$DIST/scripts/"
         else
+          # Linux/macOS batch script
           cp scripts/postar_batch_linux_portable.sh "$DIST/scripts/"
           chmod +x "$DIST/scripts/postar_batch_linux_portable.sh"
+
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            # Add PNG icon (repo root -> src relative)
+            cp ../icon.png "$DIST/"
+
+            # Generate .desktop file using tabs for indentation
+            cat <<-'EOF' > "$DIST/python_postar.desktop"
+                [Desktop Entry]
+                Type=Application
+                Name=Python Postar
+                Exec=./python_postar
+                Icon=./icon.png
+                Terminal=true
+                Categories=Utility;
+            EOF
+
+            # Make the .desktop file executable
+            chmod +x "$DIST/python_postar.desktop"
+          fi
         fi
 
     - name: Package dist folder
