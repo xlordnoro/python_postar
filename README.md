@@ -1,7 +1,8 @@
 [![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar)  ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar)
-![mbwZck5_xl](https://github.com/user-attachments/assets/c73fd906-e66d-4844-8c78-9673fde9636c)
 # python_postar
 A modern version of postar written in python
+
+![mbwZck5_xl](https://github.com/user-attachments/assets/c73fd906-e66d-4844-8c78-9673fde9636c)
 
 # Portable Installation/Easy Way (Recommended for Beginneers)
 Since **v0.42.1** of the project, I've started releasing portable versions of postar for all OS's (mac os, linux, and windows) which includes everything needed to run the program into one, complete package without the need to install python on your system. The other benefit of the portable install is that it won't mess with any existing versions of python that might already be installed on the system. 
