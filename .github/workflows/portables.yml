@@ -56,15 +56,15 @@ jobs:
             cp ../icon.png "$DIST/"
 
             # Generate .desktop file using tabs for indentation
-            cat <<-'EOF' > "$DIST/python_postar.desktop"
-                [Desktop Entry]
-                Type=Application
-                Name=Python Postar
-                Exec=./python_postar
-                Icon=./icon.png
-                Terminal=true
-                Categories=Utility;
-            EOF
+            printf '%s\n' \
+              '[Desktop Entry]' \
+              'Type=Application' \
+              'Name=Python Postar' \
+              'Exec=./python_postar' \
+              'Icon=./icon.png' \
+              'Terminal=true' \
+              'Categories=Utility;' \
+              > "$DIST/python_postar.desktop"
 
             # Make the .desktop file executable
             chmod +x "$DIST/python_postar.desktop"
