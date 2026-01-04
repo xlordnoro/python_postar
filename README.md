@@ -47,6 +47,8 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
 - -configure allows the user to re-configure their settings for postar or they can edit the .postar_settings.json file directly.
 - -kage adds a discord widget and modifies how the donation images are placed at the bottom of posts. Along with removing the buttons hiding the episodes table.
+- -u manually forces an update check.
+- -du completely disables the auto-updater if you prefer to stay on a specific version.
 
 # Windows Command Examples
 ## One Series
