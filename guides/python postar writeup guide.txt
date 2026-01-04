@@ -66,6 +66,8 @@ e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 -configure allows users to re-configure their settings if a mistake is made. They can also edit the settings file directly.
 e.g. test_v51.txt since it took me that many revisions to get to this point after wrestling the AI to the ground and pinning it for the victory rofl OOOH! I AM THE MACHO MAN!
 -kage adds a discord widget and modifies how the donation images are placed at the bottom of posts. Along with removing the green buttons hiding the episodes table.
+-u manually forces an update check.
+-du completely disables the auto-updater if you prefer to stay on a specific version.
 
 # Setting up your B2 link paths
 When you run the script for the first time, it will check for a settings file in the same directory as postar. If one isn't detected, it will prompt you to add your
