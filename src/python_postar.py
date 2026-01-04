@@ -2,11 +2,10 @@
 """
 python_postar.py
 
-v42:
-- Started working on portable builds which will bundle everything into a single exe
-- Allowing users to run the program without installing python on their systems.
-- It still has a few quirks that I need to figure out which is getting the exe to relaunch after an update
-- Along with cleaning up the updater.py script that is generated on updates.
+v43:
+- Added two new arguments, -u and -du. -u will manually check for updates, while -du completely disables auto-updates entirely.
+- Parts of the helper.py were modified to have if statements to determine if they should be ran or not. The same was applied to the update calls in the main script here.
+- Otherwise, they would always run or not trigger when the should run.
 """
 
 # --- Imports and constants ---
@@ -18,7 +17,8 @@ from pathlib import Path
 from helper import *
 
 ORIGINAL_ARGV = sys.argv.copy()
-check_for_github_update()
+if SETTINGS.get("AUTO_UPDATE", True):
+    check_for_github_update()
 
 # -----------------------------
 # BD / season block
@@ -643,7 +643,14 @@ def main():
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     parser.add_argument("--configure", "-configure", action="store_true", help="Reconfigure postar settings and overwrite postar_settings.json")
     parser.add_argument("--kage", "-kage", action="store_true", help="Modifies the post layout to include the discord widget and various minor changes in the layout")
+    parser.add_argument("--update", "-u", action="store_true", help="Manually checks updates for postar")
+    parser.add_argument("--disable-auto-update", "-du", action="store_true", help="Disable automatic updates permanently")
     args = parser.parse_args()
+
+    # ---- HANDLE UPDATE FIRST ----
+    if args.update:
+        print("[Update] Manually checking updates...")
+        check_for_github_update(force=True)
 
     # ----------------------------------------
     # Load settings (with forced reconfigure)
@@ -651,10 +658,19 @@ def main():
     SETTINGS = load_settings(force_reconfigure=args.configure)
 
     # Override globals after loading settings
-    global B2_SHOWS_BASE, B2_TORRENTS_BASE, ENCODER_NAME
+    global B2_SHOWS_BASE, B2_TORRENTS_BASE, ENCODER_NAME, AUTO_UPDATE
     B2_SHOWS_BASE = SETTINGS["B2_SHOWS_BASE"]
     B2_TORRENTS_BASE = SETTINGS["B2_TORRENTS_BASE"]
     ENCODER_NAME = SETTINGS["ENCODER_NAME"]
+    AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
+
+    # ---- DISABLE AUTO UPDATES ----
+    if args.disable_auto_update:
+        SETTINGS["AUTO_UPDATE"] = False
+        Path.cwd().joinpath(".postar_settings.json").write_text(
+            json.dumps(SETTINGS, indent=2), encoding="utf-8"
+        )
+        print("[Settings] Auto-update has been disabled.")
     
     # --- DEBUG ---
     #print("DEBUG: args.bd =", args.bd)

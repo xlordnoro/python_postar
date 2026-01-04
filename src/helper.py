@@ -30,7 +30,8 @@ SETTINGS_FILE = Path.cwd() / ".postar_settings.json"
 DEFAULT_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
-    "ENCODER_NAME": ""
+    "ENCODER_NAME": "",
+    "AUTO_UPDATE": True  # <-- New setting to enable/disable auto-update
 }
 
 def load_settings(force_reconfigure=False):
@@ -52,11 +53,13 @@ def load_settings(force_reconfigure=False):
         shows = input("B2_SHOWS_BASE: ").strip()
         torrents = input("B2_TORRENTS_BASE: ").strip()
         encoder = input("ENCODER_NAME: ").strip()
+        auto_update = input("Enable auto-update? [Y/n]: ").strip().lower() != "n"
 
         settings = {
             "B2_SHOWS_BASE": shows,
             "B2_TORRENTS_BASE": torrents,
-            "ENCODER_NAME": encoder
+            "ENCODER_NAME": encoder,
+            "AUTO_UPDATE": auto_update
         }
 
         SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
@@ -82,17 +85,20 @@ def load_settings(force_reconfigure=False):
 
     return settings
 
+
 # Re-prompt if a user wishes to change their postar settings via -configure instead of editing the .postar_settings.json
 def prompt_for_settings():
     print("\n[Settings] Reconfigure postar settings:")
     shows = input("B2_SHOWS_BASE: ").strip()
     torrents = input("B2_TORRENTS_BASE: ").strip()
     encoder = input("ENCODER_NAME: ").strip()
+    auto_update = input("Enable auto-update? [Y/n]: ").strip().lower() != "n"
 
     return {
         "B2_SHOWS_BASE": shows,
         "B2_TORRENTS_BASE": torrents,
-        "ENCODER_NAME": encoder
+        "ENCODER_NAME": encoder,
+        "AUTO_UPDATE": auto_update
     }
 
 # Load settings + override globals
@@ -105,7 +111,7 @@ OUO_PREFIX = "https://ouo.io/s/QgcGSmNw?s="
 TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
-VERSION = "0.42.1"
+VERSION = "0.43"
 
 KB = 1024
 MB = KB * 1024
@@ -203,7 +209,7 @@ def get_release_url(remote_ver: str):
 # ----------------------
 # Main auto-update function
 # ----------------------
-def check_for_github_update():
+def check_for_github_update(force=False):
     """
     Auto-update for portable EXE or source .py
     - Downloads latest GitHub release ZIP
@@ -211,16 +217,17 @@ def check_for_github_update():
     - If portable EXE, launches updater batch and exits
     - If source, overwrites files directly and restarts
     """
-
     global VERSION
 
     print(f"Installed version : {get_install_type()}")
     print(f"Running from      : {get_base_dir()}")
     print(f"Current version   : {VERSION}")
 
-    if not should_check_update():
-        return
+    if not force:
+        if not should_check_update():
+            return
 
+    # Always stamp when a check actually runs
     update_timestamp()
 
     print("[Update] Checking for updates...")
