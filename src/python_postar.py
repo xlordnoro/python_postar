@@ -2,10 +2,8 @@
 """
 python_postar.py
 
-v43:
-- Added two new arguments, -u and -du. -u will manually check for updates, while -du completely disables auto-updates entirely.
-- Parts of the helper.py were modified to have if statements to determine if they should be ran or not. The same was applied to the update calls in the main script here.
-- Otherwise, they would always run or not trigger when the should run.
+v43.1:
+- Tweaked the OVA, ONA, OAD, SP detection to extract the full filename labels like I did with movies since Playcool uses names in his files there.
 """
 
 # --- Imports and constants ---
@@ -161,6 +159,32 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     def is_movie(name: str):
         return bool(re.search(r'(?<![A-Za-z0-9])movie(?![A-Za-z0-9])', name, re.IGNORECASE))
 
+    def extract_special_label(name: str):
+        """
+        Extracts full special label for OVA / ONA / OAD / SP,
+        including decimals and suffixes.
+
+        Examples:
+            OVA_08.5_vs_Detective_Conan
+            ONA_02
+            OAD_Special
+            SP_01
+            SP_Special
+        """
+
+        m = re.search(
+            r'(?:^|[_\-])(?P<tag>OVA|ONA|OAD|SP)'
+            r'(?:[ _\-]*\d{1,3}(?:\.\d)?)?'
+            r'(?:_[^()]+)?',
+            name,
+            re.IGNORECASE
+        )
+
+        if not m:
+            return None
+
+        return m.group(0).strip("_") 
+
     def extract_movie_label(name: str):
         """
         Extracts full movie label, including decimals:
@@ -206,19 +230,19 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             epnum = None
         elif is_special(fname, "OVA"):
             category = "ova"
-            label = special_label(fname, "OVA")
+            label = extract_special_label(fname) or "OVA"
             epnum = None
         elif is_special(fname, "ONA"):
             category = "ona"
-            label = special_label(fname, "ONA")
+            label = extract_special_label(fname) or "ONA"
             epnum = None
         elif is_special(fname, "OAD"):
             category = "oad"
-            label = special_label(fname, "OAD")
+            label = extract_special_label(fname) or "OAD"
             epnum = None
         elif is_special(fname, "SP"):
             category = "sp"
-            label = special_label(fname, "SP")
+            label = extract_special_label(fname) or "SP"
             epnum = None
         elif is_extras(fname):
             category = "extras"
