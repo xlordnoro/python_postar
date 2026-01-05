@@ -2,8 +2,8 @@
 """
 python_postar.py
 
-v43.1:
-- Tweaked the OVA, ONA, OAD, SP detection to extract the full filename labels like I did with movies since Playcool uses names in his files there.
+v43.2:
+- Tweaked the OVA, ONA, OAD, SP detection to ignore OVA, ONA, OAD, SP in the series name when trying to grab the filename.
 """
 
 # --- Imports and constants ---
@@ -161,21 +161,16 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 
     def extract_special_label(name: str):
         """
-        Extracts full special label for OVA / ONA / OAD / SP,
-        including decimals and suffixes.
-
-        Examples:
-            OVA_08.5_vs_Detective_Conan
-            ONA_02
-            OAD_Special
-            SP_01
-            SP_Special
+        Extracts full special label for OVA / ONA / OAD / SP
+        only when it appears after the '_-_' separator.
         """
 
         m = re.search(
-            r'(?:^|[_\-])(?P<tag>OVA|ONA|OAD|SP)'
+            r'_-_(?P<label>'
+            r'(?P<tag>OVA|ONA|OAD|SP)'
             r'(?:[ _\-]*\d{1,3}(?:\.\d)?)?'
-            r'(?:_[^()]+)?',
+            r'(?:_[^()]+)?'
+            r')',
             name,
             re.IGNORECASE
         )
@@ -183,7 +178,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
         if not m:
             return None
 
-        return m.group(0).strip("_") 
+        return m.group("label").rstrip('_')
 
     def extract_movie_label(name: str):
         """
