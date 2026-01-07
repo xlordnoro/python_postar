@@ -2,8 +2,8 @@
 """
 python_postar.py
 
-v43.2:
-- Tweaked the OVA, ONA, OAD, SP detection to ignore OVA, ONA, OAD, SP in the series name when trying to grab the filename.
+v43.3:
+- Added nested folder support for collections if staff members opt to go that route.
 """
 
 # --- Imports and constants ---
@@ -700,10 +700,23 @@ def main():
     early_out = args.output if args.output else "insert_something_here.txt"
     print(f"Processing TXT: {early_out}")
 
+    def expand_paths(paths):
+        folders = []
+        for p in paths:
+            root = Path(p)
+            if root.is_dir():
+                folders.extend(discover_media_folders(root))
+        return folders
+
+
+    folders_1080 = expand_paths(args.p1080) if args.p1080 else []
+    folders_720  = expand_paths(args.p720) if args.p720 else []
+    non_bd       = expand_paths(args.paths) if args.paths else []
+
     output_text, default_filename = build_html_block(
-        [Path(p) for p in args.p1080] if args.p1080 else [],
-        [Path(p) for p in args.p720] if args.p720 else [],
-        [Path(p) for p in args.paths] if args.paths else [],
+        folders_1080,
+        folders_720,
+        non_bd,
         args.mal_id,
         args.span_color,
         args.airing_image,

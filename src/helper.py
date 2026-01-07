@@ -12,6 +12,23 @@ try:
 except Exception:
     HAVE_PYMEDIAINFO = False
 
+# ------------------------
+# Nested Folder Support
+# ------------------------
+def discover_media_folders(root: Path):
+    """
+    Recursively finds folders that contain at least one video/archive file.
+    Returns leaf folders only.
+    """
+    media_exts = {".mkv", ".rar", ".zip"}
+    found = []
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        if any(Path(f).suffix.lower() in media_exts for f in filenames):
+            found.append(Path(dirpath))
+
+    return sorted(found)
+
 # ----------------------
 # Application base directory (portable-safe, updater-safe)
 # ----------------------
@@ -112,7 +129,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.43.2"
+VERSION = "0.43.3"
 
 KB = 1024
 MB = KB * 1024
@@ -794,6 +811,9 @@ def get_mal_info(mal_id: str) -> dict:
 
 # Export all functions to the main file
 __all__ = [
+    # Nested folder
+    "discover_media_folders",
+    
     # Version / constants
     "VERSION",
     "KB", "MB", "GB",
