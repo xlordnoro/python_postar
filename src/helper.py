@@ -129,7 +129,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.43.3"
+VERSION = "0.43.4"
 
 KB = 1024
 MB = KB * 1024
@@ -216,6 +216,46 @@ def get_install_type():
     return "portable" if is_portable() else "source (.py)"
 
 # ----------------------
+# GitHub release metadata
+# ----------------------
+def get_latest_github_release():
+    """
+    Returns (version_tag, release_title) from GitHub
+    """
+    api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+
+    try:
+        resp = requests.get(api_url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+
+        tag = data.get("tag_name", "").lstrip("v")
+        title = data.get("name") or data.get("tag_name", "Unknown Release")
+
+        return tag, title
+
+    except Exception as e:
+        print(f"[Update] Failed to fetch release info: {e}")
+        return None, None
+
+# ----------------------
+# Startup banner
+# ----------------------
+def print_startup_banner():
+    print(f"Installed version : {get_install_type()}")
+    print(f"Running from      : {get_base_dir()}")
+    print(f"Current version   : v{VERSION}")
+
+    # ---- Try to show latest GitHub release (non-fatal) ----
+    try:
+        remote_ver, release_title = get_latest_github_release()
+        if remote_ver and release_title:
+            print(f"Latest release    : v{remote_ver}")
+            print(f"Release title     : {release_title}")
+    except Exception:
+        pass  # never block startup
+
+# ----------------------
 # Release URL
 # ----------------------
 def get_release_url(remote_ver: str):
@@ -237,10 +277,6 @@ def check_for_github_update(force=False):
     """
     global VERSION
 
-    print(f"Installed version : {get_install_type()}")
-    print(f"Running from      : {get_base_dir()}")
-    print(f"Current version   : {VERSION}")
-
     if not force:
         if not should_check_update():
             return
@@ -250,20 +286,21 @@ def check_for_github_update(force=False):
 
     print("[Update] Checking for updates...")
 
-    # ---- Get latest version ----
-    try:
-        resp = requests.get(VERSION_URL, timeout=5)
-        resp.raise_for_status()
-        remote_ver = resp.text.strip()
-    except Exception as e:
-        print(f"[Update] Could not get version info: {e}")
+    # ---- Get latest release info ----
+    remote_ver, release_title = get_latest_github_release()
+
+    if not remote_ver:
+        print("[Update] Could not determine latest version.")
         return
 
     if remote_ver <= VERSION:
         print("[Update] Already up to date.")
         return
 
-    print(f"[Update] New version {remote_ver} available (current: {VERSION})")
+    print(f"[Update] New release available!")
+    print(f"         Version : {remote_ver}")
+    print(f"         Title   : {release_title}")
+    print(f"         Current : {VERSION}")
 
     # ---- Download ZIP ----
     zip_url = get_release_url(remote_ver)
@@ -829,6 +866,8 @@ __all__ = [
     "B2_TORRENTS_BASE",
 
     # Update system
+    "print_startup_banner",
+    "get_latest_github_release",
     "check_for_github_update",
 
     # Process tracking

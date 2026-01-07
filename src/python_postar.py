@@ -2,8 +2,9 @@
 """
 python_postar.py
 
-v43.3:
-- Added nested folder support for collections if staff members opt to go that route.
+v43.4:
+- Tweaked the version info to include the latest version alongside the current version
+- Put the version code into a startup banner as well.
 """
 
 # --- Imports and constants ---
@@ -15,8 +16,8 @@ from pathlib import Path
 from helper import *
 
 ORIGINAL_ARGV = sys.argv.copy()
-if SETTINGS.get("AUTO_UPDATE", True):
-    check_for_github_update()
+#if SETTINGS.get("AUTO_UPDATE", True):
+    #check_for_github_update()
 
 # -----------------------------
 # BD / season block
@@ -642,6 +643,20 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
 
     return "\n".join(out_lines), txt_name
 
+# --------------------
+# Metadata Version
+# --------------------
+def print_version_and_exit():
+    tag, title = get_latest_github_release()
+
+    print(f"Installed Version : v{VERSION}")
+
+    if tag and title:
+        print(f"Latest Release    : v{tag}")
+        print(f"Release Title     : {title}")
+
+    sys.exit(0)
+
 # -----------------------------
 # CLI
 # -----------------------------
@@ -658,7 +673,7 @@ def main():
     parser.add_argument("--seasonal", "-s", action="store_true", help="When set, group episodes by series (airing-style)")
     parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="One or more donation image URLs")
     parser.add_argument("--output", "-o", help="Output TXT filename (optional)")
-    parser.add_argument("--version", "-v", action="version", version=f"Version: {VERSION}", help="Shows the version of the script")
+    parser.add_argument("--version", "-v", action="store_true", help="Shows the version of the script")
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
     parser.add_argument("--configure", "-configure", action="store_true", help="Reconfigure postar settings and overwrite postar_settings.json")
     parser.add_argument("--kage", "-kage", action="store_true", help="Modifies the post layout to include the discord widget and various minor changes in the layout")
@@ -671,10 +686,21 @@ def main():
         print("[Update] Manually checking updates...")
         check_for_github_update(force=True)
 
+    # ---- Print Release Version With Metadata ----
+    if args.version:
+        print_version_and_exit()
+
     # ----------------------------------------
     # Load settings (with forced reconfigure)
     # ----------------------------------------
     SETTINGS = load_settings(force_reconfigure=args.configure)
+
+    # Daily Auto Update Check
+    if SETTINGS.get("AUTO_UPDATE", True) and not args.update and not args.version:
+        check_for_github_update()
+
+    # Print the version info of the script on startup    
+    print_startup_banner()
 
     # Override globals after loading settings
     global B2_SHOWS_BASE, B2_TORRENTS_BASE, ENCODER_NAME, AUTO_UPDATE
