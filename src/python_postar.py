@@ -649,11 +649,11 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
 def print_version_and_exit():
     tag, title = get_latest_github_release()
 
-    print(f"Installed Version : v{VERSION}")
+    print(f"Current Version   : v{VERSION}")
 
     if tag and title:
-        print(f"Latest Release    : v{tag}")
-        print(f"Release Title     : {title}")
+        print(f"Latest Version    : v{tag}")
+        print(f"Release Name      : {title}")
 
     sys.exit(0)
 
@@ -734,7 +734,6 @@ def main():
             if root.is_dir():
                 folders.extend(discover_media_folders(root))
         return folders
-
 
     folders_1080 = expand_paths(args.p1080) if args.p1080 else []
     folders_720  = expand_paths(args.p720) if args.p720 else []

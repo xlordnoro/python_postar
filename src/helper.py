@@ -5,6 +5,7 @@ from urllib.parse import quote
 import requests, sys
 import zlib, zipfile, shutil, tempfile, subprocess
 import textwrap
+import platform
 
 try:
     from pymediainfo import MediaInfo
@@ -129,7 +130,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.43.4"
+VERSION = "0.44.0"
 
 KB = 1024
 MB = KB * 1024
@@ -177,8 +178,14 @@ def detect_platform_zip():
     """Return platform string used in release ZIP naming."""
     if sys.platform.startswith("win"):
         return "windows"
+
     elif sys.platform.startswith("darwin"):
-        return "macos"
+        arch = platform.machine().lower()
+        if arch == "arm64":
+            return "macos_arm64"
+        else:
+            return "macos_x86_64"
+
     else:
         return "linux"
 
@@ -242,16 +249,16 @@ def get_latest_github_release():
 # Startup banner
 # ----------------------
 def print_startup_banner():
-    print(f"Installed version : {get_install_type()}")
-    print(f"Running from      : {get_base_dir()}")
-    print(f"Current version   : v{VERSION}")
+    print(f"Install Type      : {get_install_type()}")
+    print(f"Running From      : {get_base_dir()}")
+    print(f"Current Version   : v{VERSION}")
 
     # ---- Try to show latest GitHub release (non-fatal) ----
     try:
         remote_ver, release_title = get_latest_github_release()
         if remote_ver and release_title:
-            print(f"Latest release    : v{remote_ver}")
-            print(f"Release title     : {release_title}")
+            print(f"Latest Version    : v{remote_ver}")
+            print(f"Release Name      : {release_title}")
     except Exception:
         pass  # never block startup
 
