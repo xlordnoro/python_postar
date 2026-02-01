@@ -1,29 +1,31 @@
-[![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar)  ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar)
+[![GitHub release](https://img.shields.io/github/v/release/xlordnoro/python_postar?color=blue)](https://github.com/xlordnoro/python_postar/releases) ![GitHub last commit](https://img.shields.io/github/last-commit/xlordnoro/python_postar) ![GitHub commits since release](https://img.shields.io/github/commits-since/xlordnoro/python_postar/latest) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/xlordnoro/python_postar)
 # python_postar
-A modern version of postar written in python
+A modern version of postar written in Python
 
 ![mbwZck5_xl](https://github.com/user-attachments/assets/c73fd906-e66d-4844-8c78-9673fde9636c)
 
-# Portable Installation/Easy Way (Recommended for Beginneers)
-Since **v0.42.1** of the project, I've started releasing portable versions of postar for all OS's (mac os, linux, and windows) which includes everything needed to run the program into one, complete package without the need to install python on your system. The other benefit of the portable install is that it won't mess with any existing versions of python that might already be installed on the system. 
+# Portable Installation/Easy Way (Recommended for Beginners)
+Since **v0.42.1** of the project, I've started releasing portable versions of postar for all OS's (Mac OS, Linux, and Windows). This includes everything needed to run the program into one complete package without the need to install Python on your system. Another benefit of the portable install is that it won't interfere with any existing versions of Python already installed on the system. 
 
-**NOTE: I don't own a mac so I won't have a good way of testing those builds, but they should work fine on any modern mac running any variant of their m series processors as they are built for arm when checking the file under Linux or wsl.**
+**NOTE: I don't own a Mac, so I won't have a good way of testing those builds, but they should work fine on any modern Mac running any variant of their M-series processors, as they are built for ARM when checking the file under Linux or WSL.**
+
+**EDIT: Since v0.44.0, I've added Intel Mac support to the portable builds. This will only work on Intel Macs running macOS 15, as older runners for the CI builds were deprecated in December of last year.**
 
 [Args Breakdown](#args-breakdown)
 
 # Manual Installation/Slightly Harder Way
-Any modern stable version of python will work with this project. **At the time of writing this guide, it's currently [![Python](https://img.shields.io/badge/dynamic/json?label=Python&logo=python&logoColor=white&color=3776AB&url=https://endoflife.date/api/python.json&query=$[0].latest)](https://www.python.org/downloads/)**
+Any modern stable version of Python will work with this project. **At the time of writing this guide, it's currently [![Python](https://img.shields.io/badge/dynamic/json?label=Python&logo=python&logoColor=white&color=3776AB&url=https://endoflife.date/api/python.json&query=$[0].latest)](https://www.python.org/downloads/)**
 
-I've included a written guide and command readme in the guides folder which will break things down more than the version below which covers the bare minimum needed to get the project running on windows or linux.
+I've included a written guide and command readme in the guides folder, which will break things down more than the version below. This covers the bare minimum needed to get the project running on Windows, Mac OS, or Linux.
 
-**Linux users are unaffected by system path issues since python is automatically added to the system path by default and can skip the notice below.**
+**Linux users are unaffected by system path issues since Python is automatically added to the system path by default.**
 
 **IMPORTANT NOTICE FOR WINDOWS USERS!**
-**MAKE SURE YOU CHECK THE BOX LABELED "ADD PYTHON TO SYSTEM PATH" IN THE PYTHON INSTALLER. WITHOUT THAT SETUP, YOU WON'T BE ABLE TO CALL PYTHON OR PIP GLOGALLY ON YOUR SYSTEM.**
+**MAKE SURE YOU CHECK THE BOX LABELED "ADD PYTHON TO SYSTEM PATH" IN THE PYTHON INSTALLER. WITHOUT THAT SETUP, YOU WON'T BE ABLE TO CALL PYTHON OR PIP GLOBALLY ON YOUR SYSTEM.**
 
-Once python is fully installed, run the following command in cmd, powershell, or terminal if you're running windows 11 to install the required pip libraries.
+Once Python is fully installed, run the following command in cmd, PowerShell, or Terminal to install the required pip libraries.
 
-NOTE: You can also run pip install -r requirements.txt if you're running the terminal window in the same location as the folder containing python postar to achieve the same result.
+NOTE: You can also run pip install -r requirements.txt if you're running the commands in the same location as the folder containing python postar.
 
 **pip install requests pymediainfo**
 
@@ -36,18 +38,18 @@ If you get a message about updating pip after install requests and pymediainfo, 
 - -p1080 & -p720 are also path arguments, but these are strictly meant for BD posts since I needed a way for the script to map where the folders should be placed in the post code.
 - -a is for the airing/cover image(s).
 - -d is for the donation image(s).
-- -m is for the mal-id which is used to grab the titles and synopsis directly from mal's API backend.
+- -m is for the mal-id, which is used to grab the titles and synopsis directly from mal's API backend.
 - e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 - -c is for the span color on the table headers for the title of the series/season.
 - -b is used to tell the script that it's a bd post vs a non-BD post
-- -bi is for the resolution button images which function in pairs 1080p 720p, 1080p 720p, etc. The order does matter if u want them to be in the proper place!
+- -bi is for the resolution button images, which function in pairs 1080p 720p, 1080p 720p, etc. The order does matter!
 - -s is used to tell the script that it's a seasonal airings post and to sort the entries by series instead of the episode number first (Pcool airings)
 - -o allows you to change the filename of the txt file that is going to be generated.
 - -v shows the version of the script. Older versions had it marked in the file itself.
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
-- -configure allows the user to re-configure their settings for postar or they can edit the .postar_settings.json file directly.
-- -kage adds a discord widget and modifies how the donation images are placed at the bottom of posts. Along with removing the buttons hiding the episodes table.
-- -u manually forces an update check.
+- -configure allows the user to re-configure their settings for postar, or they can edit the .postar_settings.json file directly.
+- -kage adds a Discord widget and modifies how the donation images are placed at the bottom of posts. Also removes the buttons hiding the episodes table.
+- -u manually force an update check.
 - -du completely disables the auto-updater if you prefer to stay on a specific version.
 
 # Windows Command Examples
@@ -72,7 +74,7 @@ If you get a message about updating pip after install requests and pymediainfo, 
 ## This command will show the version of the script running. It needs the rest of the args because I made those a hard requirement when running the script.
 `python python_postar.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -v -o test_v51.txt`
 
-## This command will add a crc32 hash column to the episodes table. By default, this option is off since crc32 hashes are included in the files directly.
+## This command will add a CRC32 hash column to the episodes table. By default, this option is off.
 `python python_postar.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -crc -o test_v51.txt`
 
 ## This command shows the configure argument
@@ -81,5 +83,5 @@ If you get a message about updating pip after install requests and pymediainfo, 
 ## This command shows the kage argument. This can be used with BD posts as well.
 `python python_postar.py -p "F:\test\[Hi10]_Airings_Folder_[1080p]" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -kage -o test_v51_kage.txt`
 
-## The Linux commands are virtually the same. Use python3 and adjust the pathing format.
+## The Mac/Linux commands are virtually the same. Use python3 and adjust the pathing format.
 `python3 python_postar.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v51_airing.txt`
