@@ -69,6 +69,7 @@ jobs:
 
         # Copy GUI --onefile binary
         if [[ "$RUNNER_OS" == "Windows" ]]; then
+          cp icon.ico "$STAGE/"
           cp src/dist/python_postar_gui.exe "$STAGE/"
           cp scripts/postar_batch_portable.bat "$STAGE/scripts/"
         else
