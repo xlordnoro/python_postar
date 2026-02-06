@@ -93,13 +93,27 @@ jobs:
       run: |
         if ($env:RUNNER_OS -eq "Windows") {
             $DIST_FOLDER = "src\dist\python_postar"
+            # Ensure the folder exists
+            New-Item -ItemType Directory -Force -Path $DIST_FOLDER
+    
+            # Copy PyInstaller outputs into the dist folder
+            Copy-Item "src\dist\python_postar.exe" $DIST_FOLDER
+            Copy-Item "src\dist\python_postar_gui.exe" $DIST_FOLDER
+    
+            # Create the ZIP
             $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
-            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
+            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME -Force
             Write-Host "Created $ZIP_NAME"
         } else {
             bash -c '
               DIST_FOLDER="src/dist/python_postar"
+              mkdir -p "$DIST_FOLDER"
     
+              # Copy PyInstaller outputs for Linux/macOS
+              cp src/dist/python_postar "$DIST_FOLDER/"
+              cp src/dist/python_postar_gui "$DIST_FOLDER/"
+    
+              # Determine ZIP name
               if [[ "$RUNNER_OS" == "Linux" ]]; then
                 ZIP_NAME="python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
               else
@@ -111,6 +125,7 @@ jobs:
                 fi
               fi
     
+              # Create the ZIP
               cd "$DIST_FOLDER" || exit 1
               zip -r "../../../$ZIP_NAME" .
               echo "Created $ZIP_NAME"
