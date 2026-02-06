@@ -89,14 +89,17 @@ jobs:
       # Create ZIP
       # -------------------------
       - name: Create ZIP
+        shell: pwsh
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            zip -r python_postar_windows_${{ github.ref_name }}.zip python_postar_windows
-          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            zip -r python_postar_macos_${{ github.ref_name }}.zip python_postar_macos
-          fi
+          if ($env:RUNNER_OS -eq "Windows") {
+              Compress-Archive -Path python_postar_windows\* -DestinationPath python_postar_windows_${{ github.ref_name }}.zip -Force
+          }
+          elseif ($env:RUNNER_OS -eq "Linux") {
+              zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
+          }
+          elseif ($env:RUNNER_OS -eq "macOS") {
+              zip -r python_postar_macos_${{ github.ref_name }}.zip python_postar_macos
+          }
 
       # -------------------------
       # Upload to GitHub Release
