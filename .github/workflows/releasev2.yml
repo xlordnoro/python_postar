@@ -39,13 +39,15 @@ jobs:
       # Build GUI with PyInstaller
       # -------------------------
       - name: Build GUI with PyInstaller
+        shell: pwsh
         run: |
           cd src
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.py -n python_postar_gui
-          else
-            pyinstaller --clean --onefile --windowed gui.py -n python_postar_gui
-          fi
+          if ($env:RUNNER_OS -eq "Windows") {
+              pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.py -n python_postar_gui
+          } else {
+              pyinstaller --clean --onefile --windowed gui.py -n python_postar_gui
+          }
+
 
       # -------------------------
       # Prepare release folder
