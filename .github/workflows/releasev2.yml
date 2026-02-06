@@ -24,7 +24,7 @@ jobs:
           python-version: 3.14.2  # adjust if needed
 
       - name: Install PyInstaller
-        run: pip install pyinstaller
+        run: pip install pyinstaller PyQt6
 
       # -------------------------
       # Build GUI Executable
