@@ -29,27 +29,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller PyQt6 requests pymediainfo
 
-    - name: Build Python script EXE
-      shell: pwsh
-      if: runner.os == 'Windows'
+    - name: Build with PyInstaller
       run: |
         cd src
         pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
-    
-    - name: Build GUI EXE
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: |
-        cd src
         pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.py -n python_postar_gui
-    
-    - name: Build Python script binary (Linux/macOS)
-      shell: bash
-      if: runner.os != 'Windows'
-      run: |
-        cd src
-        pyinstaller --clean --onedir python_postar.py
-        pyinstaller --clean --onefile --windowed gui.py -n python_postar_gui
 
     - name: Add extra files to portable build
       shell: bash
