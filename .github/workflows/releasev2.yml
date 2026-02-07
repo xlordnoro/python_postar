@@ -53,37 +53,34 @@ jobs:
       # Prepare release folder
       # -------------------------
       - name: Create release folder
-        shell: pwsh
         run: |
-          if ($env:RUNNER_OS -eq "Windows") {
-              New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
-              Copy-Item src\dist\python_postar_gui.exe python_postar_windows\
-              Copy-Item src\python_postar.py python_postar_windows\
-              Copy-Item src\helper.py python_postar_windows\
-              Copy-Item requirements.txt python_postar_windows\
-              Copy-Item -Recurse guides python_postar_windows\
-              Copy-Item scripts\postar_batch.bat python_postar_windows\scripts\
-          }
-          elseif ($env:RUNNER_OS -eq "Linux") {
-              mkdir -p python_postar_linux/scripts
-              cp src/dist/python_postar_gui python_postar_linux/
-              cp src/python_postar.py python_postar_linux/
-              cp src/helper.py python_postar_linux/
-              cp requirements.txt python_postar_linux/
-              cp -r guides python_postar_linux/
-              cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
-              chmod +x python_postar_linux/scripts/postar_batch_linux.sh
-          }
-          elseif ($env:RUNNER_OS -eq "macOS") {
-              mkdir -p python_postar_macos/scripts
-              cp src/dist/python_postar_gui python_postar_macos/
-              cp src/python_postar.py python_postar_macos/
-              cp src/helper.py python_postar_macos/
-              cp requirements.txt python_postar_macos/
-              cp -r guides python_postar_macos/
-              cp scripts/postar_batch_linux.sh python_postar_macos/scripts/
-              chmod +x python_postar_macos/scripts/postar_batch_linux.sh
-          }
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mkdir -p python_postar_windows/scripts
+            cp src/dist/python_postar_gui.exe python_postar_windows/
+            cp src/python_postar.py python_postar_windows/
+            cp src/helper.py python_postar_windows/
+            cp requirements.txt python_postar_windows/
+            cp -r guides python_postar_windows/
+            cp scripts/postar_batch.bat python_postar_windows/scripts/
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            mkdir -p python_postar_linux/scripts
+            cp src/dist/python_postar_gui python_postar_linux/
+            cp src/python_postar.py python_postar_linux/
+            cp src/helper.py python_postar_linux/
+            cp requirements.txt python_postar_linux/
+            cp -r guides python_postar_linux/
+            cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
+            chmod +x python_postar_linux/scripts/postar_batch_linux.sh
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            mkdir -p python_postar_macos/scripts
+            cp src/dist/python_postar_gui python_postar_macos/
+            cp src/python_postar.py python_postar_macos/
+            cp src/helper.py python_postar_macos/
+            cp requirements.txt python_postar_macos/
+            cp -r guides python_postar_macos/
+            cp scripts/postar_batch_linux.sh python_postar_macos/scripts/
+            chmod +x python_postar_macos/scripts/postar_batch_linux.sh
+          fi
 
       # -------------------------
       # Create ZIP
