@@ -97,9 +97,7 @@ jobs:
             New-Item -ItemType Directory -Force -Path $DIST_FOLDER
     
             # Copy PyInstaller outputs into the dist folder
-            # python_postar is --onedir, so copy recursively
-            Copy-Item "src\dist\python_postar\*" $DIST_FOLDER -Recurse
-            # GUI is --onefile
+            Copy-Item "src\dist\python_postar.exe" $DIST_FOLDER
             Copy-Item "src\dist\python_postar_gui.exe" $DIST_FOLDER
     
             # Create the ZIP
@@ -112,9 +110,7 @@ jobs:
               mkdir -p "$DIST_FOLDER"
     
               # Copy PyInstaller outputs for Linux/macOS
-              # python_postar is --onedir, so copy recursively
-              cp -r src/dist/python_postar/* "$DIST_FOLDER/"
-              # GUI is --onefile
+              cp src/dist/python_postar "$DIST_FOLDER/"
               cp src/dist/python_postar_gui "$DIST_FOLDER/"
     
               # Determine ZIP name
