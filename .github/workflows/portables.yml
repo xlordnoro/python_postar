@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  contents: write  # required for uploading release assets
+  contents: write
 
 jobs:
   build:
@@ -27,35 +27,59 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller requests pymediainfo
+        pip install pyinstaller PyQt6 requests pymediainfo
 
-    - name: Build with PyInstaller
+    # -------------------------------
+    # Build with PyInstaller
+    # -------------------------------
+    - name: Build Python script EXE
+      shell: pwsh
+      if: runner.os == 'Windows'
       run: |
         cd src
         pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
 
-    - name: Add extra files to portable build
+    - name: Build GUI EXE
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        cd src
+        pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.py -n python_postar_gui
+
+    - name: Build Python script binary (Linux/macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        cd src
+        pyinstaller --clean --onedir python_postar.py
+        pyinstaller --clean --onefile --windowed gui.py -n python_postar_gui
+
+    # -------------------------------
+    # Prepare portable staging folder
+    # -------------------------------
+    - name: Prepare portable folder
       shell: bash
       run: |
-        DIST="src/dist/python_postar"
-        mkdir -p "$DIST/scripts"
+        # Use staging folder
+        STAGE="src/dist/python_postar_portable"
+        mkdir -p "$STAGE/scripts"
 
-        # Guides folder
-        cp -r guides "$DIST/"
+        # Copy main --onedir folder
+        cp -r src/dist/python_postar/* "$STAGE/"
 
-        # Platform-specific scripts
+        # Copy GUI --onefile binary
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          cp scripts/postar_batch_portable.bat "$DIST/scripts/"
+          cp icon.ico "$STAGE/"
+          cp src/dist/python_postar_gui.exe "$STAGE/"
+          cp scripts/postar_batch_portable.bat "$STAGE/scripts/"
         else
-          # Linux/macOS batch script
-          cp scripts/postar_batch_linux_portable.sh "$DIST/scripts/"
-          chmod +x "$DIST/scripts/postar_batch_linux_portable.sh"
+          cp src/dist/python_postar_gui "$STAGE/"
+          cp scripts/postar_batch_linux_portable.sh "$STAGE/scripts/"
+          chmod +x "$STAGE/scripts/postar_batch_linux_portable.sh"
 
+          # Linux desktop file
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            # Add PNG icon (repo root -> src relative)
-            cp icon_linux.png "$DIST/"
-
-            # Generate .desktop file using tabs for indentation
+            cp icon_linux.png "$STAGE/"
             printf '%s\n' \
               '[Desktop Entry]' \
               'Type=Application' \
@@ -64,25 +88,30 @@ jobs:
               'Icon=./icon_linux.png' \
               'Terminal=true' \
               'Categories=Utility;' \
-              > "$DIST/python_postar.desktop"
-
-            # Make the .desktop file executable
-            chmod +x "$DIST/python_postar.desktop"
+              > "$STAGE/python_postar.desktop"
+            chmod +x "$STAGE/python_postar.desktop"
           fi
         fi
 
+        # Copy guides
+        cp -r guides "$STAGE/"
+
+    # -------------------------------
+    # Package portable ZIP
+    # -------------------------------
     - name: Package dist folder
       shell: pwsh
       run: |
         if ($env:RUNNER_OS -eq "Windows") {
-            $DIST_FOLDER = "src\dist\python_postar"
+            $DIST_FOLDER = "src\dist\python_postar_portable"
             $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
-            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME
+            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME -Force
             Write-Host "Created $ZIP_NAME"
         } else {
             bash -c '
-              DIST_FOLDER="src/dist/python_postar"
-    
+              DIST_FOLDER="src/dist/python_postar_portable"
+
+              # Determine ZIP name
               if [[ "$RUNNER_OS" == "Linux" ]]; then
                 ZIP_NAME="python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
               else
@@ -93,13 +122,17 @@ jobs:
                   ZIP_NAME="python_postar_macos_x86_64_${GITHUB_REF_NAME}_portable.zip"
                 fi
               fi
-    
+
+              # Create the ZIP
               cd "$DIST_FOLDER" || exit 1
               zip -r "../../../$ZIP_NAME" .
               echo "Created $ZIP_NAME"
             '
         }
 
+    # -------------------------------
+    # Upload release assets
+    # -------------------------------
     - name: Upload release asset
       uses: softprops/action-gh-release@v2
       with:
