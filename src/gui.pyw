@@ -870,25 +870,23 @@ class PostarGUI(QMainWindow):
             QMessageBox.information(self, "No Results", "No matching anime found on MAL.")
             return
 
-        # Only keep results with valid titles
-        items = [f"{title} — ID: {mal_id}" for title, mal_id in results if title]
-        if not items:
-            QMessageBox.information(self, "No Results", "No matching anime found on MAL.")
-            return
-
-        # Show selection dialog
-        item, ok = QInputDialog.getItem(
-            self,
-            "Select Anime",
-            "Select anime to use MAL ID:",
-            items,
-            0,
-            False
-        )
+        items = [f"{title} — ID: {mal_id}" for title, mal_id in results]
+        item, ok = QInputDialog.getItem(self, "Select Anime", "Select anime to use MAL ID:", items, 0, False)
         if ok and item:
-            mal_id = item.split("ID:")[-1].strip()
-            # Replace the input field entirely with the selected MAL ID
-            self.mal_input.setText(mal_id)
+            selected_mal_id = item.split("ID:")[-1].strip()
+
+            # Split existing text into parts (comma separated)
+            current_ids = [x.strip() for x in self.mal_input.text().split(",") if x.strip()]
+
+            # If user typed a name that was just replaced, remove it
+            # We'll assume anything non-numeric in the field is a "name" that should be replaced
+            current_ids = [x for x in current_ids if x.isdigit()]
+
+            # Append new ID
+            if selected_mal_id not in current_ids:
+                current_ids.append(selected_mal_id)
+
+            self.mal_input.setText(", ".join(current_ids))
 
     def on_mal_search_error(self, err):
         self.mal_search_btn.setEnabled(True)
