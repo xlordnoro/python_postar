@@ -44,7 +44,7 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         cd src
-        pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.py -n python_postar_gui
+        pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.pyw -n python_postar_gui
 
     - name: Build Python script binary (Linux/macOS)
       shell: bash
@@ -52,7 +52,7 @@ jobs:
       run: |
         cd src
         pyinstaller --clean --onedir python_postar.py
-        pyinstaller --clean --onefile --windowed gui.py -n python_postar_gui
+        pyinstaller --clean --onefile --windowed gui.pyw -n python_postar_gui
 
     # -------------------------------
     # Prepare portable staging folder
