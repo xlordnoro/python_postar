@@ -130,7 +130,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.45.0"
+VERSION = "0.46.0"
 
 KB = 1024
 MB = KB * 1024
@@ -419,20 +419,25 @@ def check_for_github_update(force=False):
             env["POSTAR_APP_DIR"] = str(base_dir)
 
             subprocess.Popen(
-                ["cmd", "/c", "python", str(updater_py)],
+                [str(base_dir / python_exe), *original_args],
                 cwd=str(base_dir),
                 env=env,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
             )
 
             # ---- cleanup ----
-            time.sleep(2)
+            for _ in range(10):
+                try:
+                    shutil.rmtree(temp_dir)
+                    break
+                except Exception:
+                    time.sleep(0.5)
             shutil.rmtree(temp_dir, ignore_errors=True)
 
             # ---- self delete ----
             updater = Path(sys.argv[0]).resolve()
             subprocess.Popen(
-                ["cmd", "/c", "ping 127.0.0.1 -n 2 >nul & del", str(updater)],
+                ["cmd", "/c", f"ping 127.0.0.1 -n 3 >nul & rmdir /s /q \"{temp_dir}\""],
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
         ''')

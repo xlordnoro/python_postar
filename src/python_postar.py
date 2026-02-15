@@ -2,9 +2,10 @@
 """
 python_postar.py
 
-v43.4:
-- Tweaked the version info to include the latest version alongside the current version
-- Put the version code into a startup banner as well.
+v46:
+- Major changes to the GUI were added:
+- Job queue, custom backgrounds, check for updates via the GUI
+- Modified how the labels look for better visibility with custom backgrounds
 """
 
 # --- Imports and constants ---
@@ -661,17 +662,34 @@ def print_version_and_exit():
 # CLI
 # -----------------------------
 def main():
+    # ---- Parser for shortcuts ----
+    shortcut_parser = argparse.ArgumentParser(add_help=False)
+    shortcut_parser.add_argument("--update", "-u", action="store_true", help="Check updates")
+    shortcut_parser.add_argument("--version", "-v", action="store_true", help="Show version")
+
+    # First, parse only shortcut flags
+    shortcut_args, remaining = shortcut_parser.parse_known_args()
+
+    if shortcut_args.update:
+        print("[Update] Manually checking updates...")
+        check_for_github_update(force=True)
+        sys.exit(0)
+
+    if shortcut_args.version:
+        print_version_and_exit()
+
+    # ---- Main parser for everything else ----
     parser = argparse.ArgumentParser(description="Generate html posts for hi10anime")
     parser.add_argument("-p1080", nargs="+", help="Paths to BD 1080p anime folders")
     parser.add_argument("-p720", nargs="+", help="Paths to BD 720p anime folders")
     parser.add_argument("--paths", "-p", nargs="+", help="Paths to non-BD anime folders")
     parser.add_argument("--mal-id", "-m", nargs="+", required=True, help="MAL ID(s)")
     parser.add_argument("--span-color", "-c", nargs="+", required=True, help="List of colors for table headings")
+    parser.add_argument("--airing-image", "-a", nargs="+", required=True, help="URL to airing image")
+    parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="Donation image URLs")
     parser.add_argument("--bd", "-b", action="store_true", help="Enable BD 1080p/720p toggle")
     parser.add_argument("--bd-image", "-bi", nargs="+", metavar="BD_IMG", help="BD image URLs in pairs (1080p,720p) per season")
-    parser.add_argument("--airing-image", "-a", nargs="+", required=True, help="URL to airing image")
     parser.add_argument("--seasonal", "-s", action="store_true", help="When set, group episodes by series (airing-style)")
-    parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="One or more donation image URLs")
     parser.add_argument("--output", "-o", help="Output TXT filename (optional)")
     parser.add_argument("--version", "-v", action="store_true", help="Shows the version of the script")
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
@@ -679,12 +697,8 @@ def main():
     parser.add_argument("--kage", "-kage", action="store_true", help="Modifies the post layout to include the discord widget and various minor changes in the layout")
     parser.add_argument("--update", "-u", action="store_true", help="Manually checks updates for postar")
     parser.add_argument("--disable-auto-update", "-du", action="store_true", help="Disable automatic updates permanently")
-    args = parser.parse_args()
 
-    # ---- HANDLE UPDATE FIRST ----
-    if args.update:
-        print("[Update] Manually checking updates...")
-        check_for_github_update(force=True)
+    args = parser.parse_args(remaining)
 
     # ---- Print Release Version With Metadata ----
     if args.version:

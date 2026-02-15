@@ -1,15 +1,19 @@
 import sys
 import json
+import requests
+import platform
+import time
+import subprocess
+import threading
 from pathlib import Path
-from PyQt6.QtGui import QIcon, QColor
+from datetime import datetime
+from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox, QProgressBar, 
-    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog
+    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog, QSizePolicy
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
-from datetime import datetime
-import subprocess
 
 # ---------------------------
 # PyInstaller-safe app dir
@@ -45,10 +49,35 @@ SETTINGS_FILE = Path("postar_last_profile.json")
 QUEUE_FILE = Path("postar_job_queue.json")
 
 APP_NAME = "Postar GUI"
-APP_VERSION = "0.44.0"
-APP_VERSION_NAME = "Emilia"
 APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
+REPO_OWNER = "xlordnoro"
+REPO_NAME = "python_postar"
+VERSION = "0.46.0"
+RELEASE_NAME = "Fern"
+
+# ----------------------
+# GitHub release metadata
+# ----------------------
+def get_latest_github_release():
+    """
+    Returns (version_tag, release_title) from GitHub
+    """
+    api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+
+    try:
+        resp = requests.get(api_url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+
+        tag = data.get("tag_name", "").lstrip("v")
+        title = data.get("name") or data.get("tag_name", "Unknown Release")
+
+        return tag, title
+
+    except Exception as e:
+        print(f"[Update] Failed to fetch release info: {e}")
+        return None, None
 
 # --------------------------
 # Settings Menu Prompt
@@ -58,7 +87,9 @@ DEFAULT_POSTAR_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
     "ENCODER_NAME": "",
-    "AUTO_UPDATE": True
+    "AUTO_UPDATE": True,
+    "BACKGROUND_IMAGE": "",
+    "DARK_MODE": False
 }
 REQUIRED_POSTAR_KEYS = ("B2_SHOWS_BASE", "B2_TORRENTS_BASE", "ENCODER_NAME")
 
@@ -88,7 +119,6 @@ DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,
     "html_preview": True,
-    "queue_visible": True
 }
 
 def load_ui_state():
@@ -126,8 +156,9 @@ def load_queue():
 # About Dialog
 # ---------------------------
 class AboutDialog(QDialog):
-    def __init__(self, parent=None, dark_mode=False):
+    def __init__(self, parent=None, dark_mode=False, version="Unknown", release_title="Unknown"):
         super().__init__(parent)
+
         self.setWindowTitle(f"About {APP_NAME}")
         self.setWindowIcon(QIcon("icon.ico"))
         self.setFixedSize(420, 260)
@@ -136,13 +167,12 @@ class AboutDialog(QDialog):
         title = QLabel(f"<h2>{APP_NAME}</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Set link color depending on dark mode
         link_color = "white" if dark_mode else "black"
 
         info = QLabel(
             f"""
-            <b>Version:</b> {APP_VERSION}<br>
-            <b>Release:</b> {APP_VERSION_NAME}<br><br>
+            <b>Version:</b> {version}<br>
+            <b>Release:</b> {release_title}<br><br>
             <b>Author:</b> {APP_AUTHOR}<br>
             <b>Website:</b> <a style="color:{link_color};" href="{APP_WEBSITE}">{APP_WEBSITE}</a>
             """
@@ -178,6 +208,73 @@ class DragDropLineEdit(QLineEdit):
             if current:
                 current += ","
             self.setText(current + ",".join(paths))
+
+class UpdateWorker(QThread):
+    finished = pyqtSignal(str)
+    output = pyqtSignal(str)
+
+    def __init__(self, force=False, display_delay=2.0):
+        super().__init__()
+        self.force = force
+        self.display_delay = display_delay
+
+    def run(self):
+        try:
+            base_dir = app_dir()
+            system = platform.system().lower()
+
+            updater = None
+
+            # -------- Windows --------
+            if system == "windows":
+                updater = base_dir / "updater.exe"
+
+            # -------- Linux --------
+            elif system == "linux":
+                updater = base_dir / "updater"
+
+            # -------- macOS --------
+            elif system == "darwin":
+                app = base_dir / "updater.app"
+                if app.exists():
+                    updater = ["open", "-a", str(app)]
+                else:
+                    updater = base_dir / "updater"
+
+            if not updater:
+                self.finished.emit("Unsupported platform")
+                return
+
+            if isinstance(updater, Path):
+                if not updater.exists():
+                    self.finished.emit(f"Updater not found: {updater}")
+                    return
+                cmd = [str(updater)]
+            else:
+                cmd = updater
+
+            if self.force:
+                cmd.append("--force")
+
+            self.output.emit("[Update] Launching updater and closing GUI...\n")
+
+            if system == "windows":
+                subprocess.Popen(
+                    cmd,
+                    cwd=base_dir,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP |
+                                  subprocess.DETACHED_PROCESS
+                )
+            else:
+                subprocess.Popen(cmd, cwd=base_dir)
+
+            # Exit GUI so files are unlocked
+            QTimer.singleShot(500, QApplication.instance().quit)
+
+            self.finished.emit("done")
+
+        except Exception as e:
+            self.finished.emit(str(e))           
 
 # ---------------------------
 # MAL Search Worker
@@ -317,6 +414,40 @@ class PostarSettingsDialog(QDialog):
         })
         self.accept()
 
+class JobQueueWindow(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.gui = parent
+        self.setWindowTitle("Job Queue")
+        self.setWindowIcon(QIcon("icon.ico"))
+        self.resize(500, 350)
+
+        layout = QVBoxLayout(self)
+
+        self.queue_list = QListWidget()
+        layout.addWidget(self.queue_list)
+
+        self.timer_label = QLabel("Elapsed Time: 00:00:00")
+        layout.addWidget(self.timer_label)
+
+        btn_row = QHBoxLayout()
+
+        self.remove_btn = QPushButton("Remove Selected")
+        self.remove_btn.clicked.connect(self.gui.remove_selected_job)
+        btn_row.addWidget(self.remove_btn)
+
+        self.run_btn = QPushButton("Run Queue")
+        self.run_btn.clicked.connect(self.gui.start_queue)
+        btn_row.addWidget(self.run_btn)
+
+        layout.addLayout(btn_row)
+
+    def sync_from_main(self):
+        """Sync queue list from main GUI"""
+        self.queue_list.clear()
+        for args, out_path in self.gui.job_queue:
+            self.queue_list.addItem(out_path.name)
+
 # ---------------------------
 # Main GUI
 # ---------------------------
@@ -325,7 +456,7 @@ class PostarGUI(QMainWindow):
         super().__init__()
         self.setWindowIcon(QIcon("icon.ico"))
         self.setWindowTitle(APP_NAME)
-        self.resize(1050, 950)
+        self.resize(900, 750)
         self.worker = None
 
         # Queue
@@ -335,17 +466,56 @@ class PostarGUI(QMainWindow):
         self.elapsed_seconds = 0
 
         self.ui_state = load_ui_state()
+        self.postar_settings = load_postar_settings()
 
         # Central widget
         central = QWidget(self)
         self.setCentralWidget(central)
         self.layout = QVBoxLayout(central)
+        self.setAutoFillBackground(True)
+
+        self.bg_label = QLabel(self.centralWidget())
+        self.bg_label.setScaledContents(True)
+        self.bg_label.lower()  # send to back
+        self.bg_label.hide()
+
+        # Background Settings
+        self.postar_settings = load_postar_settings()
+        bg_path = self.postar_settings.get("BACKGROUND_IMAGE", "")
+        if bg_path:
+            # defer applying until window is fully shown
+            QTimer.singleShot(0, lambda: self.apply_background_image(bg_path))
 
         # Menu bar
         menubar = self.menuBar()
         about_action = menubar.addAction("About")
         about_action.setShortcut("F1")
         about_action.triggered.connect(self.show_about)
+
+        # Job Queue Menu
+        self.queue_window = JobQueueWindow(self)
+        queue_menu = menubar.addMenu("Job Queue")
+
+        open_queue_action = queue_menu.addAction("Jobs")
+        open_queue_action.setShortcut("F2")
+        open_queue_action.triggered.connect(self.show_queue_window)
+        clear_queue_action = queue_menu.addAction("Clear Entire Queue", self.clear_job_queue)
+        clear_queue_action.setShortcut("F3")
+
+        # Background Dropdown
+        view_menu = menubar.addMenu("Custom Background")
+        bg_action = view_menu.addAction("Set Background")
+        bg_action.setShortcut("F4")
+        bg_action.triggered.connect(self.select_background_image)
+
+        clear_bg_action = view_menu.addAction("Clear Background")
+        clear_bg_action.setShortcut("F5")
+        clear_bg_action.triggered.connect(self.clear_background_image)
+
+        # ---- Help / Update menu ----
+        update_action = menubar.addAction("Check for Updates")
+        update_action.setShortcut("F12")
+        update_action.triggered.connect(self.manual_update_check)
 
         # Inputs
         self.inputs = {}
@@ -390,26 +560,61 @@ class PostarGUI(QMainWindow):
                 widget.setFixedWidth(input_width)
                 self.inputs[label] = widget
 
-        # Checkboxes
+        # ---------------------------
+        # Options / Checkboxes Section
+        # ---------------------------
+        self.options_container = QWidget()
+        self.options_container.setObjectName("optionsPanel")
+        options_layout = QVBoxLayout(self.options_container)
+        options_layout.setContentsMargins(0, 0, 0, 0)
+
         self.bd_checkbox = QCheckBox("Enable BD toggle")
         self.seasonal_checkbox = QCheckBox("Seasonal / Airing style")
         self.crc_checkbox = QCheckBox("Include CRC32 column")
         self.kage_checkbox = QCheckBox("Kage Layout")
         self.dark_checkbox = QCheckBox("Dark Mode")
-        self.update_checkbox = QCheckBox("Manually check for updates (-u)")
+        #self.update_checkbox = QCheckBox("Manually check for updates (-u)")
         self.disable_auto_update_checkbox = QCheckBox("Disable auto-update (-du)")
         self.configure_checkbox = QCheckBox("Re-run setup (-configure)")
+
         for cb in (
             self.bd_checkbox,
             self.seasonal_checkbox,
             self.crc_checkbox,
             self.kage_checkbox,
             self.dark_checkbox,
-            self.update_checkbox,
+            #self.update_checkbox,
             self.disable_auto_update_checkbox,
             self.configure_checkbox,
         ):
-            self.layout.addWidget(cb)
+            cb.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            options_layout.addWidget(cb)
+
+        # Toggle button row
+        options_toggle_row = QHBoxLayout()
+        options_label = QLabel("Options")
+        self.options_toggle_btn = QPushButton("Hide")
+        self.options_toggle_btn.setMaximumWidth(60)
+        options_toggle_row.addWidget(options_label)
+        options_toggle_row.addStretch()
+        options_toggle_row.addWidget(self.options_toggle_btn)
+
+        self.layout.addLayout(options_toggle_row)
+        self.layout.addWidget(self.options_container)
+
+        # Connect the toggle
+        self.options_toggle_btn.clicked.connect(
+            lambda: self.toggle_widget(self.options_container, self.options_toggle_btn, state_key="options_visible")
+        )
+
+        # Remember state
+        self.ui_state.setdefault("options_visible", True)
+        visible = self.ui_state["options_visible"]
+        self.options_container.setVisible(visible)
+        self.options_toggle_btn.setText("Hide" if visible else "Show")
+
+        # Checks github version & release title
+        QTimer.singleShot(200, self.fetch_release_metadata)
 
         # ---------------------------
         # Apply dark/light mode colors to menu
@@ -419,27 +624,42 @@ class PostarGUI(QMainWindow):
                 menubar.setStyleSheet("""
                     QMenuBar {
                         background-color: #1e1e1e;
-                        color: #e0e0e0;
+                        color: #ffffff;
+                        border-bottom: 1px solid #444;
                     }
                     QMenuBar::item {
                         background-color: #1e1e1e;
-                        color: #e0e0e0;
+                        color: #ffffff;
+                        padding: 6px 12px;
                     }
                     QMenuBar::item:selected {
-                        background-color: #444444;
+                        background-color: #333333;
                         color: #ffffff;
                     }
                     QMenu {
                         background-color: #1e1e1e;
-                        color: #e0e0e0;
+                        color: #ffffff;
                     }
                     QMenu::item:selected {
-                        background-color: #444444;
+                        background-color: #333333;
                         color: #ffffff;
                     }
                 """)
             else:
-                menubar.setStyleSheet("")  # reset to default
+                menubar.setStyleSheet("""
+                    QMenuBar {
+                        background-color: #f0f0f0;
+                        color: #000000;
+                    }
+                    QMenuBar::item {
+                        background-color: #f0f0f0;
+                        color: #000000;
+                        padding: 6px 12px;
+                    }
+                    QMenuBar::item:selected {
+                        background-color: #dcdcdc;
+                    }
+                """)
 
         # Connect to checkbox after it exists
         self.dark_checkbox.stateChanged.connect(apply_menu_colors)
@@ -447,33 +667,64 @@ class PostarGUI(QMainWindow):
         # Initial apply (in case dark mode is already checked)
         apply_menu_colors()
         self.dark_checkbox.stateChanged.connect(self.toggle_dark)
+        self.dark_checkbox.setChecked(self.postar_settings.get("DARK_MODE", False))
+        self.toggle_dark()
         self.configure_checkbox.stateChanged.connect(self.open_reconfigure_dialog)
 
         # Output file
+        input_width = 900  # same width used for BD 1080p Folders
         out_row = QHBoxLayout()
         out_row.addWidget(QLabel("Output HTML File"))
         self.output_file = QLineEdit("output.txt")
+        self.output_file.setFixedWidth(input_width) 
         out_row.addWidget(self.output_file)
         self.layout.addLayout(out_row)
 
         # Profiles
         prof_row = QHBoxLayout()
+
+        label_width = 23      # approximate width for "Profile" label
+        total_width = 900     # total width for the row
+        button_width = 80     # each button width
+        spacing = 0          # spacing between widgets
+
+        # Compute remaining width for QLineEdit + QComboBox
+        remaining_width = total_width - label_width - (3 * button_width) - (4 * spacing)
+        profile_name_width = int(remaining_width * 0.5)  # half for name
+        profile_box_width = remaining_width - profile_name_width  # rest for dropdown
+
+        # Label
+        prof_row.addWidget(QLabel("Profile"))
+
+        # Profile Name
         self.profile_name = QLineEdit()
         self.profile_name.setPlaceholderText("Profile name")
-        self.profile_box = QComboBox()
-        self.load_profiles()
-        save_btn = QPushButton("Save")
-        load_btn = QPushButton("Load")
-        del_btn = QPushButton("Delete")
-        save_btn.clicked.connect(self.save_profile)
-        load_btn.clicked.connect(self.load_selected_profile)
-        del_btn.clicked.connect(self.delete_profile)
-        prof_row.addWidget(QLabel("Profile"))
+        self.profile_name.setFixedWidth(profile_name_width)
         prof_row.addWidget(self.profile_name)
+
+        # Profile Dropdown
+        self.profile_box = QComboBox()
+        self.profile_box.setObjectName("profileDropdown")
+        self.profile_box.setFixedWidth(profile_box_width)
+        self.load_profiles()
         prof_row.addWidget(self.profile_box)
+
+        # Buttons
+        save_btn = QPushButton("Save")
+        save_btn.setFixedWidth(button_width)
+        save_btn.clicked.connect(self.save_profile)
         prof_row.addWidget(save_btn)
+
+        load_btn = QPushButton("Load")
+        load_btn.setFixedWidth(button_width)
+        load_btn.clicked.connect(self.load_selected_profile)
         prof_row.addWidget(load_btn)
+
+        del_btn = QPushButton("Delete")
+        del_btn.setFixedWidth(button_width)
+        del_btn.clicked.connect(self.delete_profile)
         prof_row.addWidget(del_btn)
+
         self.layout.addLayout(prof_row)
 
         # Command Preview with toggle
@@ -529,48 +780,13 @@ class PostarGUI(QMainWindow):
         self.layout.addLayout(html_row)
         self.current_html_file = None
 
-        # ---------------------------
-        # Job Queue & Timer with toggle
-        # ---------------------------
-        queue_row = QVBoxLayout()
+        # Progress
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.hide()
+        self.layout.addWidget(self.progress)
 
-        # Header with toggle button
-        queue_header = QHBoxLayout()
-        queue_label = QLabel("Job Queue")
-        self.queue_toggle_btn = QPushButton("Hide")
-        self.queue_toggle_btn.setMaximumWidth(60)
-        queue_header.addWidget(queue_label)
-        queue_header.addStretch()
-        queue_header.addWidget(self.queue_toggle_btn)
-        queue_row.addLayout(queue_header)
-
-        # Container for queue elements
-        self.queue_container = QWidget()
-        queue_container_layout = QVBoxLayout(self.queue_container)
-        queue_container_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.queue_list = QListWidget()
-        queue_container_layout.addWidget(self.queue_list)
-
-        self.timer_label = QLabel("Elapsed Time: 00:00:00")
-        queue_container_layout.addWidget(self.timer_label)
-
-        remove_btn = QPushButton("Remove Selected Job")
-        remove_btn.clicked.connect(self.remove_selected_job)
-        queue_container_layout.addWidget(remove_btn)
-
-        queue_row.addWidget(self.queue_container)
-        self.layout.addLayout(queue_row)
-
-        # Connect toggle button and remember state
-        self.queue_toggle_btn.clicked.connect(
-            lambda: self.toggle_widget(self.queue_container, self.queue_toggle_btn, state_key="queue_visible")
-        )
-
-        # Apply saved visibility
-        visible = self.ui_state.get("queue_visible", True)
-        self.queue_container.setVisible(visible)
-        self.queue_toggle_btn.setText("Hide" if visible else "Show")
+        self.load_last_profile()
 
         # Generate / Queue Controls
         btn_row = QHBoxLayout()
@@ -585,21 +801,13 @@ class PostarGUI(QMainWindow):
         btn_row.addWidget(self.generate_btn)
         self.layout.addLayout(btn_row)
 
-        # Progress
-        self.progress = QProgressBar()
-        self.progress.setRange(0, 0)
-        self.progress.hide()
-        self.layout.addWidget(self.progress)
-
-        self.load_last_profile()
-
         # Store the UI states
         self.ui_state = load_ui_state()
         self.apply_ui_state()
 
         # Populate queue list if jobs were loaded
         for args, out_path in self.job_queue:
-            self.queue_list.addItem(str(out_path.name))
+            self.queue_window.queue_list.addItem(str(out_path.name))
 
         # Timer updates
         self.timer.timeout.connect(self.update_timer)
@@ -611,6 +819,45 @@ class PostarGUI(QMainWindow):
         else:
             QUEUE_FILE.write_text("[]", encoding="utf-8")
         event.accept()
+
+    def clear_job_queue(self):
+        if not self.job_queue:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Clear Queue",
+            "Are you sure you want to remove all jobs from the queue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.job_queue.clear()
+            self.queue_window.queue_list.clear()
+            self.statusBar().showMessage("Job queue cleared", 3000)
+
+    def show_queue_window(self):
+        self.queue_window.sync_from_main()
+        self.queue_window.show()
+        self.queue_window.raise_()
+        self.queue_window.activateWindow()
+
+    # Update/Version Check
+    def fetch_release_metadata(self):
+        def worker():
+            try:
+                version, title = get_latest_github_release()
+                if version:
+                    self.remote_version = version
+                    self.release_title = title
+                else:
+                    self.remote_version = "Unknown"
+                    self.release_title = "Unknown Release"
+            except Exception:
+                self.remote_version = "Unknown"
+                self.release_title = "Unknown Release"
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ---------------------------
     # HTML Edit Mode
@@ -677,7 +924,7 @@ class PostarGUI(QMainWindow):
         args, out_path = self.build_args_list()
         job_name = str(out_path.name)
         self.job_queue.append((args, out_path))
-        self.queue_list.addItem(job_name)
+        self.queue_window.queue_list.addItem(job_name)
         self.statusBar().showMessage(f"Added job to queue — {len(self.job_queue)} total", 4000)
 
     def start_queue(self):
@@ -702,14 +949,14 @@ class PostarGUI(QMainWindow):
         self.current_html_file = out_path
 
         # Remove highlight from all items
-        for i in range(self.queue_list.count()):
-            item = self.queue_list.item(i)
+        for i in range(self.queue_window.queue_list.count()):
+            item = self.queue_window.queue_list.item(i)
             item.setBackground(QColor("white"))
             item.setForeground(QColor("black"))
 
         # Highlight current job with border / color
-        if self.queue_list.count() > self.current_job_index:
-            item = self.queue_list.item(self.current_job_index)
+        if self.queue_window.queue_list.count() > self.current_job_index:
+            item = self.queue_window.queue_list.item(self.current_job_index)
             item.setForeground(QColor("black"))
             item.setBackground(QColor("#FFD700"))  # temporary highlight (gold)
         
@@ -732,8 +979,8 @@ class PostarGUI(QMainWindow):
             self.html_preview.setPlainText(self.current_output_file.read_text(encoding="utf-8"))
 
         # Highlight job in green
-        if 0 <= self.current_job_index < self.queue_list.count():
-            item = self.queue_list.item(self.current_job_index)
+        if 0 <= self.current_job_index < self.queue_window.queue_list.count():
+            item = self.queue_window.queue_list.item(self.current_job_index)
             item.setBackground(QColor("#4CAF50"))  # green flash
 
             # Remove from queue after 700ms
@@ -743,8 +990,8 @@ class PostarGUI(QMainWindow):
 
     def on_queue_job_error(self, err):
         self.process_output.append(f"ERROR: {err}")
-        if 0 <= self.current_job_index < self.queue_list.count():
-            self.queue_list.item(self.current_job_index).setBackground(QColor("red"))
+        if 0 <= self.current_job_index < self.queue_window.queue_list.count():
+            self.queue_window.queue_list.item(self.current_job_index).setBackground(QColor("red"))
             # Remove errored job after short delay
             QTimer.singleShot(700, lambda idx=self.current_job_index: self.remove_job_from_list(idx))
         self.cleanup_worker()
@@ -752,8 +999,8 @@ class PostarGUI(QMainWindow):
     def remove_job_from_list(self, index):
         if index < len(self.job_queue):
             self.job_queue.pop(index)
-        if index < self.queue_list.count():
-            self.queue_list.takeItem(index)
+        if index < self.queue_window.queue_list.count():
+            self.queue_window.queue_list.takeItem(index)
         # run next job if any left
         if self.job_queue:
             # current_job_index already points to next job, just run it
@@ -766,19 +1013,19 @@ class PostarGUI(QMainWindow):
 
     def on_queue_job_error(self, err):
         self.process_output.append(f"ERROR: {err}")
-        if 0 <= self.current_job_index < self.queue_list.count():
-            self.queue_list.item(self.current_job_index).setBackground(QColor("red"))
+        if 0 <= self.current_job_index < self.queue_window.queue_list.count():
+            self.queue_window.queue_list.item(self.current_job_index).setBackground(QColor("red"))
         self.cleanup_worker()
         self.current_job_index += 1
         self.run_next_job()
 
     def remove_selected_job(self):
-        selected_items = self.queue_list.selectedItems()
+        selected_items = self.queue_window.queue_list.selectedItems()
         if not selected_items:
             return
         for item in selected_items:
-            row = self.queue_list.row(item)
-            self.queue_list.takeItem(row)
+            row = self.queue_window.queue_list.row(item)
+            self.queue_window.queue_list.takeItem(row)
             # Remove corresponding job from job_queue
             if row < len(self.job_queue):
                 self.job_queue.pop(row)
@@ -786,8 +1033,8 @@ class PostarGUI(QMainWindow):
 
     def on_error(self, err):
         self.process_output.append(f"ERROR: {err}")
-        if 0 <= self.current_job_index < self.queue_list.count():
-            self.queue_list.item(self.current_job_index).setBackground(Qt.GlobalColor.red)
+        if 0 <= self.current_job_index < self.queue_window.queue_list.count():
+            self.queue_window.queue_list.item(self.current_job_index).setBackground(Qt.GlobalColor.red)
         self.cleanup_worker()
         self.current_job_index += 1
         self.run_next_job()
@@ -796,13 +1043,51 @@ class PostarGUI(QMainWindow):
         self.elapsed_seconds += 1
         h, rem = divmod(self.elapsed_seconds, 3600)
         m, s = divmod(rem, 60)
-        self.timer_label.setText(f"Elapsed Time: {h:02}:{m:02}:{s:02}")
+        self.queue_window.timer_label.setText(
+            f"Elapsed Time: {h:02}:{m:02}:{s:02}"
+        )
 
     def cleanup_worker(self):
         self.progress.hide()
         self.generate_btn.setEnabled(True)
         self.worker = None
         self.timer.stop()
+
+    def manual_update_check(self):
+        reply = QMessageBox.question(
+            self,
+            "Check for Updates",
+            "Check GitHub for updates now?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self.statusBar().showMessage("Checking for updates...")
+
+        self.process_output.clear()
+        self.process_output.append("[Update] Launching updater...\n")
+
+        self.update_worker = UpdateWorker(force=True)
+        self.update_worker.output.connect(self.process_output.append)
+        self.update_worker.finished.connect(self.on_update_finished)
+        self.update_worker.start()
+
+    def auto_update_check(self):
+        if not self.postar_settings.get("AUTO_UPDATE", True):
+            return
+
+        self.update_worker = UpdateWorker(force=False)
+        self.update_worker.output.connect(self.process_output.append)
+        self.update_worker.finished.connect(self.on_update_finished)
+        self.update_worker.start()
+
+    def on_update_finished(self, result):
+        #self.statusBar().showMessage("Update Complete!", 3000)
+        self.statusBar().clearMessage()
+
+        if result != "done":
+            QMessageBox.warning(self, "Update Error", result)
 
     # ---------------------------
     # Single job generation
@@ -893,19 +1178,122 @@ class PostarGUI(QMainWindow):
         self.mal_search_btn.setText("Search MAL ID")
         QMessageBox.warning(self, "Search Error", f"Failed to search MAL:\n{err}")
 
+    def apply_background_image(self, image_path):
+        if image_path and Path(image_path).exists():
+            pixmap = QPixmap(image_path)
+            self.bg_label.setPixmap(pixmap)
+            self.bg_label.show()
+            self.resizeEvent(None)  # force rescale
+        else:
+            self.bg_label.hide()
+
+    def select_background_image(self):
+        from PyQt6.QtWidgets import QFileDialog
+
+        file, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Background Image",
+            "",
+            "Images (*.png *.jpg *.jpeg)"
+        )
+
+        if file:
+            settings = load_postar_settings()
+            settings["BACKGROUND_IMAGE"] = file
+            save_postar_settings(settings)
+            self.apply_background_image(file)
+
+    def clear_background_image(self):
+        settings = load_postar_settings()
+        settings["BACKGROUND_IMAGE"] = ""
+        save_postar_settings(settings)
+        self.apply_background_image("")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.bg_label.isVisible():
+            self.bg_label.setGeometry(self.centralWidget().rect())
 
     # ---------------------------
     # UI / Dark Mode / Toggle
     # ---------------------------
     def toggle_dark(self):
-        if self.dark_checkbox.isChecked():
-            self.setStyleSheet("""
-                QWidget { background:#121212; color:#e0e0e0; }
-                QLineEdit, QTextEdit { background:#1e1e1e; border:1px solid #444; }
-                QPushButton { background:#2a2a2a; padding:6px; }
-            """)
+        dark = self.dark_checkbox.isChecked()
+        self.postar_settings["DARK_MODE"] = dark
+        save_postar_settings(self.postar_settings)
+
+        has_background = hasattr(self, "background_image") and self.background_image is not None
+
+        style = ""
+
+        # Only set QWidget background if:
+        # - dark mode ON
+        # - NO custom background image
+        if dark and not has_background:
+            style += "QWidget { background:#2a2a2a; color:#e0e0e0; border: 1px solid #555; border-radius:3px; }\n"
+        elif not dark:
+            style += "QWidget { background:#f0f0f0; color:#000000; border:1px solid #555; border-radius:3px; }\n"
+
+        if dark:
+            style += """
+                QLineEdit, QTextEdit { background: #1e1e1e; color: #ffffff; border: 1px solid #444; }
+                QLabel { color: #ffffff; }
+                QPushButton { background: #2a2a2a; color: #ffffff; border: 1px solid #555; padding:6px; border-radius:3px; }
+                QPushButton:hover { background: #3a3a3a; }
+                QCheckBox { color: #e0e0e0; }
+                QComboBox { background: #2a2a2a; color: #e0e0e0; }
+                QListWidget { background: #2a2a2a; color: #e0e0e0; }
+                QProgressBar { background: #2a2a2a; color: #e0e0e0; }
+
+                #profileDropdown {
+                    border: 1px solid #555; 
+                    background: #2a2a2a; 
+                    color: #ffffff;
+                }
+                #profileDropdown QAbstractItemView {
+                    background: #2a2a2a;
+                    color: #ffffff;
+                    selection-background-color: #3a3a3a;
+                }
+                QWidget#optionsPanel {
+                    background: transparent;
+                    border: none;
+                }
+                QMenuBar, QMenu {
+                    background: transparent;
+                    border: none;
+                }
+                QMenuBar::item {
+                    background: transparent;
+                    border: none;
+                    padding: 4px 10px;
+                }
+                QMenuBar::item:selected {
+                    background: rgba(255, 255, 255, 0.12);
+                }
+            """
         else:
-            self.setStyleSheet("")
+            style += """
+                QLineEdit, QTextEdit { background: #ffffff; color: #000000; border: 1px solid #ccc; }
+                QLabel { color: #000000; }
+                QPushButton { background: #f0f0f0; color: #000000; border:1px solid #555; padding:6px; border-radius:3px; }
+                QPushButton:hover { background: #d0d0d0; }
+                QCheckBox { color: #000000; }
+                QComboBox { background: #ffffff; color: #000000; }
+                QListWidget { background: #ffffff; color: #000000; }
+                QProgressBar { background: #f0f0f0; color: #000000; }
+
+                QWidget#optionsPanel {
+                    background: transparent;
+                    border: none;
+                }
+                QMenuBar, QMenu {
+                    background: #f0f0f0;
+                    border: none;
+                }
+            """
+
+        self.setStyleSheet(style)
 
     def toggle_widget(self, widget, button, state_key=None):
         """Toggle visibility of a widget and update the corresponding button and UI state."""
@@ -921,15 +1309,13 @@ class PostarGUI(QMainWindow):
         self.ui_state["cmd_preview"] = self.cmd_preview.isVisible()
         self.ui_state["process_output"] = self.process_output.isVisible()
         self.ui_state["html_preview"] = self.html_preview.isVisible()
-        self.ui_state["queue_visible"] = self.queue_container.isVisible()
         save_ui_state(self.ui_state)
 
     def apply_ui_state(self):
         self.set_preview_state(self.cmd_preview, self.cmd_toggle_btn, self.ui_state["cmd_preview"])
         self.set_preview_state(self.process_output, self.output_toggle_btn, self.ui_state["process_output"])
         self.set_preview_state(self.html_preview, self.html_toggle_btn, self.ui_state["html_preview"])
-        self.set_preview_state(self.queue_container, self.queue_toggle_btn, self.ui_state["queue_visible"])
-
+        
     def set_preview_state(self, widget, button, visible):
         widget.setVisible(visible)
         button.setText("Hide" if visible else "Show")
@@ -1011,11 +1397,15 @@ class PostarGUI(QMainWindow):
                 "seasonal": self.seasonal_checkbox.isChecked(),
                 "crc": self.crc_checkbox.isChecked(),
                 "kage": self.kage_checkbox.isChecked(),
-                "dark": self.dark_checkbox.isChecked(),
                 "update": self.update_checkbox.isChecked(),
                 "disable_auto_update": self.disable_auto_update_checkbox.isChecked(),
             },
-            "output_file": self.output_file.text().strip() or "output.txt"
+            "output_file": self.output_file.text().strip() or "output.txt",
+            "previews": {
+                "cmd_preview": self.cmd_preview.isVisible(),
+                "process_output": self.process_output.isVisible(),
+                "html_preview": self.html_preview.isVisible(),
+            }
         }
 
     def write_state(self, state):
@@ -1025,14 +1415,24 @@ class PostarGUI(QMainWindow):
         self.seasonal_checkbox.setChecked(state["checks"].get("seasonal", False))
         self.crc_checkbox.setChecked(state["checks"].get("crc", False))
         self.kage_checkbox.setChecked(state["checks"].get("kage", False))
-        self.dark_checkbox.setChecked(state["checks"].get("dark", False))
-        self.update_checkbox.setChecked(state["checks"].get("update", False))
+        #self.update_checkbox.setChecked(state["checks"].get("update", False))
         self.disable_auto_update_checkbox.setChecked(state["checks"].get("disable_auto_update", False))
         self.output_file.setText(state.get("output_file", "output.txt"))
 
+        # Apply preview visibility
+        previews = state.get("previews", {})
+        self.set_preview_state(self.cmd_preview, self.cmd_toggle_btn, previews.get("cmd_preview", True))
+        self.set_preview_state(self.process_output, self.output_toggle_btn, previews.get("process_output", True))
+        self.set_preview_state(self.html_preview, self.html_toggle_btn, previews.get("html_preview", True))
+
     def show_about(self):
         dark = self.dark_checkbox.isChecked()
-        AboutDialog(self, dark_mode=dark).exec()
+        AboutDialog(
+            self,
+            dark_mode=dark,
+            version=VERSION,
+            release_title=RELEASE_NAME
+        ).exec()
 
 # ---------------------------
 # App Entry
