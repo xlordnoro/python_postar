@@ -139,22 +139,25 @@ jobs:
   # =========================================================
   # ARCH LINUX BUILD (Docker-based)
   # =========================================================
-
   build-arch-linux:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
 
     steps:
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          pacman -Sy --noconfirm python python-pip zip patchelf base-devel
+          pacman -Sy --noconfirm python python-pip python-virtualenv zip patchelf base-devel
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build binaries
+      - name: Build binaries (venv)
         run: |
+          python -m venv venv
+          source venv/bin/activate
+
+          pip install --upgrade pip
           pip install pyinstaller PyQt6 requests pymediainfo
 
           cd src
@@ -163,8 +166,6 @@ jobs:
 
       - name: Package Arch Linux release
         run: |
-          cd /__w/python_postar/python_postar
-
           mkdir -p python_postar_linux_arch/scripts
           cp src/dist/python_postar_gui python_postar_linux_arch/
           cp src/dist/updater python_postar_linux_arch/
