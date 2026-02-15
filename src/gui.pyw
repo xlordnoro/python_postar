@@ -910,7 +910,7 @@ class PostarGUI(QMainWindow):
         if self.seasonal_checkbox.isChecked(): args_list.append("-s")
         if self.crc_checkbox.isChecked(): args_list.append("-crc")
         if self.kage_checkbox.isChecked(): args_list.append("-kage")
-        if self.update_checkbox.isChecked(): args_list.append("-u")
+        #if self.update_checkbox.isChecked(): args_list.append("-u")
         if self.disable_auto_update_checkbox.isChecked(): args_list.append("-du")
         if self.configure_checkbox.isChecked(): args_list.append("-configure")
         out_path = Path(self.output_file.text().strip() or "output.txt")
@@ -1397,7 +1397,7 @@ class PostarGUI(QMainWindow):
                 "seasonal": self.seasonal_checkbox.isChecked(),
                 "crc": self.crc_checkbox.isChecked(),
                 "kage": self.kage_checkbox.isChecked(),
-                "update": self.update_checkbox.isChecked(),
+                #"update": self.update_checkbox.isChecked(),
                 "disable_auto_update": self.disable_auto_update_checkbox.isChecked(),
             },
             "output_file": self.output_file.text().strip() or "output.txt",
