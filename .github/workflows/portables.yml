@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller PyQt6 requests pymediainfo
+        pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
     # -------------------------------
     # Build with PyInstaller
@@ -44,7 +44,7 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         cd src
-        pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.pyw -n python_postar_gui
+        pyinstaller --clean --onefile --windowed --add-data "../css;css" --icon=../icon.ico gui.pyw -n python_postar_gui
 
     - name: Build UPDATER GUI EXE
       shell: pwsh
@@ -59,7 +59,7 @@ jobs:
       run: |
         cd src
         pyinstaller --clean --onedir python_postar.py
-        pyinstaller --clean --onefile --windowed gui.pyw -n python_postar_gui
+        pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
         pyinstaller --clean --onefile updater.py -n updater
 
     # -------------------------------
@@ -105,6 +105,9 @@ jobs:
 
         # Copy guides
         cp -r guides "$STAGE/"
+
+        # Copy CSS files
+        cp -r css "$STAGE/"
 
     # -------------------------------
     # Package portable ZIP
@@ -180,11 +183,11 @@ jobs:
           source venv/bin/activate
 
           pip install --upgrade pip
-          pip install pyinstaller PyQt6 requests pymediainfo
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
           cd src
           pyinstaller --clean --onedir python_postar.py
-          pyinstaller --clean --onefile --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile updater.py -n updater
 
       - name: Prepare portable folder
@@ -200,6 +203,7 @@ jobs:
 
           cp icon_linux.png "$STAGE/"
           cp -r guides "$STAGE/"
+          cp -r css "$STAGE/"
 
           printf '%s\n' \
             '[Desktop Entry]' \
