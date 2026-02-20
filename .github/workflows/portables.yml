@@ -53,12 +53,13 @@ jobs:
         run: |
           $STAGE = "src\dist\python_postar_portable"
           New-Item -ItemType Directory -Force -Path "$STAGE\scripts"
+          New-Item -ItemType Directory -Force -Path "$STAGE\css"
           Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
           Copy-Item src\dist\python_postar_gui.exe "$STAGE\"
           Copy-Item src\dist\updater.exe "$STAGE\"
           Copy-Item icon.ico "$STAGE\"
           Copy-Item -Recurse guides "$STAGE\"
-          Copy-Item -Recurse css "$STAGE\"
+          Copy-Item -Recurse css "$STAGE\css\"
           Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
 
       - name: Package portable ZIP
