@@ -27,9 +27,9 @@ Once Python is fully installed, run the following command in cmd, PowerShell, or
 
 NOTE: You can also run pip install -r requirements.txt if you're running the commands in the same location as the folder containing python postar.
 
-**pip install requests pymediainfo**
+**pip install requests pymediainfo PyQt6 PyQt6-WebEngine**
 
-If you get a message about updating pip after install requests and pymediainfo, feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
+If you happen to get a message about updating pip after installing the needed dependencies, please feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
 
 # Args breakdown
 **The script needs -p -a -d -m -c and if one or more is missing it will produce an error.**
@@ -71,8 +71,8 @@ If you get a message about updating pip after install requests and pymediainfo, 
 ## PCool Airings Post Via Seasonal Argument
 `python python_postar.py -p "F:/test/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v51_airing.txt`
 
-## This command will show the version of the script running. It needs the rest of the args because I made those a hard requirement when running the script.
-`python python_postar.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -v -o test_v51.txt`
+## This command will show the version of the script running.
+`python python_postar.py -v`
 
 ## This command will add a CRC32 hash column to the episodes table. By default, this option is off.
 `python python_postar.py -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -crc -o test_v51.txt`
