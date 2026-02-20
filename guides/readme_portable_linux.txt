@@ -19,7 +19,7 @@
 
 # This command will show the version of the script running. It needs the rest of the args because I made those a hard requirement when running the script.
 
-./python_postar -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" -a "https://i.imgur.com/9yUGQIF.jpg" -d "https://i.imgur.com/Hb0yVs1.jpg" -c red -m 59457 -v -o test_v51.txt
+./python_postar -v
 
 # This command will add a crc32 hash column to the episodes table. By default, this option is off since crc32 hashes are included in the files directly.
 
