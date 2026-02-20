@@ -17,7 +17,7 @@ python_postar.exe -p "F:\(Hi10)_Isekai_Maou_Omega_(BD_1080p)" "F:\(Hi10)_Cyberpu
 # This command shows the seasonal argument
 python_postar.exe -p "F:\test\[Hi10]_Airings_Folder_[1080p]" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -s -o test_v51_airing.txt
 
-# This command will show the version of the script running. It needs the rest of the args because I made those a hard requirement when running the script.
+# This command will show the version of the script running.
 
 python_postar.exe -v
 
