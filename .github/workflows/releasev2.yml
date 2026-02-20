@@ -40,13 +40,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
+          New-Item -ItemType Directory -Force -Path python_postar_windows\css\
           Copy-Item src\dist\python_postar_gui.exe python_postar_windows\
           Copy-Item src\dist\updater.exe python_postar_windows\
           Copy-Item src\python_postar.py python_postar_windows\
           Copy-Item src\helper.py python_postar_windows\
           Copy-Item src\gui.pyw python_postar_windows\
           Copy-Item src\updater.py python_postar_windows\
-          Copy-Item -Recurse css python_postar_windows\
+          Copy-Item -Recurse css python_postar_windows\css\
           Copy-Item icon.ico python_postar_windows\
           Copy-Item requirements.txt python_postar_windows\
           Copy-Item -Recurse guides python_postar_windows\
@@ -94,13 +95,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p python_postar_linux/scripts
+          mkdir -p python_postar_linux/css
           cp src/dist/python_postar_gui python_postar_linux/
           cp src/dist/updater python_postar_linux/
           cp src/python_postar.py python_postar_linux/
           cp src/helper.py python_postar_linux/
           cp src/gui.pyw python_postar_linux/
           cp src/updater.py python_postar_linux/
-          cp -r css python_postar_linux/
+          cp -r css python_postar_linux/css/
           cp icon_linux.png python_postar_linux/
           cp requirements.txt python_postar_linux/
           cp -r guides python_postar_linux/
@@ -149,13 +151,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p python_postar_macos/scripts
+          mkdir -p python_postar_macos/css
           cp src/dist/python_postar_gui python_postar_macos/
           cp src/dist/updater python_postar_macos/
           cp src/python_postar.py python_postar_macos/
           cp src/helper.py python_postar_macos/
           cp src/gui.pyw python_postar_macos/
           cp src/updater.py python_postar_macos/
-          cp -r css python_postar_macos/
+          cp -r css python_postar_macos/css/
           cp icon_linux.png python_postar_macos/
           cp requirements.txt python_postar_macos/
           cp -r guides python_postar_macos/
@@ -203,13 +206,14 @@ jobs:
       - name: Package Arch Linux release
         run: |
           mkdir -p python_postar_linux_arch/scripts
+          mkdir -p python_postar_linux_arch/css
           cp src/dist/python_postar_gui python_postar_linux_arch/
           cp src/dist/updater python_postar_linux_arch/
           cp src/python_postar.py python_postar_linux_arch/
           cp src/helper.py python_postar_linux_arch/
           cp src/gui.pyw python_postar_linux_arch/
           cp src/updater.py python_postar_linux_arch/
-          cp -r css python_postar_linux_arch/
+          cp -r css python_postar_linux_arch/css/
           cp icon_linux.png python_postar_linux_arch/
           cp requirements.txt python_postar_linux_arch/
           cp -r guides python_postar_linux_arch/
