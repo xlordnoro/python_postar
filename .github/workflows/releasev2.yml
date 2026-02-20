@@ -75,7 +75,7 @@ jobs:
               Copy-Item src\helper.py python_postar_windows\
               Copy-Item src\gui.pyw python_postar_windows\
               Copy-Item src\updater.py python_postar_windows\
-              Copy-Item -Path "css\*" -Destination "python_postar_windows\css" -Recurse -Force
+              Copy-Item -Recurse css python_postar_windows\
               Copy-Item icon.ico python_postar_windows\
               Copy-Item requirements.txt python_postar_windows\
               Copy-Item -Recurse guides python_postar_windows\
