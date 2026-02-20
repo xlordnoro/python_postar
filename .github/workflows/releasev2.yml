@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 requests pymediainfo
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
       # -------------------------
       # Build GUI with PyInstaller
@@ -43,9 +43,9 @@ jobs:
         run: |
           cd src
           if ($env:RUNNER_OS -eq "Windows") {
-              pyinstaller --clean --onefile --windowed --icon=../icon.ico gui.pyw -n python_postar_gui
+              pyinstaller --clean --onefile --windowed --add-data "css;css" --icon=../icon.ico gui.pyw -n python_postar_gui
           } else {
-              pyinstaller --clean --onefile --windowed gui.pyw -n python_postar_gui
+              pyinstaller --clean --onefile --windowed --add-data "css:css" gui.pyw -n python_postar_gui
           }
 
       # -------------------------
@@ -75,6 +75,7 @@ jobs:
               Copy-Item src\helper.py python_postar_windows\
               Copy-Item src\gui.pyw python_postar_windows\
               Copy-Item src\updater.py python_postar_windows\
+              Copy-Item -Path "css\*" -Destination "python_postar_windows\css" -Recurse -Force
               Copy-Item icon.ico python_postar_windows\
               Copy-Item requirements.txt python_postar_windows\
               Copy-Item -Recurse guides python_postar_windows\
@@ -88,6 +89,7 @@ jobs:
               cp src/helper.py python_postar_linux/
               cp src/gui.pyw python_postar_linux/
               cp src/updater.py python_postar_linux/
+              cp -r css python_postar_linux/
               cp icon_linux.png python_postar_linux/
               cp requirements.txt python_postar_linux/
               cp -r guides python_postar_linux/
@@ -102,6 +104,7 @@ jobs:
               cp src/helper.py python_postar_macos/
               cp src/gui.pyw python_postar_macos/
               cp src/updater.py python_postar_macos/
+              cp -r css python_postar_macos/
               cp icon_linux.png python_postar_macos/
               cp requirements.txt python_postar_macos/
               cp -r guides python_postar_macos/
@@ -173,6 +176,7 @@ jobs:
           cp src/helper.py python_postar_linux_arch/
           cp src/gui.pyw python_postar_linux_arch/
           cp src/updater.py python_postar_linux_arch/
+          cp -r css python_postar_linux_arch/
           cp icon_linux.png python_postar_linux_arch/
           cp requirements.txt python_postar_linux_arch/
           cp -r guides python_postar_linux_arch/
