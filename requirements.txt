@@ -1,3 +1,4 @@
 requests
 pymediainfo
 PyQt6
+PyQt6-WebEngine

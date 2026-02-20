@@ -11,9 +11,10 @@ from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox, QProgressBar, 
-    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog, QSizePolicy
+    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog, QSizePolicy, QColorDialog
 )
-from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 # ---------------------------
 # PyInstaller-safe app dir
@@ -53,8 +54,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.46.0"
-RELEASE_NAME = "Fern"
+VERSION = "0.47.0"
+RELEASE_NAME = "Erina"
 
 # ----------------------
 # GitHub release metadata
@@ -448,6 +449,202 @@ class JobQueueWindow(QDialog):
         for args, out_path in self.gui.job_queue:
             self.queue_list.addItem(out_path.name)
 
+BASE_SANDBOX_HTML = """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+          content="
+            default-src * data: blob: filesystem: about: ws: wss: 'unsafe-inline' 'unsafe-eval';
+            img-src * data: blob: https: http:;
+            media-src * data: blob: https: http:;
+            connect-src *;
+            style-src * 'unsafe-inline' https: http: file:;
+            script-src * 'unsafe-inline' 'unsafe-eval' https: http:;
+            font-src * data: blob: https: http: file:;
+          ">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Live Preview Sandbox</title>
+</head>
+<body>
+    <div id="container"></div>
+</body>
+</html>
+"""
+
+class LivePreviewWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Live HTML Preview")
+        self.setWindowIcon(QIcon("icon.ico"))
+        self.resize(1200, 900)
+
+        layout = QVBoxLayout(self)
+
+        # --- Toolbar ---
+        toolbar = QHBoxLayout()
+        refresh_btn = QPushButton("Reload Preview")
+        refresh_btn.clicked.connect(self.reload_preview)
+
+        self.dark_mode_cb = QCheckBox("Dark Mode")
+        self.dark_mode_cb.stateChanged.connect(self._inject_pending_html)
+
+        toolbar.addWidget(QLabel("Live HTML Preview"))
+        toolbar.addStretch()
+        toolbar.addWidget(self.dark_mode_cb)
+        toolbar.addWidget(refresh_btn)
+
+        layout.addLayout(toolbar)
+
+        # --- Webview ---
+        self.webview = QWebEngineView()
+        settings = self.webview.settings()
+        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(settings.WebAttribute.AllowRunningInsecureContent, True)
+        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        self.webview.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.webview.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        layout.addWidget(self.webview)
+
+        self.pending_html = ""
+
+        # Base URL for images / local files
+        self.base_url = QUrl.fromLocalFile(
+            str(Path(__file__).parent.resolve()) + "/"
+        )
+
+        self.webview.setHtml(BASE_SANDBOX_HTML, self.base_url)
+        self.webview.loadFinished.connect(self._inject_pending_html)
+
+        # --- Local CSS directory ---
+        if getattr(sys, 'frozen', False):
+            # Running in a PyInstaller bundle
+            base_path = Path(sys._MEIPASS)
+        else:
+            # Running as normal script
+            base_path = Path(__file__).parent
+            
+        css_dir = base_path / "css"
+        self.local_css_files = [
+            p.resolve().as_uri().replace("\\", "\\\\")
+            for p in css_dir.glob("*.css")
+        ]
+
+        if not self.local_css_files:
+            print("Warning: No local CSS files found!")
+
+    def set_html(self, html: str):
+        self.pending_html = html
+        self._inject_pending_html()
+
+    def _inject_pending_html(self):
+        if not self.pending_html:
+            return
+
+        # Escape HTML for JS injection
+        html = (
+            self.pending_html
+            .replace("\\", "\\\\")
+            .replace("`", "\\`")
+            .replace("</script>", "<\\/script>")
+        )
+
+        # Toggle dark mode state
+        dark_mode_enabled = self.dark_mode_cb.isChecked()
+
+        # Build JS array for local CSS files
+        local_css_js_array = ",".join(f"'{css}'" for css in self.local_css_files)
+
+        js = f"""
+        (function() {{
+            const container = document.getElementById('container');
+            if (!container) return;
+            container.innerHTML = "";
+
+            // --- Remove old injected CSS ---
+            document.querySelectorAll('link[data-live-css]').forEach(e => e.remove());
+
+            // --- Toggle dark mode class ---
+            document.body.classList.toggle('dark-mode', {str(dark_mode_enabled).lower()});
+
+            // --- Optional: enforce body background / text color ---
+            let dm = document.getElementById('live-preview-dark-mode');
+            if (!dm) {{
+                dm = document.createElement('style');
+                dm.id = 'live-preview-dark-mode';
+                document.head.appendChild(dm);
+            }}
+            dm.textContent = `
+                body.dark-mode {{
+                    background-color: #121212 !important;
+                    color: #e4e4e4 !important;
+                }}
+                body.dark-mode table,
+                body.dark-mode td,
+                body.dark-mode th {{
+                    background: #222 !important;
+                    border-color: #444 !important;
+                    color: #e4e4e4 !important;
+                }}
+            `;
+
+            // --- Inject local CSS files ---
+            const cssFiles = [{local_css_js_array}];
+            cssFiles.forEach(url => {{
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.dataset.liveCss = "1";
+                link.href = url + "?v=" + Date.now(); // cache bust
+                document.head.appendChild(link);
+            }});
+
+            // --- Insert HTML content ---
+            const temp = document.createElement('div');
+            temp.innerHTML = `{html}`;
+
+            // Move any style/link tags from HTML to <head>
+            temp.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {{
+                document.head.appendChild(node);
+            }});
+
+            // Append remaining HTML nodes to container
+            Array.from(temp.childNodes).forEach(node => {{
+                if (!['SCRIPT','LINK','STYLE'].includes(node.tagName)) {{
+                    container.appendChild(node);
+                }}
+            }});
+
+            // --- Load external JS files ---
+            const jsFiles = [
+                'https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js',
+                'https://xlordnoro.github.io/playcools_js_code.js'
+            ];
+            jsFiles.forEach(url => {{
+                const s = document.createElement('script');
+                s.type = 'text/javascript';
+                s.async = false;
+                s.src = url;
+                document.head.appendChild(s);
+            }});
+
+            // --- Inline scripts from HTML ---
+            temp.querySelectorAll('script').forEach(script => {{
+                const s = document.createElement('script');
+                if (script.src) s.src = script.src;
+                else s.textContent = script.textContent;
+                s.type = script.type || 'text/javascript';
+                s.async = false;
+                document.head.appendChild(s);
+            }});
+        }})();
+        """
+
+        self.webview.page().runJavaScript(js)
+
+    def reload_preview(self):
+        self.webview.setHtml(BASE_SANDBOX_HTML, self.base_url)
+
 # ---------------------------
 # Main GUI
 # ---------------------------
@@ -494,6 +691,7 @@ class PostarGUI(QMainWindow):
 
         # Job Queue Menu
         self.queue_window = JobQueueWindow(self)
+        self.live_preview = LivePreviewWindow(self)
         queue_menu = menubar.addMenu("Job Queue")
 
         open_queue_action = queue_menu.addAction("Jobs")
@@ -511,6 +709,11 @@ class PostarGUI(QMainWindow):
         clear_bg_action = view_menu.addAction("Clear Background")
         clear_bg_action.setShortcut("F5")
         clear_bg_action.triggered.connect(self.clear_background_image)
+
+        # Live Preview
+        preview_action = menubar.addAction("Live Preview")
+        preview_action.setShortcut("F6")
+        preview_action.triggered.connect(self.show_live_preview)
 
         # ---- Help / Update menu ----
         update_action = menubar.addAction("Check for Updates")
@@ -553,6 +756,22 @@ class PostarGUI(QMainWindow):
                 self.layout.addLayout(row)
                 self.mal_input = mal_input
                 self.inputs[label] = mal_input
+
+            elif label == "Heading Colors":
+                row = QHBoxLayout()
+                row.addWidget(QLabel(label))
+
+                color_input = DragDropLineEdit()
+                color_input.setFixedWidth(input_width - button_width - 10)  # 10px spacing
+                row.addWidget(color_input)
+
+                pick_btn = QPushButton("Color Picker")
+                pick_btn.setFixedWidth(button_width)
+                pick_btn.clicked.connect(lambda _, e=color_input: self.pick_color(e))
+                row.addWidget(pick_btn)
+
+                self.layout.addLayout(row)
+                self.inputs[label] = color_input
 
             else:
                 # Regular inputs
@@ -761,6 +980,7 @@ class PostarGUI(QMainWindow):
 
         # HTML Preview with toggle
         self.html_preview = QTextEdit()
+        self.html_preview.textChanged.connect(self.live_render_html)
         self.html_preview.setReadOnly(True)
         html_row = QVBoxLayout()
         html_header = QHBoxLayout()
@@ -794,7 +1014,7 @@ class PostarGUI(QMainWindow):
         self.add_queue_btn.clicked.connect(self.add_job_to_queue)
         self.start_queue_btn = QPushButton("Run Queue")
         self.start_queue_btn.clicked.connect(self.start_queue)
-        self.generate_btn = QPushButton("Generate HTML (Immediate)")
+        self.generate_btn = QPushButton("Generate HTML (Single)")
         self.generate_btn.clicked.connect(self.generate_html)
         btn_row.addWidget(self.add_queue_btn)
         btn_row.addWidget(self.start_queue_btn)
@@ -858,6 +1078,17 @@ class PostarGUI(QMainWindow):
                 self.release_title = "Unknown Release"
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def show_live_preview(self):
+        self.live_preview.show()
+        self.live_preview.raise_()
+        self.live_preview.activateWindow()
+        
+        self.live_preview.set_html(self.html_preview.toPlainText())
+
+    def live_render_html(self):
+        if self.live_preview.isVisible():
+            self.live_preview.set_html(self.html_preview.toPlainText())
 
     # ---------------------------
     # HTML Edit Mode
@@ -976,7 +1207,11 @@ class PostarGUI(QMainWindow):
     def on_queue_job_finished(self):
         # Load HTML into preview
         if self.current_output_file.exists():
-            self.html_preview.setPlainText(self.current_output_file.read_text(encoding="utf-8"))
+            html = self.current_output_file.read_text(encoding="utf-8")
+            self.html_preview.setPlainText(html)
+
+            if self.live_preview.isVisible():
+                self.live_preview.set_html(html)
 
         # Highlight job in green
         if 0 <= self.current_job_index < self.queue_window.queue_list.count():
@@ -1089,6 +1324,25 @@ class PostarGUI(QMainWindow):
         if result != "done":
             QMessageBox.warning(self, "Update Error", result)
 
+    # Color picker function
+    def pick_color(self, line_edit: QLineEdit):
+        color = QColorDialog.getColor(
+            parent=self,
+            title="Select Color"
+        )
+
+        if not color.isValid():
+            return
+
+        hex_color = color.name()  # "#RRGGBB"
+
+        existing = [c.strip() for c in line_edit.text().split(",") if c.strip()]
+
+        if hex_color not in existing:
+            existing.append(hex_color)
+
+        line_edit.setText(", ".join(existing))
+
     # ---------------------------
     # Single job generation
     # ---------------------------
@@ -1113,7 +1367,11 @@ class PostarGUI(QMainWindow):
 
     def on_finished(self):
         if self.current_output_file.exists():
-            self.html_preview.setPlainText(self.current_output_file.read_text(encoding="utf-8"))
+            html = self.current_output_file.read_text(encoding="utf-8")
+            self.html_preview.setPlainText(html)
+
+            if self.live_preview.isVisible():
+                self.live_preview.set_html(html)
         self.cleanup_worker()
 
     def on_error(self, err):
