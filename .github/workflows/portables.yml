@@ -8,171 +8,244 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, macos-15-intel, windows-latest]
-        python-version: [3.14.2]
-
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
-    # -------------------------------
-    # Build with PyInstaller
-    # -------------------------------
-    - name: Build Python script EXE
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: |
-        cd src
-        pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
+      # -------------------------------
+      # Build Windows EXEs
+      # -------------------------------
+      - name: Build Python script EXE
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
 
-    - name: Build GUI EXE
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: |
-        cd src
-        pyinstaller --clean --onefile --windowed --add-data "../css;css" --icon=../icon.ico gui.pyw -n python_postar_gui
+      - name: Build GUI EXE
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed --add-data "../css;css" --icon=../icon.ico gui.pyw -n python_postar_gui
 
-    - name: Build UPDATER GUI EXE
-      shell: pwsh
-      if: runner.os == 'Windows'
-      run: |
-        cd src
-        pyinstaller --clean --onefile --icon=../icon.ico updater.py -n updater
+      - name: Build Updater GUI EXE
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onefile --icon=../icon.ico updater.py -n updater
 
-    - name: Build Python script binary (Linux/macOS)
-      shell: bash
-      if: runner.os != 'Windows'
-      run: |
-        cd src
-        pyinstaller --clean --onedir python_postar.py
-        pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
-        pyinstaller --clean --onefile updater.py -n updater
+      # -------------------------------
+      # Prepare portable folder
+      # -------------------------------
+      - name: Prepare portable folder
+        shell: pwsh
+        run: |
+          $STAGE = "src\dist\python_postar_portable"
+          New-Item -ItemType Directory -Force -Path "$STAGE\scripts"
+          Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
+          Copy-Item src\dist\python_postar_gui.exe "$STAGE\"
+          Copy-Item src\dist\updater.exe "$STAGE\"
+          Copy-Item icon.ico "$STAGE\"
+          Copy-Item -Recurse guides "$STAGE\"
+          Copy-Item -Recurse css "$STAGE\"
+          Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
 
-    # -------------------------------
-    # Prepare portable staging folder
-    # -------------------------------
-    - name: Prepare portable folder
-      shell: bash
-      run: |
-        # Use staging folder
-        STAGE="src/dist/python_postar_portable"
-        mkdir -p "$STAGE/scripts"
+      - name: Package portable ZIP
+        shell: pwsh
+        run: |
+          $DIST_FOLDER = "src\dist\python_postar_portable"
+          $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
+          Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME -Force
+          Write-Host "Created $ZIP_NAME"
 
-        # Copy main --onedir folder
-        cp -r src/dist/python_postar/* "$STAGE/"
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_windows_${{ github.ref_name }}_portable.zip
 
-        # Copy GUI --onefile binary
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          cp icon.ico "$STAGE/"
-          cp src/dist/python_postar_gui.exe "$STAGE/"
-          cp src/dist/updater.exe "$STAGE/"
-          cp scripts/postar_batch_portable.bat "$STAGE/scripts/"
-        else
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+
+      # -------------------------------
+      # Build Linux binaries
+      # -------------------------------
+      - name: Build binaries
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onedir python_postar.py
+          pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile updater.py -n updater
+
+      - name: Prepare portable folder
+        shell: bash
+        run: |
+          STAGE="src/dist/python_postar_portable"
+          mkdir -p "$STAGE/scripts"
+          cp -r src/dist/python_postar/* "$STAGE/"
           cp src/dist/python_postar_gui "$STAGE/"
           cp src/dist/updater "$STAGE/"
           cp scripts/postar_batch_linux_portable.sh "$STAGE/scripts/"
           chmod +x "$STAGE/scripts/postar_batch_linux_portable.sh"
+          cp icon_linux.png "$STAGE/"
+          cp -r guides "$STAGE/"
+          cp -r css "$STAGE/"
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Type=Application' \
+            'Name=Python Postar (Portable)' \
+            'Exec=./python_postar' \
+            'Icon=./icon_linux.png' \
+            'Terminal=true' \
+            'Categories=Utility;' \
+            > "$STAGE/python_postar.desktop"
+          chmod +x "$STAGE/python_postar.desktop"
 
-          # Linux desktop file
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            cp icon_linux.png "$STAGE/"
-            printf '%s\n' \
-              '[Desktop Entry]' \
-              'Type=Application' \
-              'Name=Python Postar' \
-              'Exec=./python_postar' \
-              'Icon=./icon_linux.png' \
-              'Terminal=true' \
-              'Categories=Utility;' \
-              > "$STAGE/python_postar.desktop"
-            chmod +x "$STAGE/python_postar.desktop"
-          fi
-        fi
+      - name: Package portable ZIP
+        shell: bash
+        run: |
+          cd src/dist/python_postar_portable || exit 1
+          zip -r "../../../python_postar_linux_${GITHUB_REF_NAME}_portable.zip" .
+          echo "Created python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
 
-        # Copy guides
-        cp -r guides "$STAGE/"
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_linux_${{ github.ref_name }}_portable.zip
 
-        # Copy CSS files
-        cp -r css "$STAGE/"
+  build-macos-x86_64:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
 
-    # -------------------------------
-    # Package portable ZIP
-    # -------------------------------
-    - name: Package dist folder
-      shell: pwsh
-      run: |
-        if ($env:RUNNER_OS -eq "Windows") {
-            $DIST_FOLDER = "src\dist\python_postar_portable"
-            $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
-            Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME -Force
-            Write-Host "Created $ZIP_NAME"
-        } else {
-            bash -c '
-              DIST_FOLDER="src/dist/python_postar_portable"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
 
-              # Determine ZIP name
-              if [[ "$RUNNER_OS" == "Linux" ]]; then
-                ZIP_NAME="python_postar_linux_${GITHUB_REF_NAME}_portable.zip"
-              else
-                ARCH=$(uname -m)
-                if [[ "$ARCH" == "arm64" ]]; then
-                  ZIP_NAME="python_postar_macos_arm64_${GITHUB_REF_NAME}_portable.zip"
-                else
-                  ZIP_NAME="python_postar_macos_x86_64_${GITHUB_REF_NAME}_portable.zip"
-                fi
-              fi
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
-              # Create the ZIP
-              cd "$DIST_FOLDER" || exit 1
-              zip -r "../../../$ZIP_NAME" .
-              echo "Created $ZIP_NAME"
-            '
-        }
+      - name: Build binaries
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onedir python_postar.py
+          pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile updater.py -n updater
 
-    # -------------------------------
-    # Upload release assets
-    # -------------------------------
-    - name: Upload release asset
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          python_postar_windows_${{ github.ref_name }}_portable.zip
-          python_postar_linux_${{ github.ref_name }}_portable.zip
-          python_postar_macos_arm64_${{ github.ref_name }}_portable.zip
-          python_postar_macos_x86_64_${{ github.ref_name }}_portable.zip
-          
-    # -------------------------------
-    # Arch Linux Support
-    # -------------------------------
+      - name: Prepare portable folder
+        shell: bash
+        run: |
+          STAGE="src/dist/python_postar_portable"
+          mkdir -p "$STAGE/scripts"
+          cp -r src/dist/python_postar/* "$STAGE/"
+          cp src/dist/python_postar_gui "$STAGE/"
+          cp src/dist/updater "$STAGE/"
+          cp scripts/postar_batch_linux_portable.sh "$STAGE/scripts/"
+          chmod +x "$STAGE/scripts/postar_batch_linux_portable.sh"
+          cp icon_linux.png "$STAGE/"
+          cp -r guides "$STAGE/"
+          cp -r css "$STAGE/"
+
+      - name: Package portable ZIP
+        shell: bash
+        run: |
+          cd src/dist/python_postar_portable || exit 1
+          zip -r "../../../python_postar_macos_x86_64_${GITHUB_REF_NAME}_portable.zip" .
+          echo "Created python_postar_macos_x86_64_${GITHUB_REF_NAME}_portable.zip"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_macos_x86_64_${{ github.ref_name }}_portable.zip
+
+  build-macos-arm64:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+
+      - name: Build binaries
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onedir python_postar.py
+          pyinstaller --clean --onefile --add-data "../css:css" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile updater.py -n updater
+
+      - name: Prepare portable folder
+        shell: bash
+        run: |
+          STAGE="src/dist/python_postar_portable"
+          mkdir -p "$STAGE/scripts"
+          cp -r src/dist/python_postar/* "$STAGE/"
+          cp src/dist/python_postar_gui "$STAGE/"
+          cp src/dist/updater "$STAGE/"
+          cp scripts/postar_batch_linux_portable.sh "$STAGE/scripts/"
+          chmod +x "$STAGE/scripts/postar_batch_linux_portable.sh"
+          cp icon_linux.png "$STAGE/"
+          cp -r guides "$STAGE/"
+          cp -r css "$STAGE/"
+
+      - name: Package portable ZIP
+        shell: bash
+        run: |
+          cd src/dist/python_postar_portable || exit 1
+          zip -r "../../../python_postar_macos_arm64_${GITHUB_REF_NAME}_portable.zip" .
+          echo "Created python_postar_macos_arm64_${GITHUB_REF_NAME}_portable.zip"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_macos_arm64_${{ github.ref_name }}_portable.zip
+
   build-arch-portable:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     container:
       image: archlinux:latest
-
     steps:
       - name: Install system dependencies
         run: |
-          pacman -Sy --noconfirm \
-            python \
-            python-pip \
-            python-virtualenv \
-            zip \
-            patchelf \
-            base-devel
+          pacman -Sy --noconfirm python python-pip python-virtualenv zip patchelf base-devel
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -181,7 +254,6 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-
           pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
@@ -194,17 +266,14 @@ jobs:
         run: |
           STAGE="src/dist/python_postar_portable"
           mkdir -p "$STAGE/scripts"
-
           cp -r src/dist/python_postar/* "$STAGE/"
           cp src/dist/python_postar_gui "$STAGE/"
           cp src/dist/updater "$STAGE/"
           cp scripts/postar_batch_linux_portable.sh "$STAGE/scripts/"
           chmod +x "$STAGE/scripts/postar_batch_linux_portable.sh"
-
           cp icon_linux.png "$STAGE/"
           cp -r guides "$STAGE/"
           cp -r css "$STAGE/"
-
           printf '%s\n' \
             '[Desktop Entry]' \
             'Type=Application' \
@@ -225,5 +294,4 @@ jobs:
       - name: Upload Arch portable asset
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            python_postar_linux_arch_${{ github.ref_name }}_portable.zip
+          files: python_postar_linux_arch_${{ github.ref_name }}_portable.zip
