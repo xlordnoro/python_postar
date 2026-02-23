@@ -463,25 +463,33 @@ def check_for_github_update(force=False):
         print(f"[Update] Extracting files to {base_dir} ...")
         try:
             with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-                for member in z.namelist():
-                    if member.endswith("/"):
-                        continue  # skip directories
 
-                    parts = Path(member).parts
+                members = [Path(m) for m in z.namelist() if not m.endswith("/")]
 
-                    # Strip only the top-level directory from the ZIP
-                    if len(parts) > 1:
+                # ---- Detect if ZIP has a single top-level folder ----
+                top_levels = {p.parts[0] for p in members if len(p.parts) > 1}
+
+                strip_top = len(top_levels) == 1
+
+                print(f"[Update] ZIP root folders: {top_levels}")
+                print(f"[Update] Stripping top folder: {strip_top}")
+
+                for member in members:
+
+                    parts = member.parts
+
+                    if strip_top and len(parts) > 1:
                         relative_path = Path(*parts[1:])
                     else:
-                        relative_path = Path(parts[0])
+                        relative_path = Path(*parts)
 
                     target_path = base_dir / relative_path
 
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     backup_file(target_path)
 
-                    with z.open(member) as src, open(target_path, "wb") as dst:
-                        dst.write(src.read())
+                    with z.open(str(member)) as src, open(target_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
 
                     print(f"[Update] Updated: {target_path}")
 
