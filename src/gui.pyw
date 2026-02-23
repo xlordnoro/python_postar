@@ -13,8 +13,119 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox, QProgressBar, 
     QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog, QSizePolicy, QColorDialog
 )
-from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
+
+# Translation helpers
+def tr(text):
+    return QCoreApplication.translate("PostarGUI", text)
+
+def resource_path(relative_path):
+    """Return absolute path to resource, works for script and PyInstaller exe."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller exe: use _MEIPASS
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Script: use script directory
+        base_path = Path(__file__).parent.resolve()
+    return base_path / relative_path
+
+def load_language(app, lang_code=""):
+    settings = QSettings("Postar", "PostarGUI")
+
+    # Load stored language if none explicitly passed
+    if not lang_code:
+        lang_code = settings.value("language", "", type=str) or QLocale.system().name()
+
+    old_lang = settings.value("language", "", type=str)
+
+    # Remove old translator if any
+    if hasattr(app, "_translator"):
+        app.removeTranslator(app._translator)
+    if hasattr(app, "_qt_translator"):
+        app.removeTranslator(app._qt_translator)
+
+    # -----------------------
+    # Install app translator
+    # -----------------------
+    translator = QTranslator()
+    translations_dir = resource_path("translations")
+
+    tried = []
+
+    # Full locale
+    qm_path = translations_dir / f"postar_{lang_code}.qm"
+    tried.append(qm_path)
+
+    # Base language fallback
+    if not qm_path.exists() and "_" in lang_code:
+        base_lang = lang_code.split("_")[0]
+        qm_path = translations_dir / f"postar_{base_lang}.qm"
+        tried.append(qm_path)
+
+    # Hard fallback to English
+    if not qm_path.exists() and lang_code != "en":
+        qm_path = translations_dir / "postar_en.qm"
+        tried.append(qm_path)
+        lang_code = "en"
+
+    if qm_path.exists():
+        translator.load(str(qm_path))
+        app.installTranslator(translator)
+        app._translator = translator
+        print(f"Loaded language: {qm_path.name}")
+    else:
+        print("No translation found. Tried:")
+        for p in tried:
+            print(" ", p.name)
+
+    # -----------------------
+    # Install Qt translations (for standard dialogs)
+    # -----------------------
+    qt_translator = QTranslator()
+
+    if getattr(sys, "frozen", False):
+        # Use bundled folder in exe
+        qt_translations_dir = resource_path("qt_translations")
+    else:
+        # Use system folder in script
+        qt_translations_dir = Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
+
+    # Convert to Path if not already
+    qt_translations_dir = Path(qt_translations_dir)
+
+    if qt_translations_dir.exists():
+        qt_translator.load(f"qt_{lang_code}", str(qt_translations_dir))
+        app.installTranslator(qt_translator)
+        app._qt_translator = qt_translator
+    else:
+        print("Qt translations folder not found; standard dialogs may remain untranslated.")
+        
+    # Save chosen language
+    settings.setValue("language", lang_code)
+    app._current_lang = lang_code
+
+    # Restart prompt if language changed
+    if old_lang and old_lang != lang_code:
+        msg_box = QMessageBox()
+        msg_box.setWindowIcon(QIcon("icon.ico"))
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        msg_box.setWindowTitle(QCoreApplication.translate("PostarGUI", "Close Required"))
+        msg_box.setText(
+            QCoreApplication.translate(
+                "PostarGUI",
+                "The program must be closed for the language change to take effect.\n\nClose now?"
+            )
+        )
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.Yes)
+
+        reply = msg_box.exec()
+
+        if reply == QMessageBox.StandardButton.Yes:
+            restart_application()
+
+    return lang_code
 
 # ---------------------------
 # PyInstaller-safe app dir
@@ -54,8 +165,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.47.0"
-RELEASE_NAME = "Erina"
+VERSION = "0.48.0"
+RELEASE_NAME = "Sora"
 
 # ----------------------
 # GitHub release metadata
@@ -160,28 +271,36 @@ class AboutDialog(QDialog):
     def __init__(self, parent=None, dark_mode=False, version="Unknown", release_title="Unknown"):
         super().__init__(parent)
 
-        self.setWindowTitle(f"About {APP_NAME}")
+        self.setWindowTitle(self.tr("About {app}").format(app=APP_NAME))
         self.setWindowIcon(QIcon("icon.ico"))
         self.setFixedSize(420, 260)
 
         layout = QVBoxLayout(self)
+
         title = QLabel(f"<h2>{APP_NAME}</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         link_color = "white" if dark_mode else "black"
 
+        version_label = self.tr("Version")
+        release_label = self.tr("Release")
+        author_label  = self.tr("Author")
+        website_label = self.tr("Website")
+
         info = QLabel(
             f"""
-            <b>Version:</b> {version}<br>
-            <b>Release:</b> {release_title}<br><br>
-            <b>Author:</b> {APP_AUTHOR}<br>
-            <b>Website:</b> <a style="color:{link_color};" href="{APP_WEBSITE}">{APP_WEBSITE}</a>
+            <b>{version_label}:</b> {version}<br>
+            <b>{release_label}:</b> {release_title}<br><br>
+            <b>{author_label}:</b> {APP_AUTHOR}<br>
+            <b>{website_label}:</b>
+            <a style="color:{link_color};" href="{APP_WEBSITE}">{APP_WEBSITE}</a>
             """
         )
+
         info.setOpenExternalLinks(True)
         info.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.clicked.connect(self.accept)
 
         layout.addStretch()
@@ -289,22 +408,33 @@ class MalSearchWorker(QThread):
         self.query = query
 
     def run(self):
-        import requests
         try:
             url = f"https://api.jikan.moe/v4/anime?q={self.query}&limit=5"
             resp = requests.get(url, timeout=10)
             if resp.status_code != 200:
-                self.error.emit(f"HTTP {resp.status_code} error")
+                self.error.emit(self.tr("HTTP {code} error").format(code=resp.status_code))
                 return
+
             data = resp.json()
             results = []
+
+            # Determine current language
+            lang = QApplication.instance()._current_lang
+
             for item in data.get("data", []):
-                title = item.get("title")
+                # Use Japanese title if UI is in Japanese, fallback to English
+                title = (
+                    item.get("title_japanese")
+                    if lang.startswith("ja") and item.get("title_japanese")
+                    else item.get("title")
+                )
                 mal_id = str(item.get("mal_id"))
                 results.append((title, mal_id))
+
             self.finished.emit(results)
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(self.tr("Request failed: {error}").format(error=str(e)))
+
 
 class MalSearchByIdWorker(QThread):
     finished = pyqtSignal(list)
@@ -315,23 +445,29 @@ class MalSearchByIdWorker(QThread):
         self.mal_id = mal_id
 
     def run(self):
-        import requests
         try:
             url = f"https://api.jikan.moe/v4/anime/{self.mal_id}"
             resp = requests.get(url, timeout=10)
             if resp.status_code != 200:
-                self.error.emit(f"HTTP {resp.status_code} error")
+                self.error.emit(self.tr("HTTP {code} error").format(code=resp.status_code))
                 return
 
             data = resp.json().get("data")
             if not data:
-                self.error.emit("No data found for that MAL ID")
+                self.error.emit(self.tr("No data found for that MAL ID"))
                 return
 
-            title = data.get("title")
-            self.finished.emit([(title, self.mal_id)])
+            lang = QApplication.instance()._current_lang
+
+            title = (
+                data.get("title_japanese")
+                if lang.startswith("ja") and data.get("title_japanese")
+                else data.get("title")
+            )
+
+            self.finished.emit([(title, str(self.mal_id))])
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(self.tr("Request failed: {error}").format(error=str(e)))
 
 # ---------------------------
 # Worker Thread
@@ -358,13 +494,22 @@ class HtmlWorker(QThread):
             )
             for line in process.stdout:
                 self.log.emit(line.rstrip())
+
             process.wait()
+
             if process.returncode != 0:
-                self.error.emit(f"Process exited with code {process.returncode}")
+                self.error.emit(
+                    self.tr("Process exited with code {code}")
+                        .format(code=process.returncode)
+                )
             else:
                 self.finished.emit()
+
         except Exception as e:
-            self.error.emit(str(e))
+            self.error.emit(
+                self.tr("Error: {message}")
+                    .format(message=str(e))
+            )
 
 # ---------------------------
 # Postar Settings Dialog
@@ -372,7 +517,7 @@ class HtmlWorker(QThread):
 class PostarSettingsDialog(QDialog):
     def __init__(self, settings: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Postar – First-Time Setup")
+        self.setWindowTitle(self.tr("Postar – First-Time Setup"))
         self.setWindowIcon(QIcon("icon.ico"))
         self.resize(500, 250)
         self.settings = settings
@@ -381,19 +526,22 @@ class PostarSettingsDialog(QDialog):
         self.shows_edit = QLineEdit(settings["B2_SHOWS_BASE"])
         self.torrents_edit = QLineEdit(settings["B2_TORRENTS_BASE"])
         self.encoder_edit = QLineEdit(settings["ENCODER_NAME"])
-        self.auto_update_check = QCheckBox("Enable auto-update")
+
+        self.auto_update_check = QCheckBox(
+            self.tr("Enable auto-update")
+        )
         self.auto_update_check.setChecked(settings["AUTO_UPDATE"])
 
-        layout.addWidget(QLabel("Backblaze B2 Shows Base URL"))
+        layout.addWidget(QLabel(self.tr("Backblaze B2 Shows Base URL")))
         layout.addWidget(self.shows_edit)
-        layout.addWidget(QLabel("Backblaze B2 Torrents Base URL"))
+        layout.addWidget(QLabel(self.tr("Backblaze B2 Torrents Base URL")))
         layout.addWidget(self.torrents_edit)
-        layout.addWidget(QLabel("Encoder Name"))
+        layout.addWidget(QLabel(self.tr("Encoder Name")))
         layout.addWidget(self.encoder_edit)
         layout.addWidget(self.auto_update_check)
 
         btn_row = QHBoxLayout()
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton(self.tr("Save"))
         save_btn.clicked.connect(self.on_save)
         btn_row.addStretch()
         btn_row.addWidget(save_btn)
@@ -405,8 +553,13 @@ class PostarSettingsDialog(QDialog):
             self.torrents_edit.text().strip(),
             self.encoder_edit.text().strip()
         )):
-            QMessageBox.warning(self, "Missing values", "All fields are required.")
+            QMessageBox.warning(
+                self,
+                self.tr("Missing values"),
+                self.tr("All fields are required.")
+            )
             return
+
         self.settings.update({
             "B2_SHOWS_BASE": self.shows_edit.text().strip(),
             "B2_TORRENTS_BASE": self.torrents_edit.text().strip(),
@@ -419,7 +572,7 @@ class JobQueueWindow(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.gui = parent
-        self.setWindowTitle("Job Queue")
+        self.setWindowTitle(self.tr("Job Queue"))
         self.setWindowIcon(QIcon("icon.ico"))
         self.resize(500, 350)
 
@@ -428,16 +581,18 @@ class JobQueueWindow(QDialog):
         self.queue_list = QListWidget()
         layout.addWidget(self.queue_list)
 
-        self.timer_label = QLabel("Elapsed Time: 00:00:00")
+        self.timer_label = QLabel(
+            self.tr("Elapsed Time: {time}").format(time="00:00:00")
+        )
         layout.addWidget(self.timer_label)
 
         btn_row = QHBoxLayout()
 
-        self.remove_btn = QPushButton("Remove Selected")
+        self.remove_btn = QPushButton(self.tr("Remove Selected"))
         self.remove_btn.clicked.connect(self.gui.remove_selected_job)
         btn_row.addWidget(self.remove_btn)
 
-        self.run_btn = QPushButton("Run Queue")
+        self.run_btn = QPushButton(self.tr("Run Queue"))
         self.run_btn.clicked.connect(self.gui.start_queue)
         btn_row.addWidget(self.run_btn)
 
@@ -448,6 +603,7 @@ class JobQueueWindow(QDialog):
         self.queue_list.clear()
         for args, out_path in self.gui.job_queue:
             self.queue_list.addItem(out_path.name)
+
 
 BASE_SANDBOX_HTML = """<!DOCTYPE html>
 <html>
@@ -472,11 +628,12 @@ BASE_SANDBOX_HTML = """<!DOCTYPE html>
 </html>
 """
 
+
 class LivePreviewWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Live HTML Preview")
+        self.setWindowTitle(self.tr("Live HTML Preview"))
         self.setWindowIcon(QIcon("icon.ico"))
         self.resize(1200, 900)
 
@@ -484,13 +641,13 @@ class LivePreviewWindow(QDialog):
 
         # --- Toolbar ---
         toolbar = QHBoxLayout()
-        refresh_btn = QPushButton("Reload Preview")
+        refresh_btn = QPushButton(self.tr("Reload Preview"))
         refresh_btn.clicked.connect(self.reload_preview)
 
-        self.dark_mode_cb = QCheckBox("Dark Mode")
+        self.dark_mode_cb = QCheckBox(self.tr("Dark Mode"))
         self.dark_mode_cb.stateChanged.connect(self._inject_pending_html)
 
-        toolbar.addWidget(QLabel("Live HTML Preview"))
+        toolbar.addWidget(QLabel(self.tr("Live HTML Preview")))
         toolbar.addStretch()
         toolbar.addWidget(self.dark_mode_cb)
         toolbar.addWidget(refresh_btn)
@@ -524,7 +681,7 @@ class LivePreviewWindow(QDialog):
         else:
             # Running as normal script
             base_path = Path(__file__).parent
-            
+
         css_dir = base_path / "css"
         self.local_css_files = [
             p.resolve().as_uri().replace("\\", "\\\\")
@@ -532,7 +689,7 @@ class LivePreviewWindow(QDialog):
         ]
 
         if not self.local_css_files:
-            print("Warning: No local CSS files found!")
+            print(self.tr("Warning: No local CSS files found!"))
 
     def set_html(self, html: str):
         self.pending_html = html
@@ -685,99 +842,137 @@ class PostarGUI(QMainWindow):
 
         # Menu bar
         menubar = self.menuBar()
-        about_action = menubar.addAction("About")
+        
+        about_action = menubar.addAction(tr("About"))
         about_action.setShortcut("F1")
         about_action.triggered.connect(self.show_about)
 
         # Job Queue Menu
         self.queue_window = JobQueueWindow(self)
         self.live_preview = LivePreviewWindow(self)
-        queue_menu = menubar.addMenu("Job Queue")
+        # self.live_preview.load_wordpress("https://hi10anime.com/archives/107629/")
+        queue_menu = menubar.addMenu(self.tr("Job Queue"))
 
-        open_queue_action = queue_menu.addAction("Jobs")
+        open_queue_action = queue_menu.addAction(self.tr("Jobs"))
         open_queue_action.setShortcut("F2")
         open_queue_action.triggered.connect(self.show_queue_window)
-        clear_queue_action = queue_menu.addAction("Clear Entire Queue", self.clear_job_queue)
+
+        clear_queue_action = queue_menu.addAction(self.tr("Clear Entire Queue"), self.clear_job_queue)
         clear_queue_action.setShortcut("F3")
 
         # Background Dropdown
-        view_menu = menubar.addMenu("Custom Background")
-        bg_action = view_menu.addAction("Set Background")
+        view_menu = menubar.addMenu(self.tr("Custom Background"))
+
+        bg_action = view_menu.addAction(self.tr("Set Background"))
         bg_action.setShortcut("F4")
         bg_action.triggered.connect(self.select_background_image)
 
-        clear_bg_action = view_menu.addAction("Clear Background")
+        clear_bg_action = view_menu.addAction(self.tr("Clear Background"))
         clear_bg_action.setShortcut("F5")
         clear_bg_action.triggered.connect(self.clear_background_image)
 
         # Live Preview
-        preview_action = menubar.addAction("Live Preview")
+        preview_action = menubar.addAction(self.tr("Live Preview"))
         preview_action.setShortcut("F6")
         preview_action.triggered.connect(self.show_live_preview)
 
+        # ---------------------------
+        # Language Menu (inline)
+        # ---------------------------
+        self.language_menu = menubar.addMenu(self.tr("Language"))
+
+        # Define languages and shortcuts
+        langs = {
+            "en": ("English", "Ctrl+1"),
+            #"ja": ("日本語", "Ctrl+2"),
+            #"fr": ("Français", "Ctrl+2"),
+            #"es": ("Español", "Ctrl+3"),
+            #"ja": ("日本語", "Ctrl+4"),
+        }
+
+        self.lang_actions = {}
+
+        for code, (label, shortcut) in langs.items():
+            action = self.language_menu.addAction(label)
+            action.setShortcut(shortcut)
+            action.setCheckable(True)
+            action.triggered.connect(lambda checked=False, c=code: self.switch_language(c))
+            self.lang_actions[code] = action
+
+        # Auto-check system language
+        settings = QSettings("Postar", "PostarGUI")
+        current_lang = settings.value("language", "", type=str)
+
+        if not current_lang:
+            current_lang = QLocale.system().name().split("_")[0]
+
+        if current_lang in self.lang_actions:
+            self.lang_actions[current_lang].setChecked(True)
+
         # ---- Help / Update menu ----
-        update_action = menubar.addAction("Check for Updates")
+        update_action = menubar.addAction(self.tr("Check for Updates"))
         update_action.setShortcut("F12")
         update_action.triggered.connect(self.manual_update_check)
 
-        # Inputs
         self.inputs = {}
 
-        # Optional: compute a uniform width for all input fields
-        input_width = 900  # pixels, adjust as needed
-        button_width = 120  # MAL search button width
+        input_width = 900
+        button_width = 120
 
-        for label in (
-            "BD 1080p Folders",
-            "BD 720p Folders",
-            "Non-BD Folders",
-            "MAL IDs",
-            "Heading Colors",
-            "Airing Images",
-            "Donation Images",
-            "BD Resolution Images",
-        ):
-            if label == "MAL IDs":
-                # Create a horizontal layout for the input + button
+        # Stable keys → translatable labels
+        INPUT_DEFS = [
+            ("bd_1080p_folders", self.tr("BD 1080p Folders")),
+            ("bd_720p_folders", self.tr("BD 720p Folders")),
+            ("non_bd_folders", self.tr("Non-BD Folders")),
+            ("mal_ids", self.tr("MAL IDs")),
+            ("heading_colors", self.tr("Heading Colors")),
+            ("airing_images", self.tr("Airing Images")),
+            ("donation_images", self.tr("Donation Images")),
+            ("bd_resolution_images", self.tr("BD Resolution Images")),
+        ]
+
+        for key, label in INPUT_DEFS:
+
+            if key == "mal_ids":
                 row = QHBoxLayout()
                 row.addWidget(QLabel(label))
 
-                # Line edit width = total input width minus button width minus spacing
                 mal_input = DragDropLineEdit()
-                mal_input.setFixedWidth(input_width - button_width - 10)  # 10px spacing
+                mal_input.setFixedWidth(input_width - button_width - 10)
                 row.addWidget(mal_input)
 
-                # Add the search button
-                self.mal_search_btn = QPushButton("Search For MAL ID")
+                self.mal_search_btn = QPushButton(self.tr("Search For MAL ID"))
                 self.mal_search_btn.setFixedWidth(button_width)
                 self.mal_search_btn.clicked.connect(self.search_mal_id)
                 row.addWidget(self.mal_search_btn)
 
                 self.layout.addLayout(row)
-                self.mal_input = mal_input
-                self.inputs[label] = mal_input
 
-            elif label == "Heading Colors":
+                self.mal_input = mal_input
+                self.inputs[key] = mal_input
+
+            elif key == "heading_colors":
                 row = QHBoxLayout()
                 row.addWidget(QLabel(label))
 
                 color_input = DragDropLineEdit()
-                color_input.setFixedWidth(input_width - button_width - 10)  # 10px spacing
+                color_input.setFixedWidth(input_width - button_width - 10)
                 row.addWidget(color_input)
 
-                pick_btn = QPushButton("Color Picker")
+                pick_btn = QPushButton(self.tr("Color Picker"))
                 pick_btn.setFixedWidth(button_width)
                 pick_btn.clicked.connect(lambda _, e=color_input: self.pick_color(e))
                 row.addWidget(pick_btn)
 
                 self.layout.addLayout(row)
-                self.inputs[label] = color_input
+
+                self.inputs[key] = color_input
 
             else:
-                # Regular inputs
-                widget = self.add_input(label)
+                # Pass both key and label to add_input
+                widget = self.add_input(key, label)
                 widget.setFixedWidth(input_width)
-                self.inputs[label] = widget
+                self.inputs[key] = widget
 
         # ---------------------------
         # Options / Checkboxes Section
@@ -787,32 +982,41 @@ class PostarGUI(QMainWindow):
         options_layout = QVBoxLayout(self.options_container)
         options_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.bd_checkbox = QCheckBox("Enable BD toggle")
-        self.seasonal_checkbox = QCheckBox("Seasonal / Airing style")
-        self.crc_checkbox = QCheckBox("Include CRC32 column")
-        self.kage_checkbox = QCheckBox("Kage Layout")
-        self.dark_checkbox = QCheckBox("Dark Mode")
-        #self.update_checkbox = QCheckBox("Manually check for updates (-u)")
-        self.disable_auto_update_checkbox = QCheckBox("Disable auto-update (-du)")
-        self.configure_checkbox = QCheckBox("Re-run setup (-configure)")
+        # Stable keys → translatable labels
+        CHECKBOX_DEFS = [
+            ("enable_bd", self.tr("Enable BD toggle")),
+            ("seasonal", self.tr("Seasonal / Airing style")),
+            ("crc", self.tr("Include CRC32 column")),
+            ("kage", self.tr("Kage Layout")),
+            ("dark", self.tr("Dark Mode")),
+            ("disable_auto_update", self.tr("Disable auto-update (-du)")),
+            ("configure", self.tr("Re-run setup (-configure)")),
+        ]
 
-        for cb in (
-            self.bd_checkbox,
-            self.seasonal_checkbox,
-            self.crc_checkbox,
-            self.kage_checkbox,
-            self.dark_checkbox,
-            #self.update_checkbox,
-            self.disable_auto_update_checkbox,
-            self.configure_checkbox,
-        ):
+        self.checkboxes = {}
+
+        for key, label in CHECKBOX_DEFS:
+            cb = QCheckBox(label)
             cb.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             options_layout.addWidget(cb)
+            self.checkboxes[key] = cb
 
+            # ---- Backwards compatibility attributes ----
+            setattr(self, f"{key}_checkbox", cb)
+
+        # ---- Legacy attribute aliases (for existing code) ----
+        self.bd_checkbox = self.enable_bd_checkbox
+        self.seasonal_checkbox = self.seasonal_checkbox
+        self.crc_checkbox = self.crc_checkbox
+        self.kage_checkbox = self.kage_checkbox
+        self.dark_checkbox = self.dark_checkbox
+        self.disable_auto_update_checkbox = self.disable_auto_update_checkbox
+        self.configure_checkbox = self.configure_checkbox
+    
         # Toggle button row
         options_toggle_row = QHBoxLayout()
-        options_label = QLabel("Options")
-        self.options_toggle_btn = QPushButton("Hide")
+        options_label = QLabel(self.tr("Options"))
+        self.options_toggle_btn = QPushButton(self.tr("Hide"))
         self.options_toggle_btn.setMaximumWidth(60)
         options_toggle_row.addWidget(options_label)
         options_toggle_row.addStretch()
@@ -821,16 +1025,14 @@ class PostarGUI(QMainWindow):
         self.layout.addLayout(options_toggle_row)
         self.layout.addWidget(self.options_container)
 
-        # Connect the toggle
         self.options_toggle_btn.clicked.connect(
             lambda: self.toggle_widget(self.options_container, self.options_toggle_btn, state_key="options_visible")
         )
 
-        # Remember state
         self.ui_state.setdefault("options_visible", True)
         visible = self.ui_state["options_visible"]
         self.options_container.setVisible(visible)
-        self.options_toggle_btn.setText("Hide" if visible else "Show")
+        self.options_toggle_btn.setText(self.tr("Hide") if visible else self.tr("Show"))
 
         # Checks github version & release title
         QTimer.singleShot(200, self.fetch_release_metadata)
@@ -891,33 +1093,32 @@ class PostarGUI(QMainWindow):
         self.configure_checkbox.stateChanged.connect(self.open_reconfigure_dialog)
 
         # Output file
-        input_width = 900  # same width used for BD 1080p Folders
+        input_width = 900
         out_row = QHBoxLayout()
-        out_row.addWidget(QLabel("Output HTML File"))
-        self.output_file = QLineEdit("output.txt")
-        self.output_file.setFixedWidth(input_width) 
+        out_row.addWidget(QLabel(self.tr("Output HTML File")))
+        self.output_file = QLineEdit(self.tr("output.txt"))
+        self.output_file.setFixedWidth(input_width)
         out_row.addWidget(self.output_file)
         self.layout.addLayout(out_row)
 
         # Profiles
         prof_row = QHBoxLayout()
 
-        label_width = 23      # approximate width for "Profile" label
-        total_width = 900     # total width for the row
-        button_width = 80     # each button width
-        spacing = 0          # spacing between widgets
+        label_width = 23
+        total_width = 900
+        button_width = 80
+        spacing = 0
 
-        # Compute remaining width for QLineEdit + QComboBox
         remaining_width = total_width - label_width - (3 * button_width) - (4 * spacing)
-        profile_name_width = int(remaining_width * 0.5)  # half for name
-        profile_box_width = remaining_width - profile_name_width  # rest for dropdown
+        profile_name_width = int(remaining_width * 0.5)
+        profile_box_width = remaining_width - profile_name_width
 
         # Label
-        prof_row.addWidget(QLabel("Profile"))
+        prof_row.addWidget(QLabel(self.tr("Profile")))
 
         # Profile Name
         self.profile_name = QLineEdit()
-        self.profile_name.setPlaceholderText("Profile name")
+        self.profile_name.setPlaceholderText(self.tr("Profile name"))
         self.profile_name.setFixedWidth(profile_name_width)
         prof_row.addWidget(self.profile_name)
 
@@ -929,17 +1130,17 @@ class PostarGUI(QMainWindow):
         prof_row.addWidget(self.profile_box)
 
         # Buttons
-        save_btn = QPushButton("Save")
+        save_btn = QPushButton(self.tr("Save"))
         save_btn.setFixedWidth(button_width)
         save_btn.clicked.connect(self.save_profile)
         prof_row.addWidget(save_btn)
 
-        load_btn = QPushButton("Load")
+        load_btn = QPushButton(self.tr("Load"))
         load_btn.setFixedWidth(button_width)
         load_btn.clicked.connect(self.load_selected_profile)
         prof_row.addWidget(load_btn)
 
-        del_btn = QPushButton("Delete")
+        del_btn = QPushButton(self.tr("Delete"))
         del_btn.setFixedWidth(button_width)
         del_btn.clicked.connect(self.delete_profile)
         prof_row.addWidget(del_btn)
@@ -951,10 +1152,12 @@ class PostarGUI(QMainWindow):
         self.cmd_preview.setReadOnly(True)
         cmd_row = QVBoxLayout()
         cmd_header = QHBoxLayout()
-        cmd_label = QLabel("Command Preview")
-        self.cmd_toggle_btn = QPushButton("Hide")
+        cmd_label = QLabel(self.tr("Command Preview"))
+        self.cmd_toggle_btn = QPushButton(self.tr("Hide"))
         self.cmd_toggle_btn.setMaximumWidth(60)
-        self.cmd_toggle_btn.clicked.connect(lambda: self.toggle_widget(self.cmd_preview, self.cmd_toggle_btn))
+        self.cmd_toggle_btn.clicked.connect(
+            lambda: self.toggle_widget(self.cmd_preview, self.cmd_toggle_btn)
+        )
         cmd_header.addWidget(cmd_label)
         cmd_header.addStretch()
         cmd_header.addWidget(self.cmd_toggle_btn)
@@ -967,10 +1170,12 @@ class PostarGUI(QMainWindow):
         self.process_output.setReadOnly(True)
         output_row = QVBoxLayout()
         output_header = QHBoxLayout()
-        output_label = QLabel("Process Output")
-        self.output_toggle_btn = QPushButton("Hide")
+        output_label = QLabel(self.tr("Process Output"))
+        self.output_toggle_btn = QPushButton(self.tr("Hide"))
         self.output_toggle_btn.setMaximumWidth(60)
-        self.output_toggle_btn.clicked.connect(lambda: self.toggle_widget(self.process_output, self.output_toggle_btn))
+        self.output_toggle_btn.clicked.connect(
+            lambda: self.toggle_widget(self.process_output, self.output_toggle_btn)
+        )
         output_header.addWidget(output_label)
         output_header.addStretch()
         output_header.addWidget(self.output_toggle_btn)
@@ -984,11 +1189,13 @@ class PostarGUI(QMainWindow):
         self.html_preview.setReadOnly(True)
         html_row = QVBoxLayout()
         html_header = QHBoxLayout()
-        html_label = QLabel("HTML Preview")
-        self.html_toggle_btn = QPushButton("Hide")
+        html_label = QLabel(self.tr("HTML Preview"))
+        self.html_toggle_btn = QPushButton(self.tr("Hide"))
         self.html_toggle_btn.setMaximumWidth(60)
-        self.html_toggle_btn.clicked.connect(lambda: self.toggle_widget(self.html_preview, self.html_toggle_btn))
-        self.html_edit_btn = QPushButton("Edit")
+        self.html_toggle_btn.clicked.connect(
+            lambda: self.toggle_widget(self.html_preview, self.html_toggle_btn)
+        )
+        self.html_edit_btn = QPushButton(self.tr("Edit"))
         self.html_edit_btn.setMaximumWidth(60)
         self.html_edit_btn.clicked.connect(self.toggle_html_edit_mode)
         html_header.addWidget(html_label)
@@ -1010,11 +1217,11 @@ class PostarGUI(QMainWindow):
 
         # Generate / Queue Controls
         btn_row = QHBoxLayout()
-        self.add_queue_btn = QPushButton("Add To Queue")
+        self.add_queue_btn = QPushButton(self.tr("Add To Queue"))
         self.add_queue_btn.clicked.connect(self.add_job_to_queue)
-        self.start_queue_btn = QPushButton("Run Queue")
+        self.start_queue_btn = QPushButton(self.tr("Run Queue"))
         self.start_queue_btn.clicked.connect(self.start_queue)
-        self.generate_btn = QPushButton("Generate HTML (Single)")
+        self.generate_btn = QPushButton(self.tr("Generate HTML (Single)"))
         self.generate_btn.clicked.connect(self.generate_html)
         btn_row.addWidget(self.add_queue_btn)
         btn_row.addWidget(self.start_queue_btn)
@@ -1033,7 +1240,6 @@ class PostarGUI(QMainWindow):
         self.timer.timeout.connect(self.update_timer)
 
     def closeEvent(self, event):
-        # Save the current job queue regardless of current_job_index
         if self.job_queue:
             save_queue(self.job_queue)
         else:
@@ -1046,15 +1252,15 @@ class PostarGUI(QMainWindow):
 
         reply = QMessageBox.question(
             self,
-            "Clear Queue",
-            "Are you sure you want to remove all jobs from the queue?",
+            self.tr("Clear Queue"),
+            self.tr("Are you sure you want to remove all jobs from the queue?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
         if reply == QMessageBox.StandardButton.Yes:
             self.job_queue.clear()
             self.queue_window.queue_list.clear()
-            self.statusBar().showMessage("Job queue cleared", 3000)
+            self.statusBar().showMessage(self.tr("Job queue cleared"), 3000)
 
     def show_queue_window(self):
         self.queue_window.sync_from_main()
@@ -1096,39 +1302,52 @@ class PostarGUI(QMainWindow):
     def toggle_html_edit_mode(self):
         if self.html_preview.isReadOnly():
             self.html_preview.setReadOnly(False)
-            self.html_edit_btn.setText("Lock")
+            self.html_edit_btn.setText(self.tr("Lock"))
             self.html_preview.setStyleSheet("border: 2px solid #ff9800;")
-            self.statusBar().showMessage("HTML edit mode enabled", 3000)
+            self.statusBar().showMessage(self.tr("HTML edit mode enabled"), 3000)
         else:
             self.html_preview.setReadOnly(True)
-            self.html_edit_btn.setText("Edit")
+            self.html_edit_btn.setText(self.tr("Edit"))
             if self.current_html_file:
                 try:
-                    self.current_html_file.write_text(self.html_preview.toPlainText(), encoding="utf-8")
+                    self.current_html_file.write_text(
+                        self.html_preview.toPlainText(),
+                        encoding="utf-8"
+                    )
                     ts = datetime.now().strftime("%H:%M:%S")
-                    self.statusBar().showMessage(f"HTML changes saved successfully at {ts}", 5000)
+                    self.statusBar().showMessage(
+                        self.tr("HTML changes saved successfully at {time}").format(time=ts),
+                        5000
+                    )
                     self.html_preview.setStyleSheet("border: 2px solid #4caf50;")
                     QTimer.singleShot(800, lambda: self.html_preview.setStyleSheet(""))
                 except Exception as e:
-                    QMessageBox.warning(self, "Save Error", f"Failed to write HTML file:\n{e}")
+                    QMessageBox.warning(
+                        self,
+                        self.tr("Save Error"),
+                        self.tr("Failed to write HTML file:\n{error}").format(error=e)
+                    )
 
     # ---------------------------
     # Queue & Worker Logic
     # ---------------------------
     def build_args_list(self):
-        folders1080 = [p.strip() for p in self.inputs["BD 1080p Folders"].text().split(",") if p.strip()]
-        folders720 = [p.strip() for p in self.inputs["BD 720p Folders"].text().split(",") if p.strip()]
-        non_bd = [p.strip() for p in self.inputs["Non-BD Folders"].text().split(",") if p.strip()]
-        mal_ids = [p.strip() for p in self.inputs["MAL IDs"].text().split(",") if p.strip()]
-        span_colors = [p.strip() for p in self.inputs["Heading Colors"].text().split(",") if p.strip()]
-        airing_imgs = [p.strip() for p in self.inputs["Airing Images"].text().split(",") if p.strip()]
-        donation_imgs = [p.strip() for p in self.inputs["Donation Images"].text().split(",") if p.strip()]
-        bd_images = [p.strip() for p in self.inputs["BD Resolution Images"].text().split(",") if p.strip()]
+        folders1080 = [p.strip() for p in self.inputs["bd_1080p_folders"].text().split(",") if p.strip()]
+        folders720 = [p.strip() for p in self.inputs["bd_720p_folders"].text().split(",") if p.strip()]
+        non_bd = [p.strip() for p in self.inputs["non_bd_folders"].text().split(",") if p.strip()]
+        mal_ids = [p.strip() for p in self.inputs["mal_ids"].text().split(",") if p.strip()]
+        span_colors = [p.strip() for p in self.inputs["heading_colors"].text().split(",") if p.strip()]
+        airing_imgs = [p.strip() for p in self.inputs["airing_images"].text().split(",") if p.strip()]
+        donation_imgs = [p.strip() for p in self.inputs["donation_images"].text().split(",") if p.strip()]
+        bd_images = [p.strip() for p in self.inputs["bd_resolution_images"].text().split(",") if p.strip()]  # <-- fix key
+
         args_list = []
+
         def add_flag(flag, values):
             if values:
                 args_list.append(flag)
                 args_list.extend(values)
+
         add_flag("-p1080", folders1080)
         add_flag("-p720", folders720)
         add_flag("-p", non_bd)
@@ -1137,15 +1356,18 @@ class PostarGUI(QMainWindow):
         add_flag("-a", airing_imgs)
         add_flag("-d", donation_imgs)
         add_flag("-bi", bd_images)
+
         if self.bd_checkbox.isChecked(): args_list.append("-b")
         if self.seasonal_checkbox.isChecked(): args_list.append("-s")
         if self.crc_checkbox.isChecked(): args_list.append("-crc")
         if self.kage_checkbox.isChecked(): args_list.append("-kage")
-        #if self.update_checkbox.isChecked(): args_list.append("-u")
+        # if self.update_checkbox.isChecked(): args_list.append("-u")
         if self.disable_auto_update_checkbox.isChecked(): args_list.append("-du")
         if self.configure_checkbox.isChecked(): args_list.append("-configure")
+
         out_path = Path(self.output_file.text().strip() or "output.txt")
         args_list += ["-o", str(out_path)]
+
         return args_list, out_path
 
     # ---------------------------
@@ -1156,11 +1378,13 @@ class PostarGUI(QMainWindow):
         job_name = str(out_path.name)
         self.job_queue.append((args, out_path))
         self.queue_window.queue_list.addItem(job_name)
-        self.statusBar().showMessage(f"Added job to queue — {len(self.job_queue)} total", 4000)
+        self.statusBar().showMessage(
+            self.tr("Added job to queue — {total} total").format(total=len(self.job_queue)), 4000
+        )
 
     def start_queue(self):
         if not self.job_queue:
-            QMessageBox.information(self, "Queue Empty", "No jobs in queue.")
+            QMessageBox.information(self, self.tr("Queue Empty"), self.tr("No jobs in queue."))
             return
         if self.worker:
             return  # Already running
@@ -1169,7 +1393,7 @@ class PostarGUI(QMainWindow):
 
     def run_next_job(self):
         if self.current_job_index >= len(self.job_queue):
-            self.statusBar().showMessage("Queue completed successfully", 6000)
+            self.statusBar().showMessage(self.tr("Queue completed successfully"), 6000)
             self.current_job_index = -1
             self.progress.hide()
             self.timer.stop()
@@ -1193,7 +1417,11 @@ class PostarGUI(QMainWindow):
         
         self.progress.show()
         self.generate_btn.setEnabled(False)
-        self.process_output.append(f"\n--- Running job ({self.current_job_index+1}/{len(self.job_queue)}) ---\n")
+        self.process_output.append(
+            self.tr("\n--- Running job ({current}/{total}) ---\n").format(
+                current=self.current_job_index + 1, total=len(self.job_queue)
+            )
+        )
         self.worker = HtmlWorker(args_list)
         self.worker.log.connect(self.process_output.append)
         self.worker.finished.connect(self.on_queue_job_finished)
@@ -1224,7 +1452,7 @@ class PostarGUI(QMainWindow):
         self.cleanup_worker()
 
     def on_queue_job_error(self, err):
-        self.process_output.append(f"ERROR: {err}")
+        self.process_output.append(self.tr("ERROR: {err}").format(err=err))
         if 0 <= self.current_job_index < self.queue_window.queue_list.count():
             self.queue_window.queue_list.item(self.current_job_index).setBackground(QColor("red"))
             # Remove errored job after short delay
@@ -1238,21 +1466,12 @@ class PostarGUI(QMainWindow):
             self.queue_window.queue_list.takeItem(index)
         # run next job if any left
         if self.job_queue:
-            # current_job_index already points to next job, just run it
             self.run_next_job()
         else:
-            self.statusBar().showMessage("Queue completed successfully", 6000)
+            self.statusBar().showMessage(self.tr("Queue completed successfully"), 6000)
             self.current_job_index = -1
             self.progress.hide()
             self.timer.stop()
-
-    def on_queue_job_error(self, err):
-        self.process_output.append(f"ERROR: {err}")
-        if 0 <= self.current_job_index < self.queue_window.queue_list.count():
-            self.queue_window.queue_list.item(self.current_job_index).setBackground(QColor("red"))
-        self.cleanup_worker()
-        self.current_job_index += 1
-        self.run_next_job()
 
     def remove_selected_job(self):
         selected_items = self.queue_window.queue_list.selectedItems()
@@ -1261,13 +1480,12 @@ class PostarGUI(QMainWindow):
         for item in selected_items:
             row = self.queue_window.queue_list.row(item)
             self.queue_window.queue_list.takeItem(row)
-            # Remove corresponding job from job_queue
             if row < len(self.job_queue):
                 self.job_queue.pop(row)
-        self.statusBar().showMessage("Selected job(s) removed", 3000)
+        self.statusBar().showMessage(self.tr("Selected job(s) removed"), 3000)
 
     def on_error(self, err):
-        self.process_output.append(f"ERROR: {err}")
+        self.process_output.append(self.tr("ERROR: {err}").format(err=err))
         if 0 <= self.current_job_index < self.queue_window.queue_list.count():
             self.queue_window.queue_list.item(self.current_job_index).setBackground(Qt.GlobalColor.red)
         self.cleanup_worker()
@@ -1279,7 +1497,7 @@ class PostarGUI(QMainWindow):
         h, rem = divmod(self.elapsed_seconds, 3600)
         m, s = divmod(rem, 60)
         self.queue_window.timer_label.setText(
-            f"Elapsed Time: {h:02}:{m:02}:{s:02}"
+            self.tr("Elapsed Time: {h:02}:{m:02}:{s:02}").format(h=h, m=m, s=s)
         )
 
     def cleanup_worker(self):
@@ -1291,17 +1509,17 @@ class PostarGUI(QMainWindow):
     def manual_update_check(self):
         reply = QMessageBox.question(
             self,
-            "Check for Updates",
-            "Check GitHub for updates now?",
+            self.tr("Check for Updates"),
+            self.tr("Check GitHub for updates now?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        self.statusBar().showMessage("Checking for updates...")
+        self.statusBar().showMessage(self.tr("Checking for updates..."))
 
         self.process_output.clear()
-        self.process_output.append("[Update] Launching updater...\n")
+        self.process_output.append(self.tr("[Update] Launching updater...\n"))
 
         self.update_worker = UpdateWorker(force=True)
         self.update_worker.output.connect(self.process_output.append)
@@ -1318,17 +1536,16 @@ class PostarGUI(QMainWindow):
         self.update_worker.start()
 
     def on_update_finished(self, result):
-        #self.statusBar().showMessage("Update Complete!", 3000)
         self.statusBar().clearMessage()
 
         if result != "done":
-            QMessageBox.warning(self, "Update Error", result)
+            QMessageBox.warning(self, self.tr("Update Error"), self.tr(result))
 
     # Color picker function
     def pick_color(self, line_edit: QLineEdit):
         color = QColorDialog.getColor(
             parent=self,
-            title="Select Color"
+            title=self.tr("Select Color")
         )
 
         if not color.isValid():
@@ -1342,6 +1559,27 @@ class PostarGUI(QMainWindow):
             existing.append(hex_color)
 
         line_edit.setText(", ".join(existing))
+
+    def switch_language(self, lang_code):
+        final_lang = load_language(QApplication.instance(), lang_code)
+        self.retranslate_ui()
+
+        # Update checked state using final resolved language
+        for code, action in self.lang_actions.items():
+            action.setChecked(code == final_lang)
+
+    def retranslate_ui(self):
+        # Main window title
+        self.setWindowTitle(tr(APP_NAME))
+
+        # Language menu title
+        self.language_menu.setTitle(tr("Language"))
+
+        # Explicit top-level actions (check they exist)
+        for attr_name in ["queue_window", "live_preview_action", "update_action"]:
+            action = getattr(self, attr_name, None)
+            if action and hasattr(action, "setText"):
+                action.setText(tr(action.text()))
 
     # ---------------------------
     # Single job generation
@@ -1375,7 +1613,7 @@ class PostarGUI(QMainWindow):
         self.cleanup_worker()
 
     def on_error(self, err):
-        self.process_output.append(f"ERROR: {err}")
+        self.process_output.append(self.tr(f"ERROR: {err}"))
         self.cleanup_worker()
 
     def cleanup_worker(self):
@@ -1389,11 +1627,15 @@ class PostarGUI(QMainWindow):
     def search_mal_id(self):
         query = self.mal_input.text().strip()
         if not query:
-            QMessageBox.warning(self, "Input Required", "Please enter a series name or MAL ID to search.")
+            QMessageBox.warning(
+                self,
+                self.tr("Input Required"),
+                self.tr("Please enter a series name or MAL ID to search.")
+            )
             return
 
         self.mal_search_btn.setEnabled(False)
-        self.mal_search_btn.setText("Searching...")
+        self.mal_search_btn.setText(self.tr("Searching..."))
 
         # If the input is purely numeric, treat it as an ID
         if query.isdigit():
@@ -1407,25 +1649,35 @@ class PostarGUI(QMainWindow):
 
     def on_mal_search_finished(self, results):
         self.mal_search_btn.setEnabled(True)
-        self.mal_search_btn.setText("Search MAL ID")
+        self.mal_search_btn.setText(self.tr("Search MAL ID"))
 
         if not results:
-            QMessageBox.information(self, "No Results", "No matching anime found on MAL.")
+            QMessageBox.information(
+                self,
+                self.tr("No Results"),
+                self.tr("No matching anime found on MAL.")
+            )
             return
 
         items = [f"{title} — ID: {mal_id}" for title, mal_id in results]
-        item, ok = QInputDialog.getItem(self, "Select Anime", "Select anime to use MAL ID:", items, 0, False)
+        item, ok = QInputDialog.getItem(
+            self,
+            self.tr("Select Anime"),
+            self.tr("Select anime to use MAL ID:"),
+            items,
+            0,
+            False
+        )
         if ok and item:
             selected_mal_id = item.split("ID:")[-1].strip()
 
             # Split existing text into parts (comma separated)
             current_ids = [x.strip() for x in self.mal_input.text().split(",") if x.strip()]
 
-            # If user typed a name that was just replaced, remove it
-            # We'll assume anything non-numeric in the field is a "name" that should be replaced
+            # Remove non-numeric entries (assumed names replaced by ID)
             current_ids = [x for x in current_ids if x.isdigit()]
 
-            # Append new ID
+            # Append new ID if not already present
             if selected_mal_id not in current_ids:
                 current_ids.append(selected_mal_id)
 
@@ -1433,8 +1685,12 @@ class PostarGUI(QMainWindow):
 
     def on_mal_search_error(self, err):
         self.mal_search_btn.setEnabled(True)
-        self.mal_search_btn.setText("Search MAL ID")
-        QMessageBox.warning(self, "Search Error", f"Failed to search MAL:\n{err}")
+        self.mal_search_btn.setText(self.tr("Search MAL ID"))
+        QMessageBox.warning(
+            self,
+            self.tr("Search Error"),
+            self.tr(f"Failed to search MAL:\n{err}")
+        )
 
     def apply_background_image(self, image_path):
         if image_path and Path(image_path).exists():
@@ -1450,9 +1706,9 @@ class PostarGUI(QMainWindow):
 
         file, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Background Image",
+            self.tr("Select Background Image"),
             "",
-            "Images (*.png *.jpg *.jpeg)"
+            self.tr("Images (*.png *.jpg *.jpeg)")
         )
 
         if file:
@@ -1471,7 +1727,6 @@ class PostarGUI(QMainWindow):
         super().resizeEvent(event)
         if self.bg_label.isVisible():
             self.bg_label.setGeometry(self.centralWidget().rect())
-
     # ---------------------------
     # UI / Dark Mode / Toggle
     # ---------------------------
@@ -1557,7 +1812,7 @@ class PostarGUI(QMainWindow):
         """Toggle visibility of a widget and update the corresponding button and UI state."""
         visible = not widget.isVisible()
         widget.setVisible(visible)
-        button.setText("Hide" if visible else "Show")
+        button.setText(self.tr("Hide") if visible else self.tr("Show"))
         if state_key:
             self.ui_state[state_key] = visible
             save_ui_state(self.ui_state)
@@ -1576,17 +1831,24 @@ class PostarGUI(QMainWindow):
         
     def set_preview_state(self, widget, button, visible):
         widget.setVisible(visible)
-        button.setText("Hide" if visible else "Show")
+        button.setText(self.tr("Hide") if visible else self.tr("Show"))
 
     # ---------------------------
     # Inputs
     # ---------------------------
-    def add_input(self, label):
+    def add_input(self, key, label):
+        """
+        key   = internal fixed key for self.inputs
+        label = user-visible text (will be translated)
+        """
         row = QHBoxLayout()
-        row.addWidget(QLabel(label))
+        row.addWidget(QLabel(self.tr(label)))
         edit = DragDropLineEdit()
         row.addWidget(edit)
         self.layout.addLayout(row)
+
+        # store in inputs dict using fixed key, not translated label
+        self.inputs[key] = edit
         return edit
 
     # ---------------------------
@@ -1599,7 +1861,11 @@ class PostarGUI(QMainWindow):
         dlg = PostarSettingsDialog(settings, self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             save_postar_settings(settings)
-            QMessageBox.information(self, "Settings Updated", "Postar configuration updated successfully.")
+            QMessageBox.information(
+                self,
+                self.tr("Settings Updated"),
+                self.tr("Postar configuration updated successfully.")
+            )
         self.configure_checkbox.setChecked(False)
 
     # ---------------------------
@@ -1608,36 +1874,62 @@ class PostarGUI(QMainWindow):
     def load_profiles(self):
         self.profile_box.clear()
         if PROFILE_FILE.exists():
-            self.profile_box.addItems(json.loads(PROFILE_FILE.read_text(encoding="utf-8")).keys())
+            profiles = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
+            self.profile_box.addItems(sorted(profiles.keys()))
 
     def save_profile(self):
         name = self.profile_name.text().strip()
         if not name:
             return
+
         profiles = json.loads(PROFILE_FILE.read_text(encoding="utf-8")) if PROFILE_FILE.exists() else {}
+
         state = self.read_state()
+
+        # --- Version stamp for future-proofing ---
+        state["_version"] = 2
+
         profiles[name] = state
-        PROFILE_FILE.write_text(json.dumps(profiles, indent=2, ensure_ascii=False), encoding="utf-8")
-        SETTINGS_FILE.write_text(json.dumps({"last": name}), encoding="utf-8")
+
+        PROFILE_FILE.write_text(
+            json.dumps(profiles, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+
+        SETTINGS_FILE.write_text(
+            json.dumps({"last": name}, indent=2),
+            encoding="utf-8"
+        )
+
         self.load_profiles()
         self.profile_box.setCurrentText(name)
 
     def load_selected_profile(self):
         if not PROFILE_FILE.exists():
             return
+
         name = self.profile_box.currentText()
         profiles = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
+
         if name in profiles:
             self.write_state(profiles[name])
-            SETTINGS_FILE.write_text(json.dumps({"last": name}), encoding="utf-8")
+            SETTINGS_FILE.write_text(json.dumps({"last": name}, indent=2), encoding="utf-8")
 
     def delete_profile(self):
         if not PROFILE_FILE.exists():
             return
+
         name = self.profile_box.currentText()
         profiles = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
-        profiles.pop(name, None)
-        PROFILE_FILE.write_text(json.dumps(profiles, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        if name in profiles:
+            profiles.pop(name)
+
+            PROFILE_FILE.write_text(
+                json.dumps(profiles, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+
         self.load_profiles()
 
     def load_last_profile(self):
@@ -1648,14 +1940,21 @@ class PostarGUI(QMainWindow):
                 self.load_selected_profile()
 
     def read_state(self):
+        """
+        Read GUI state using stable internal keys.
+        """
+
         return {
-            "inputs": {k: v.text() for k, v in self.inputs.items()},
+            "inputs": {
+                key: widget.text()
+                for key, widget in self.inputs.items()
+            },
             "checks": {
                 "bd": self.bd_checkbox.isChecked(),
                 "seasonal": self.seasonal_checkbox.isChecked(),
                 "crc": self.crc_checkbox.isChecked(),
                 "kage": self.kage_checkbox.isChecked(),
-                #"update": self.update_checkbox.isChecked(),
+                # "update": self.update_checkbox.isChecked(),
                 "disable_auto_update": self.disable_auto_update_checkbox.isChecked(),
             },
             "output_file": self.output_file.text().strip() or "output.txt",
@@ -1667,22 +1966,62 @@ class PostarGUI(QMainWindow):
         }
 
     def write_state(self, state):
+        """
+        Load profile state with backward compatibility.
+        Old profiles using translated labels are automatically migrated.
+        """
+        # ---- Legacy translated label → stable key mapping ----
+        LEGACY_INPUT_KEY_MAP = {
+            self.tr("BD 1080p Folders"): "bd_1080p_folders",
+            self.tr("BD 720p Folders"): "bd_720p_folders",
+            self.tr("Non-BD Folders"): "non_bd_folders",
+            self.tr("MAL IDs"): "mal_ids",
+            self.tr("Heading Colors"): "heading_colors",
+            self.tr("Airing Images"): "airing_images",
+            self.tr("Donation Images"): "donation_images",
+            self.tr("BD Resolution Images"): "bd_resolution_images",
+        }
+
+        # ---- Inputs ----
         for k, v in state.get("inputs", {}).items():
-            self.inputs[k].setText(v)
-        self.bd_checkbox.setChecked(state["checks"].get("bd", False))
-        self.seasonal_checkbox.setChecked(state["checks"].get("seasonal", False))
-        self.crc_checkbox.setChecked(state["checks"].get("crc", False))
-        self.kage_checkbox.setChecked(state["checks"].get("kage", False))
-        #self.update_checkbox.setChecked(state["checks"].get("update", False))
-        self.disable_auto_update_checkbox.setChecked(state["checks"].get("disable_auto_update", False))
+
+            # migrate legacy label keys → stable keys
+            if k not in self.inputs:
+                k = LEGACY_INPUT_KEY_MAP.get(k)
+
+            if k in self.inputs:
+                self.inputs[k].setText(v)
+
+        # ---- Checkboxes ----
+        checks = state.get("checks", {})
+
+        self.bd_checkbox.setChecked(checks.get("bd", False))
+        self.seasonal_checkbox.setChecked(checks.get("seasonal", False))
+        self.crc_checkbox.setChecked(checks.get("crc", False))
+        self.kage_checkbox.setChecked(checks.get("kage", False))
+        # self.update_checkbox.setChecked(checks.get("update", False))
+        self.disable_auto_update_checkbox.setChecked(
+            checks.get("disable_auto_update", False)
+        )
+
+        # ---- Output file ----
         self.output_file.setText(state.get("output_file", "output.txt"))
 
-        # Apply preview visibility
+        # ---- Preview visibility ----
         previews = state.get("previews", {})
-        self.set_preview_state(self.cmd_preview, self.cmd_toggle_btn, previews.get("cmd_preview", True))
-        self.set_preview_state(self.process_output, self.output_toggle_btn, previews.get("process_output", True))
-        self.set_preview_state(self.html_preview, self.html_toggle_btn, previews.get("html_preview", True))
-
+        self.set_preview_state(
+            self.cmd_preview, self.cmd_toggle_btn,
+            previews.get("cmd_preview", True)
+        )
+        self.set_preview_state(
+            self.process_output, self.output_toggle_btn,
+            previews.get("process_output", True)
+        )
+        self.set_preview_state(
+            self.html_preview, self.html_toggle_btn,
+            previews.get("html_preview", True)
+        )
+    
     def show_about(self):
         dark = self.dark_checkbox.isChecked()
         AboutDialog(
@@ -1697,6 +2036,7 @@ class PostarGUI(QMainWindow):
 # ---------------------------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    translator = load_language(app)
     postar_settings = load_postar_settings()
     if not postar_settings_complete(postar_settings):
         dlg = PostarSettingsDialog(postar_settings)

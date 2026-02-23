@@ -2,10 +2,14 @@
 """
 python_postar.py
 
-v46:
+v48:
 - Major changes to the GUI were added:
-- Job queue, custom backgrounds, check for updates via the GUI
-- Modified how the labels look for better visibility with custom backgrounds
+- Added multi-language support via qtranslator
+- Added templates for common languages so users can translate the UI and submit translations to me
+- Massively overhauled the label system to use keys and labels so profiles will load and run properly
+- Otherwise, the GUI crashed before anything was even loaded with an older profile
+- Older profiles should automatically be converted to the new format which uses keys and labels
+- If not, just save the existing profile again and it will change to the new format
 """
 
 # --- Imports and constants ---
