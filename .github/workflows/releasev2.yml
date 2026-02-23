@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css;css" --add-data "../translations;translations" --add-data "../qt_translations;qt_translations" --icon=../icon.ico gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css;css" --add-data "../translations/*.qm;translations" --add-data "../qt_translations;qt_translations" --icon=../icon.ico gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: pwsh
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: bash
@@ -146,7 +146,7 @@ jobs:
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: bash
@@ -210,7 +210,7 @@ jobs:
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile --windowed updater.py -n updater
 
       - name: Package Arch Linux release
