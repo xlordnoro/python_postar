@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css;css" --icon=../icon.ico gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css;css" --add-data "translations;translations" --add-data "qt_translations;qt_translations" --icon=../icon.ico gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: pwsh
@@ -41,6 +41,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
           New-Item -ItemType Directory -Force -Path python_postar_windows\css\
+          New-Item -ItemType Directory -Force -Path python_postar_windows\translations\
+          New-Item -ItemType Directory -Force -Path python_postar_windows\qt_translations\
           Copy-Item src\dist\python_postar_gui.exe python_postar_windows\
           Copy-Item src\dist\updater.exe python_postar_windows\
           Copy-Item src\python_postar.py python_postar_windows\
@@ -48,6 +50,8 @@ jobs:
           Copy-Item src\gui.pyw python_postar_windows\
           Copy-Item src\updater.py python_postar_windows\
           Copy-Item -Recurse css python_postar_windows\css\
+          Copy-Item -Recurse translations python_postar_windows\translations\
+          Copy-Item -Recurse qt_translations python_postar_windows\qt_translations\
           Copy-Item icon.ico python_postar_windows\
           Copy-Item requirements.txt python_postar_windows\
           Copy-Item -Recurse guides python_postar_windows\
@@ -83,7 +87,7 @@ jobs:
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "translations:translations" --add-data "qt_translations:qt_translations" gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: bash
@@ -95,6 +99,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p python_postar_linux/scripts
+          mkdir -p python_postar_linux/translations
+          mkdir -p python_postar_linux/qt_translations
           cp src/dist/python_postar_gui python_postar_linux/
           cp src/dist/updater python_postar_linux/
           cp src/python_postar.py python_postar_linux/
@@ -102,6 +108,8 @@ jobs:
           cp src/gui.pyw python_postar_linux/
           cp src/updater.py python_postar_linux/
           cp -r css python_postar_linux/
+          cp -r translations python_postar_linux/
+          cp -r qt_translations python_postar_linux/
           cp icon_linux.png python_postar_linux/
           cp requirements.txt python_postar_linux/
           cp -r guides python_postar_linux/
@@ -138,7 +146,7 @@ jobs:
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "translations:translations" --add-data "qt_translations:qt_translations" gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI with PyInstaller
         shell: bash
@@ -150,6 +158,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p python_postar_macos/scripts
+          mkdir -p python_postar_macos/translations
+          mkdir -p python_postar_macos/qt_translations
           cp src/dist/python_postar_gui python_postar_macos/
           cp src/dist/updater python_postar_macos/
           cp src/python_postar.py python_postar_macos/
@@ -157,6 +167,8 @@ jobs:
           cp src/gui.pyw python_postar_macos/
           cp src/updater.py python_postar_macos/
           cp -r css python_postar_macos/
+          cp -r translations python_postar_macos/
+          cp -r qt_translations python_postar_macos/
           cp icon_linux.png python_postar_macos/
           cp requirements.txt python_postar_macos/
           cp -r guides python_postar_macos/
@@ -198,12 +210,14 @@ jobs:
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
 
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css:css" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "translations:translations" --add-data "qt_translations:qt_translations" gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile --windowed updater.py -n updater
 
       - name: Package Arch Linux release
         run: |
           mkdir -p python_postar_linux_arch/scripts
+          mkdir -p python_postar_linux_arch/translations
+          mkdir -p python_postar_linux_arch/qt_translations
           cp src/dist/python_postar_gui python_postar_linux_arch/
           cp src/dist/updater python_postar_linux_arch/
           cp src/python_postar.py python_postar_linux_arch/
@@ -211,6 +225,8 @@ jobs:
           cp src/gui.pyw python_postar_linux_arch/
           cp src/updater.py python_postar_linux_arch/
           cp -r css python_postar_linux_arch/
+          cp -r translations python_postar_linux_arch/
+          cp -r qt_translations python_postar_linux_arch/
           cp icon_linux.png python_postar_linux_arch/
           cp requirements.txt python_postar_linux_arch/
           cp -r guides python_postar_linux_arch/
