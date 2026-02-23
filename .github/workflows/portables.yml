@@ -37,7 +37,7 @@ jobs:
         shell: pwsh
         run: |
           cd src
-          pyinstaller --clean --onefile --windowed --add-data "../css;css" --add-data "../translations;translations" --add-data "../qt_translations;qt_translations" --icon=../icon.ico gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed --add-data "../css;css" --add-data "../translations/*.qm;translations" --add-data "../qt_translations;qt_translations" --icon=../icon.ico gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI EXE
         shell: pwsh
@@ -103,7 +103,7 @@ jobs:
         run: |
           cd src
           pyinstaller --clean --onedir python_postar.py
-          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile updater.py -n updater
 
       - name: Prepare portable folder
@@ -165,7 +165,7 @@ jobs:
         run: |
           cd src
           pyinstaller --clean --onedir python_postar.py
-          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile updater.py -n updater
 
       - name: Prepare portable folder
@@ -217,7 +217,7 @@ jobs:
         run: |
           cd src
           pyinstaller --clean --onedir python_postar.py
-          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile updater.py -n updater
 
       - name: Prepare portable folder
@@ -270,7 +270,7 @@ jobs:
 
           cd src
           pyinstaller --clean --onedir python_postar.py
-          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --windowed gui.pyw -n python_postar_gui
           pyinstaller --clean --onefile updater.py -n updater
 
       - name: Prepare portable folder
