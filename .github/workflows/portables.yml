@@ -61,9 +61,9 @@ jobs:
           Copy-Item src\dist\updater.exe "$STAGE\"
           Copy-Item icon.ico "$STAGE\"
           Copy-Item -Recurse guides "$STAGE\"
-          Copy-Item -Recurse css "$STAGE\css\"
-          Copy-Item -Recurse translations "$STAGE\translations\"
-          Copy-Item -Recurse qt_translations "$STAGE\qt_translations\"
+          Copy-Item -Recurse css\* "$STAGE\css\"
+          Copy-Item -Recurse translations\* "$STAGE\translations\"
+          Copy-Item -Recurse qt_translations\* "$STAGE\qt_translations\"
           Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
 
       - name: Package portable ZIP
