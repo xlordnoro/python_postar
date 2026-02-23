@@ -460,21 +460,15 @@ def check_for_github_update(force=False):
     # ---- Source (.py) handling ----
     else:
         base_dir = Path(sys.executable).parent if is_portable() else Path(__file__).resolve().parent
-        print(f"[Update] Extracting files to {base_dir} ...")
+        print(f"[Update] Extracting files directly to {base_dir} ...")
+
         try:
             with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
                 for member in z.namelist():
                     if member.endswith("/"):
                         continue  # skip directories
 
-                    parts = Path(member).parts
-
-                    # Strip only the top-level directory from the ZIP
-                    if len(parts) > 1:
-                        relative_path = Path(*parts[1:])
-                    else:
-                        relative_path = Path(parts[0])
-
+                    relative_path = Path(member)
                     target_path = base_dir / relative_path
 
                     target_path.parent.mkdir(parents=True, exist_ok=True)
