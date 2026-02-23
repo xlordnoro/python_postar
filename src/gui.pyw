@@ -884,7 +884,7 @@ class PostarGUI(QMainWindow):
         # Define languages and shortcuts
         langs = {
             "en": ("English", "Ctrl+1"),
-            #"ja": ("日本語", "Ctrl+2"),
+            "ja": ("日本語", "Ctrl+2"),
             #"fr": ("Français", "Ctrl+2"),
             #"es": ("Español", "Ctrl+3"),
             #"ja": ("日本語", "Ctrl+4"),
