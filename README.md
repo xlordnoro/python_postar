@@ -85,3 +85,18 @@ If you happen to get a message about updating pip after installing the needed de
 
 ## The Mac/Linux commands are virtually the same. Use python3 and adjust the pathing format.
 `python3 python_postar.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v51_airing.txt`
+
+## Translation Setup/Submitting Translations
+While you can use a basic editing tool like Notepad++, Qt-Linguist is the preferred method for working on translations as it includes many basic tools/helpers for that exact purpose.
+
+It can be downloaded from here for Windows, MacOS, and Linux: https://github.com/thurask/Qt-Linguist#qt-linguist.
+
+Once you have Qt-Linguist, grab the respective .ts for your language from the repo or release zip and open it inside Qt-Linguist to start translating.
+
+Everything is segmented into its own window in the code, so you'll know where to look by the names when loading the language into the GUI.
+
+After everything has been translated, you can now turn the .ts file into a .qm file that can be loaded into the GUI by selecting release within Qt-Linguist.
+
+<img width="1920" height="1040" alt="creating a qm release" src="https://github.com/user-attachments/assets/a530f1c1-964d-4760-8c89-c8c9658a25df" />
+
+Once you have the .qm file, you can submit a pull request on the repo. Once I check everything from my end to ensure everything was replaced as expected, I'll merge the changes into the repo, and it will appear in the next release.
