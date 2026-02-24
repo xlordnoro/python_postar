@@ -86,7 +86,7 @@ If you happen to get a message about updating pip after installing the needed de
 ## The Mac/Linux commands are virtually the same. Use python3 and adjust the pathing format.
 `python3 python_postar.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v51_airing.txt`
 
-## Translation Setup/Submitting Translations
+# Translation Setup/Submitting Translations
 While you can use a basic editing tool like Notepad++, Qt-Linguist is the preferred method for working on translations as it includes many basic tools/helpers for that exact purpose.
 
 It can be downloaded from here for Windows, MacOS, and Linux: https://github.com/thurask/Qt-Linguist#qt-linguist.
