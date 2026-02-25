@@ -50,13 +50,14 @@ jobs:
       
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/python_postar
-          mkdir -p AppDir/usr/share/fonts
+          mkdir -p AppDir/usr/share/fonts/truetype
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
       
-          # Copy binaries to root and usr/bin
-          cp src/dist/python_postar_gui AppDir/
+          # Copy binaries
           cp src/dist/python_postar_gui AppDir/usr/bin/
           cp src/dist/updater AppDir/usr/bin/
+          chmod +x AppDir/usr/bin/python_postar_gui
+          chmod +x AppDir/usr/bin/updater
       
           # Copy Python scripts & resources
           cp src/python_postar.py AppDir/usr/share/python_postar/
@@ -68,7 +69,7 @@ jobs:
           cp -r qt_translations AppDir/usr/share/python_postar/
       
           # Copy Japanese font
-          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/
+          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/truetype/
       
           # Copy icon
           cp icon_linux.png AppDir/
@@ -76,10 +77,9 @@ jobs:
           # Copy desktop file to AppDir root
           cp python_postar_gui.desktop AppDir/
       
-          # Make binaries executable
-          chmod +x AppDir/python_postar_gui
-          chmod +x AppDir/usr/bin/python_postar_gui
-          chmod +x AppDir/usr/bin/updater
+          # Copy AppRun to AppDir root
+          cp AppRun AppDir/
+          chmod +x AppDir/AppRun
 
       # -------------------------
       # Download appimagetool
