@@ -48,17 +48,17 @@ jobs:
           # Install Japanese font and FUSE
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk libfuse2
-
+      
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/python_postar
           mkdir -p AppDir/usr/share/fonts
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           mkdir -p AppDir/usr/share/applications
-
+      
           # Copy binaries
           cp src/dist/python_postar_gui AppDir/usr/bin/
           cp src/dist/updater AppDir/usr/bin/
-
+      
           # Copy Python scripts & resources
           cp src/python_postar.py AppDir/usr/share/python_postar/
           cp src/helper.py AppDir/usr/share/python_postar/
@@ -67,23 +67,16 @@ jobs:
           cp -r css AppDir/usr/share/python_postar/
           cp -r translations AppDir/usr/share/python_postar/
           cp -r qt_translations AppDir/usr/share/python_postar/
-
+      
           # Copy Japanese font from system
           cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/
-
+      
           # Copy icon
           cp icon_linux.png AppDir/usr/share/icons/hicolor/256x256/apps/python_postar_gui.png
-
-          # Create desktop file (no indentation!)
-          echo "[Desktop Entry]" > AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Name=python_postar_gui" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Comment=Python Postar GUI" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Exec=python_postar_gui" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Icon=python_postar_gui" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Terminal=false" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Type=Application" >> AppDir/usr/share/applications/python_postar_gui.desktop
-          echo "Categories=Utility;" >> AppDir/usr/share/applications/python_postar_gui.desktop
-
+      
+          # Copy pre-made desktop file from repo root
+          cp python_postar_gui.desktop AppDir/usr/share/applications/
+      
           # Make binaries executable
           chmod +x AppDir/usr/bin/python_postar_gui
           chmod +x AppDir/usr/bin/updater
