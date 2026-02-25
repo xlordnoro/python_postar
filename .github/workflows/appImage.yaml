@@ -58,7 +58,8 @@ jobs:
       - name: Create AppImage
         run: |
           source venv/bin/activate
-          echo "app: python_postar_gui" > appimage-builder.yml
+          echo "version: 1" > appimage-builder.yml
+          echo "app: python_postar_gui" >> appimage-builder.yml
           echo "ingredients:" >> appimage-builder.yml
           echo "  script:" >> appimage-builder.yml
           echo "    - python_postar.AppDir" >> appimage-builder.yml
