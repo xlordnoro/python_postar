@@ -62,7 +62,7 @@ jobs:
           echo "ingredients:" >> appimage-builder.yml
           echo "  script:" >> appimage-builder.yml
           echo "    - python_postar.AppDir" >> appimage-builder.yml
-          python -m appimage_builder --recipe appimage-builder.yml --force
+          python -m appimagebuilder --recipe appimage-builder.yml --force
 
       - name: Upload AppImage to GitHub Release
         uses: softprops/action-gh-release@v2
