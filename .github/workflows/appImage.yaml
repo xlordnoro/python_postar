@@ -45,7 +45,6 @@ jobs:
       - name: Prepare AppDir for AppImage
         shell: bash
         run: |
-          # Install Japanese font and FUSE
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk libfuse2
       
@@ -53,9 +52,9 @@ jobs:
           mkdir -p AppDir/usr/share/python_postar
           mkdir -p AppDir/usr/share/fonts
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-          mkdir -p AppDir/usr/share/applications
       
-          # Copy binaries
+          # Copy binaries to root and usr/bin
+          cp src/dist/python_postar_gui AppDir/
           cp src/dist/python_postar_gui AppDir/usr/bin/
           cp src/dist/updater AppDir/usr/bin/
       
@@ -68,16 +67,17 @@ jobs:
           cp -r translations AppDir/usr/share/python_postar/
           cp -r qt_translations AppDir/usr/share/python_postar/
       
-          # Copy Japanese font from system
+          # Copy Japanese font
           cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/
       
           # Copy icon
-          cp icon_linux.png AppDir/usr/share/icons/hicolor/256x256/apps/python_postar_gui.png
+          cp icon_linux.png AppDir/
       
-          # Copy pre-made desktop file from repo root
-          cp python_postar_gui.desktop AppDir/usr/share/applications/
+          # Copy desktop file to AppDir root
+          cp python_postar_gui.desktop AppDir/
       
           # Make binaries executable
+          chmod +x AppDir/python_postar_gui
           chmod +x AppDir/usr/bin/python_postar_gui
           chmod +x AppDir/usr/bin/updater
 
