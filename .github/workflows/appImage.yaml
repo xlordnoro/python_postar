@@ -76,15 +76,15 @@ jobs:
 
           # Create desktop file
           cat > AppDir/usr/share/applications/python_postar_gui.desktop <<EOL
-          [Desktop Entry]
-          Name=python_postar_gui
-          Comment=Python Postar GUI
-          Exec=python_postar_gui
-          Icon=python_postar_gui
-          Terminal=false
-          Type=Application
-          Categories=Utility;
-          EOL
+[Desktop Entry]
+Name=python_postar_gui
+Comment=Python Postar GUI
+Exec=python_postar_gui
+Icon=python_postar_gui
+Terminal=false
+Type=Application
+Categories=Utility;
+EOL
 
           # Make binaries executable
           chmod +x AppDir/usr/bin/python_postar_gui
