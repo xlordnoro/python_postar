@@ -1,4 +1,5 @@
 import sys
+import os
 import json
 import requests
 import platform
@@ -131,8 +132,15 @@ def load_language(app, lang_code=""):
 # PyInstaller-safe app dir
 # ---------------------------
 def app_dir():
+    # AppImage → use the *real* AppImage file location, not the mounted runtime
+    if "APPIMAGE" in os.environ:
+        return Path(os.environ["APPIMAGE"]).resolve().parent
+
+    # Frozen binary (Windows / macOS / Linux ELF)
     if getattr(sys, 'frozen', False):
         return Path(sys.executable).resolve().parent
+
+    # Normal python execution
     return Path(__file__).resolve().parent
 
 # ---------------------------
@@ -140,18 +148,43 @@ def app_dir():
 # ---------------------------
 def get_cli_command(args_list):
     folder = app_dir()
-    exe_path = folder / "python_postar.exe"
+
+    win_exe = folder / "python_postar.exe"
+    cli_bin = folder / "python_postar"
     py_path = folder / "python_postar.py"
 
-    if exe_path.exists():
-        return [str(exe_path)] + args_list
-    elif py_path.exists():
-        if getattr(sys, "frozen", False):
+    frozen = getattr(sys, "frozen", False)
+    system = platform.system()
+
+    # -----------------------------
+    # 1) Windows frozen EXE
+    # -----------------------------
+    if system == "Windows" and win_exe.exists():
+        return [str(win_exe)] + args_list
+
+    # -----------------------------
+    # 2) Linux / macOS frozen ELF
+    # -----------------------------
+    if frozen and cli_bin.exists():
+        return [str(cli_bin)] + args_list
+
+    # -----------------------------
+    # 3) Python script fallback
+    # -----------------------------
+    if py_path.exists():
+        # Dev mode → safe to use interpreter
+        if not frozen:
+            return [sys.executable, str(py_path)] + args_list
+
+        # Frozen but no binary → force python3 explicitly
+        if system == "Windows":
             return ["python", str(py_path)] + args_list
         else:
-            return [sys.executable, str(py_path)] + args_list
-    else:
-        raise FileNotFoundError("Neither python_postar.exe nor python_postar.py found")
+            return ["python3", str(py_path)] + args_list
+
+    raise FileNotFoundError(
+        "Neither python_postar.exe, python_postar ELF, nor python_postar.py found"
+    )
 
 # ---------------------------
 # File constants
