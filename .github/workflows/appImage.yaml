@@ -52,8 +52,10 @@ jobs:
           cp -r translations AppDir/usr/share/python_postar/
           cp -r qt_translations AppDir/usr/share/python_postar/
 
-          # Copy Japanese font
+          # Download Japanese font if not present
+          wget -O NotoSansJP-Regular.ttf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansJP-Regular.otf
           cp NotoSansJP-Regular.ttf AppDir/usr/share/fonts/
+
           # Copy icon
           cp icon_linux.png AppDir/usr/share/
 
