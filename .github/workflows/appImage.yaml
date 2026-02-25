@@ -35,6 +35,10 @@ jobs:
       - name: Prepare AppDir for AppImage
         shell: bash
         run: |
+          # Install Japanese system font
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/python_postar
           mkdir -p AppDir/usr/share/fonts
@@ -52,9 +56,9 @@ jobs:
           cp -r translations AppDir/usr/share/python_postar/
           cp -r qt_translations AppDir/usr/share/python_postar/
 
-          # Download Japanese font if not present
-          wget -O NotoSansJP-Regular.ttf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansJP-Regular.otf
-          cp NotoSansJP-Regular.ttf AppDir/usr/share/fonts/
+          # Copy Japanese font from system into AppDir
+          # This path works for Ubuntu fonts-noto-cjk package
+          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/
 
           # Copy icon
           cp icon_linux.png AppDir/usr/share/
