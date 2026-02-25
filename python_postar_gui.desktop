@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=python_postar_gui
+Comment=Python Postar GUI
+Exec=python_postar_gui
+Icon=python_postar_gui
+Terminal=false
+Type=Application
+Categories=Utility;
