@@ -128,16 +128,30 @@ def load_language(app, lang_code=""):
 
     return lang_code
 
+# -------------------------------
+# Writable data directory
+# -------------------------------
+if "POSTAR_HOME" in os.environ:
+    data_dir = Path(os.environ["POSTAR_HOME"]).resolve()
+elif getattr(sys, "frozen", False) and platform.system() == "Linux" and "APPDIR" in os.environ:
+    # fallback if POSTAR_HOME is not set
+    data_dir = Path(os.getcwd()).resolve()
+else:
+    # Windows or normal Linux
+    data_dir = Path(__file__).resolve().parent
+
+data_dir.mkdir(parents=True, exist_ok=True)
+
 # ---------------------------
 # PyInstaller-safe app dir
 # ---------------------------
 def app_dir():
-    # AppImage → use the *real* AppImage file location, not the mounted runtime
-    if "APPIMAGE" in os.environ:
-        return Path(os.environ["APPIMAGE"]).resolve().parent
+    # AppImage → mounted runtime root (contains usr/bin)
+    if "APPDIR" in os.environ:
+        return Path(os.environ["APPDIR"]).resolve()
 
     # Frozen binary (Windows / macOS / Linux ELF)
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
 
     # Normal python execution
@@ -147,51 +161,61 @@ def app_dir():
 # CLI command helper
 # ---------------------------
 def get_cli_command(args_list):
-    folder = app_dir()
-
-    win_exe = folder / "python_postar.exe"
-    cli_bin = folder / "python_postar"
-    py_path = folder / "python_postar.py"
-
-    frozen = getattr(sys, "frozen", False)
     system = platform.system()
+    frozen = getattr(sys, "frozen", False)
+
+    base = app_dir()
+
+    # AppImage bundled ELF location
+    appimage_elf = base / "usr" / "bin" / "python_postar"
+
+    # Normal frozen binaries
+    win_exe = base / "python_postar.exe"
+    cli_bin = base / "python_postar"
+
+    # Script fallback
+    py_path = base / "python_postar.py"
 
     # -----------------------------
-    # 1) Windows frozen EXE
+    # 1) AppImage bundled ELF
+    # -----------------------------
+    if appimage_elf.exists():
+        return [str(appimage_elf)] + args_list
+
+    # -----------------------------
+    # 2) Windows frozen EXE
     # -----------------------------
     if system == "Windows" and win_exe.exists():
         return [str(win_exe)] + args_list
 
     # -----------------------------
-    # 2) Linux / macOS frozen ELF
+    # 3) Frozen ELF beside binary
     # -----------------------------
     if frozen and cli_bin.exists():
         return [str(cli_bin)] + args_list
 
     # -----------------------------
-    # 3) Python script fallback
+    # 4) Python script fallback
     # -----------------------------
     if py_path.exists():
-        # Dev mode → safe to use interpreter
         if not frozen:
             return [sys.executable, str(py_path)] + args_list
 
-        # Frozen but no binary → force python3 explicitly
         if system == "Windows":
             return ["python", str(py_path)] + args_list
         else:
             return ["python3", str(py_path)] + args_list
 
     raise FileNotFoundError(
-        "Neither python_postar.exe, python_postar ELF, nor python_postar.py found"
+        "Could not locate python_postar binary or script"
     )
 
 # ---------------------------
 # File constants
 # ---------------------------
-PROFILE_FILE = Path("postar_profiles.json")
-SETTINGS_FILE = Path("postar_last_profile.json")
-QUEUE_FILE = Path("postar_job_queue.json")
+PROFILE_FILE = data_dir / "postar_profiles.json"
+SETTINGS_FILE = data_dir / "postar_last_profile.json"
+QUEUE_FILE = data_dir / "postar_job_queue.json"
 
 APP_NAME = "Postar GUI"
 APP_AUTHOR = "XLordnoro"
@@ -227,7 +251,7 @@ def get_latest_github_release():
 # --------------------------
 # Settings Menu Prompt
 # --------------------------
-POSTAR_SETTINGS_FILE = Path(".postar_settings.json")
+POSTAR_SETTINGS_FILE = data_dir / ".postar_settings.json"
 DEFAULT_POSTAR_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
@@ -259,7 +283,7 @@ def postar_settings_complete(settings: dict) -> bool:
 # ---------------------------
 # Storing UI states
 # ---------------------------
-UI_STATE_FILE = Path("postar_ui_state.json")
+UI_STATE_FILE = data_dir / "postar_ui_state.json"
 DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,
@@ -503,7 +527,7 @@ class MalSearchByIdWorker(QThread):
             self.error.emit(self.tr("Request failed: {error}").format(error=str(e)))
 
 # ---------------------------
-# Worker Thread
+# HtmlWorker (runs CLI)
 # ---------------------------
 class HtmlWorker(QThread):
     log = pyqtSignal(str)
@@ -517,14 +541,24 @@ class HtmlWorker(QThread):
     def run(self):
         try:
             cmd = get_cli_command(self.args_list)
+
+            # Copy environment
+            env = os.environ.copy()
+
+            # AppImage/Linux → redirect writable files to launch directory
+            if "APPIMAGE" in env and platform.system() == "Linux":
+                env["POSTAR_HOME"] = str(Path(os.getcwd()).resolve())
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding="utf-8",
-                bufsize=1
+                bufsize=1,
+                env=env
             )
+
             for line in process.stdout:
                 self.log.emit(line.rstrip())
 
