@@ -19,7 +19,7 @@ export PYTHONPATH="$HERE/usr/lib/python3.12/site-packages"
 
 # No arguments → GUI
 if [ "$#" -eq 0 ]; then
-    exec "$HERE/usr/bin/python3" "$HERE/usr/app/gui.py"
+    exec "$HERE/usr/bin/python3" "$HERE/usr/app/gui.pyw"
 fi
 
 # Any arguments → CLI
