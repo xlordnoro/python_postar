@@ -1,7 +1,26 @@
 #!/bin/bash
-# Make Qt aware of bundled fonts
+# Make Qt aware of bundled fonts (for Japanese + CJK support)
 export QT_FONTDIR="$APPDIR/usr/share/fonts/truetype"
 
-# Run your binary
+# Resolve AppDir
 HERE="$(dirname "$(readlink -f "$0")")"
-exec "$HERE/usr/bin/python_postar_gui" "$@"
+
+# Force bundled Python runtime
+export PYTHONHOME="$HERE/usr"
+export PYTHONPATH="$HERE/usr/lib/python3.12/site-packages"
+
+# Forces CPU rendering for WSL to remove the error messages about mesa not being detected for GPU rendering
+#export QT_QUICK_BACKEND=software
+#export LIBGL_ALWAYS_SOFTWARE=1
+
+# -------------------------------
+# Dispatch logic
+# -------------------------------
+
+# No arguments → GUI
+if [ "$#" -eq 0 ]; then
+    exec "$HERE/usr/bin/python3" "$HERE/usr/app/gui.py"
+fi
+
+# Any arguments → CLI
+exec "$HERE/usr/bin/python3" "$HERE/usr/app/python_postar.py" "$@"

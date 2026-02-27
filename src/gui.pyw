@@ -6,13 +6,15 @@ import platform
 import time
 import subprocess
 import threading
+from packaging import version
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox, QProgressBar, 
-    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog, QSizePolicy, QColorDialog
+    QDialog, QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
+    QSizePolicy, QColorDialog, QTextBrowser
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -128,16 +130,55 @@ def load_language(app, lang_code=""):
 
     return lang_code
 
-# ---------------------------
-# PyInstaller-safe app dir
-# ---------------------------
-def app_dir():
-    # AppImage → use the *real* AppImage file location, not the mounted runtime
-    if "APPIMAGE" in os.environ:
-        return Path(os.environ["APPIMAGE"]).resolve().parent
+# -------------------------------
+# Writable data directory
+# -------------------------------
+if "POSTAR_HOME" in os.environ:
+    DATA_DIR = Path(os.environ["POSTAR_HOME"]).resolve()
 
-    # Frozen binary (Windows / macOS / Linux ELF)
-    if getattr(sys, 'frozen', False):
+else:
+    system = platform.system()
+
+    # -------------------------------
+    # Linux AppImage
+    # -------------------------------
+    if system == "Linux" and "APPIMAGE" in os.environ:
+        exe_path = Path(os.environ["APPIMAGE"]).resolve()
+        DATA_DIR = exe_path.parent
+
+    # -------------------------------
+    # Windows frozen
+    # -------------------------------
+    elif system == "Windows" and getattr(sys, "frozen", False):
+        DATA_DIR = Path(sys.executable).resolve().parent
+
+    # -------------------------------
+    # Normal Linux install
+    # -------------------------------
+    elif system == "Linux":
+        DATA_DIR = Path.home() / ".local" / "share" / "postar"
+
+    # -------------------------------
+    # macOS
+    # -------------------------------
+    elif system == "Darwin":
+        DATA_DIR = Path.home() / "Library" / "Application Support" / "Postar"
+
+    else:
+        DATA_DIR = Path(__file__).resolve().parent
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# -------------------------------
+# Read-only app directory (for bundled scripts)
+# -------------------------------
+def app_dir():
+    # AppImage runtime mount (read-only)
+    if "APPDIR" in os.environ:
+        return Path(os.environ["APPDIR"]).resolve()
+
+    # PyInstaller frozen
+    if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
 
     # Normal python execution
@@ -147,59 +188,58 @@ def app_dir():
 # CLI command helper
 # ---------------------------
 def get_cli_command(args_list):
-    folder = app_dir()
-
-    win_exe = folder / "python_postar.exe"
-    cli_bin = folder / "python_postar"
-    py_path = folder / "python_postar.py"
-
-    frozen = getattr(sys, "frozen", False)
+    """
+    Correct execution model for:
+      - Linux AppImage
+      - Windows frozen exe
+      - macOS frozen app
+      - Normal Python execution
+    """
     system = platform.system()
 
-    # -----------------------------
-    # 1) Windows frozen EXE
-    # -----------------------------
-    if system == "Windows" and win_exe.exists():
-        return [str(win_exe)] + args_list
+    # -------------------------------
+    # Linux AppImage
+    # -------------------------------
+    if system == "Linux" and "APPIMAGE" in os.environ:
+        return [os.environ["APPIMAGE"]] + args_list
 
-    # -----------------------------
-    # 2) Linux / macOS frozen ELF
-    # -----------------------------
-    if frozen and cli_bin.exists():
-        return [str(cli_bin)] + args_list
+    # -------------------------------
+    # Windows frozen EXE
+    # -------------------------------
+    if system == "Windows" and getattr(sys, "frozen", False):
+        return [sys.executable] + args_list
 
-    # -----------------------------
-    # 3) Python script fallback
-    # -----------------------------
+    # -------------------------------
+    # macOS frozen app
+    # -------------------------------
+    if system == "Darwin" and getattr(sys, "frozen", False):
+        return [sys.executable] + args_list
+
+    # -------------------------------
+    # Normal python execution
+    # -------------------------------
+    base = Path(__file__).resolve().parent
+    py_path = base / "python_postar.py"
+
     if py_path.exists():
-        # Dev mode → safe to use interpreter
-        if not frozen:
-            return [sys.executable, str(py_path)] + args_list
+        return [sys.executable, str(py_path)] + args_list
 
-        # Frozen but no binary → force python3 explicitly
-        if system == "Windows":
-            return ["python", str(py_path)] + args_list
-        else:
-            return ["python3", str(py_path)] + args_list
-
-    raise FileNotFoundError(
-        "Neither python_postar.exe, python_postar ELF, nor python_postar.py found"
-    )
+    raise FileNotFoundError("Could not locate python_postar script or executable")
 
 # ---------------------------
 # File constants
 # ---------------------------
-PROFILE_FILE = Path("postar_profiles.json")
-SETTINGS_FILE = Path("postar_last_profile.json")
-QUEUE_FILE = Path("postar_job_queue.json")
+PROFILE_FILE = DATA_DIR / "postar_profiles.json"
+SETTINGS_FILE = DATA_DIR / "postar_last_profile.json"
+QUEUE_FILE = DATA_DIR / "postar_job_queue.json"
 
 APP_NAME = "Postar GUI"
 APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.48.0"
-RELEASE_NAME = "Sora"
+VERSION = "0.49.0"
+RELEASE_NAME = "Vanilla"
 
 # ----------------------
 # GitHub release metadata
@@ -227,7 +267,7 @@ def get_latest_github_release():
 # --------------------------
 # Settings Menu Prompt
 # --------------------------
-POSTAR_SETTINGS_FILE = Path(".postar_settings.json")
+POSTAR_SETTINGS_FILE = DATA_DIR / ".postar_settings.json"
 DEFAULT_POSTAR_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
@@ -240,7 +280,9 @@ REQUIRED_POSTAR_KEYS = ("B2_SHOWS_BASE", "B2_TORRENTS_BASE", "ENCODER_NAME")
 
 def load_postar_settings():
     if not POSTAR_SETTINGS_FILE.exists():
-        POSTAR_SETTINGS_FILE.write_text(json.dumps(DEFAULT_POSTAR_SETTINGS, indent=2), encoding="utf-8")
+        POSTAR_SETTINGS_FILE.write_text(
+            json.dumps(DEFAULT_POSTAR_SETTINGS, indent=2), encoding="utf-8"
+        )
         return DEFAULT_POSTAR_SETTINGS.copy()
     try:
         data = json.loads(POSTAR_SETTINGS_FILE.read_text(encoding="utf-8"))
@@ -259,7 +301,7 @@ def postar_settings_complete(settings: dict) -> bool:
 # ---------------------------
 # Storing UI states
 # ---------------------------
-UI_STATE_FILE = Path("postar_ui_state.json")
+UI_STATE_FILE = DATA_DIR / "postar_ui_state.json"
 DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,
@@ -363,71 +405,37 @@ class DragDropLineEdit(QLineEdit):
             self.setText(current + ",".join(paths))
 
 class UpdateWorker(QThread):
+    """
+    Checks GitHub for the latest release and emits signals for GUI.
+    """
     finished = pyqtSignal(str)
     output = pyqtSignal(str)
 
-    def __init__(self, force=False, display_delay=2.0):
-        super().__init__()
-        self.force = force
-        self.display_delay = display_delay
-
     def run(self):
         try:
-            base_dir = app_dir()
-            system = platform.system().lower()
+            self.output.emit(f"[Update] Local version: {VERSION}")
+            latest_tag, latest_title = get_latest_github_release()
 
-            updater = None
-
-            # -------- Windows --------
-            if system == "windows":
-                updater = base_dir / "updater.exe"
-
-            # -------- Linux --------
-            elif system == "linux":
-                updater = base_dir / "updater"
-
-            # -------- macOS --------
-            elif system == "darwin":
-                app = base_dir / "updater.app"
-                if app.exists():
-                    updater = ["open", "-a", str(app)]
-                else:
-                    updater = base_dir / "updater"
-
-            if not updater:
-                self.finished.emit("Unsupported platform")
+            if not latest_tag:
+                self.finished.emit("Could not fetch latest release")
                 return
 
-            if isinstance(updater, Path):
-                if not updater.exists():
-                    self.finished.emit(f"Updater not found: {updater}")
-                    return
-                cmd = [str(updater)]
+            # Normalize versions
+            local_ver = version.parse(VERSION)
+            remote_ver = version.parse(latest_tag)
+
+            if local_ver >= remote_ver:
+                self.finished.emit("You are running the latest version")
             else:
-                cmd = updater
-
-            if self.force:
-                cmd.append("--force")
-
-            self.output.emit("[Update] Launching updater and closing GUI...\n")
-
-            if system == "windows":
-                subprocess.Popen(
-                    cmd,
-                    cwd=base_dir,
-                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP |
-                                  subprocess.DETACHED_PROCESS
+                msg = (
+                    f"A new version is available!\n\n"
+                    f"Latest: {latest_tag} ({latest_title})\n"
+                    f"Download here:\n{APP_WEBSITE}"
                 )
-            else:
-                subprocess.Popen(cmd, cwd=base_dir)
-
-            # Exit GUI so files are unlocked
-            QTimer.singleShot(500, QApplication.instance().quit)
-
-            self.finished.emit("done")
+                self.finished.emit(msg)
 
         except Exception as e:
-            self.finished.emit(str(e))           
+            self.finished.emit(f"Error checking version: {e}")          
 
 # ---------------------------
 # MAL Search Worker
@@ -503,7 +511,7 @@ class MalSearchByIdWorker(QThread):
             self.error.emit(self.tr("Request failed: {error}").format(error=str(e)))
 
 # ---------------------------
-# Worker Thread
+# HtmlWorker (runs CLI)
 # ---------------------------
 class HtmlWorker(QThread):
     log = pyqtSignal(str)
@@ -517,14 +525,24 @@ class HtmlWorker(QThread):
     def run(self):
         try:
             cmd = get_cli_command(self.args_list)
+
+            # Copy environment
+            env = os.environ.copy()
+
+            # AppImage/Linux → redirect writable files to launch directory
+            if "APPIMAGE" in env and platform.system() == "Linux":
+                env["POSTAR_HOME"] = str(Path(os.getcwd()).resolve())
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding="utf-8",
-                bufsize=1
+                bufsize=1,
+                env=env
             )
+
             for line in process.stdout:
                 self.log.emit(line.rstrip())
 
@@ -1550,30 +1568,57 @@ class PostarGUI(QMainWindow):
             return
 
         self.statusBar().showMessage(self.tr("Checking for updates..."))
-
         self.process_output.clear()
-        self.process_output.append(self.tr("[Update] Launching updater...\n"))
+        self.process_output.append(self.tr("[Update] Checking GitHub for latest release...\n"))
 
-        self.update_worker = UpdateWorker(force=True)
+        self.update_worker = UpdateWorker()
         self.update_worker.output.connect(self.process_output.append)
-        self.update_worker.finished.connect(self.on_update_finished)
+        self.update_worker.finished.connect(self.on_version_check_finished)
         self.update_worker.start()
 
     def auto_update_check(self):
         if not self.postar_settings.get("AUTO_UPDATE", True):
             return
 
-        self.update_worker = UpdateWorker(force=False)
+        self.update_worker = UpdateWorker()
         self.update_worker.output.connect(self.process_output.append)
-        self.update_worker.finished.connect(self.on_update_finished)
+        self.update_worker.finished.connect(self.on_version_check_finished)
         self.update_worker.start()
 
-    def on_update_finished(self, result):
+    def on_version_check_finished(self, message):
         self.statusBar().clearMessage()
 
-        if result != "done":
-            QMessageBox.warning(self, self.tr("Update Error"), self.tr(result))
+        dark_mode = self.postar_settings.get("DARK_MODE", True)
+        link_color = "white" if dark_mode else "black"
 
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(self.tr("Version Check"))
+        msg_box.setIcon(QMessageBox.Icon.Information)
+
+        if APP_WEBSITE in message:
+            # Convert newlines to <br> and wrap the URL in a styled link
+            html_message = message.replace("\n", "<br>")
+            html_message = html_message.replace(
+                APP_WEBSITE,
+                f'<a href="{APP_WEBSITE}" style="color:{link_color};">{APP_WEBSITE}</a>'
+            )
+
+            browser = QTextBrowser()
+            browser.setHtml(html_message)
+            browser.setOpenExternalLinks(True)
+            browser.setReadOnly(True)
+            browser.setMinimumWidth(500)
+            browser.setMinimumHeight(150)
+            browser.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+            browser.setFrameStyle(0)  # remove border
+
+            layout = msg_box.layout()
+            layout.addWidget(browser, 0, 1)
+        else:
+            msg_box.setText(message)
+
+        msg_box.exec()
+    
     # Color picker function
     def pick_color(self, line_edit: QLineEdit):
         color = QColorDialog.getColor(

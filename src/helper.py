@@ -33,17 +33,40 @@ def discover_media_folders(root: Path):
 # ----------------------
 # Application base directory (portable-safe, updater-safe)
 # ----------------------
-if "POSTAR_APP_DIR" in os.environ:
-    APP_DIR = Path(os.environ["POSTAR_APP_DIR"]).resolve()
-elif getattr(sys, "frozen", False):
-    APP_DIR = Path(sys.executable).resolve().parent
-else:
-    APP_DIR = Path(__file__).resolve().parent
+def get_app_dir():
+    """
+    Returns the directory where the *actual executable* lives.
+
+    Supports:
+      - AppImage (writes beside the .AppImage file)
+      - PyInstaller portable builds
+      - Normal script execution
+    """
+
+    # ----------------------
+    # AppImage (Linux)
+    # ----------------------
+    appimage = os.environ.get("APPIMAGE")
+    if appimage:
+        return Path(appimage).resolve().parent
+
+    # ----------------------
+    # PyInstaller frozen
+    # ----------------------
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+
+    # ----------------------
+    # Normal python execution
+    # ----------------------
+    return Path(__file__).resolve().parent
+
+APP_DIR = get_app_dir()
 
 # ----------------------
 # Settings Loader
 # ----------------------
-SETTINGS_FILE = Path.cwd() / ".postar_settings.json"
+SETTINGS_FILE = APP_DIR / ".postar_settings.json"
 
 DEFAULT_SETTINGS = {
     "B2_SHOWS_BASE": "",
@@ -53,46 +76,28 @@ DEFAULT_SETTINGS = {
 }
 
 def load_settings(force_reconfigure=False):
-    """Ensure postar_settings.json exists and load settings from it."""
-
-    # If user passed --configure, force a new prompt
+    """Ensure .postar_settings.json exists and is writable next to the AppImage."""
     if force_reconfigure:
         settings = prompt_for_settings()
         SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
         print("[Settings] Settings updated.\n")
         return settings
-    
+
     if not SETTINGS_FILE.exists():
-        print("[Settings] No settings file found. Creating postar_settings.json...")
-        SETTINGS_FILE.write_text(json.dumps(DEFAULT_SETTINGS, indent=2), encoding="utf-8")
-
-        # Prompt user to fill in values
-        print("\nPlease enter your Backblaze B2 URLs & encoder name:")
-        shows = input("B2_SHOWS_BASE: ").strip()
-        torrents = input("B2_TORRENTS_BASE: ").strip()
-        encoder = input("ENCODER_NAME: ").strip()
-        auto_update = input("Enable auto-update? [Y/n]: ").strip().lower() != "n"
-
-        settings = {
-            "B2_SHOWS_BASE": shows,
-            "B2_TORRENTS_BASE": torrents,
-            "ENCODER_NAME": encoder,
-            "AUTO_UPDATE": auto_update
-        }
-
+        print("[Settings] No settings file found. Creating .postar_settings.json...")
+        settings = prompt_for_settings()
         SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
         print("[Settings] Settings saved to .postar_settings.json\n")
         return settings
 
-    # Load existing settings
     try:
         settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
     except Exception:
         print("[Settings] ERROR: Could not read .postar_settings.json — recreating...")
-        SETTINGS_FILE.write_text(json.dumps(DEFAULT_SETTINGS, indent=2), encoding="utf-8")
-        return load_settings()
+        settings = DEFAULT_SETTINGS.copy()
+        SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
 
-    # Validate keys (in case future versions add/remove settings)
+    # Validate keys
     modified = False
     for k, v in DEFAULT_SETTINGS.items():
         if k not in settings:
@@ -103,10 +108,9 @@ def load_settings(force_reconfigure=False):
 
     return settings
 
-
-# Re-prompt if a user wishes to change their postar settings via -configure instead of editing the .postar_settings.json
+# Re-prompt
 def prompt_for_settings():
-    print("\n[Settings] Reconfigure postar settings:")
+    print("\n[Settings] Please enter your Backblaze B2 URLs & encoder name:")
     shows = input("B2_SHOWS_BASE: ").strip()
     torrents = input("B2_TORRENTS_BASE: ").strip()
     encoder = input("ENCODER_NAME: ").strip()
@@ -130,7 +134,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.48.0"
+VERSION = "0.49.0"
 
 KB = 1024
 MB = KB * 1024
@@ -153,7 +157,7 @@ def get_timestamp_file():
     """
     Return path to .postar_update_check file, works for script or PyInstaller.
     """
-    return get_base_dir() / ".postar_update_check"
+    return APP_DIR / ".postar_update_check"
 
 def should_check_update():
     stamp_file = get_timestamp_file()
