@@ -1,0 +1,97 @@
+name: Build Linux AppImage
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build-appimage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      # -------------------------
+      # Install system packages
+      # -------------------------
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk
+
+      # -------------------------
+      # Download Portable Python 3.14
+      # -------------------------
+      - name: Download and extract portable Python 3.14.3
+        run: |
+          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python-3.14.3.tar.gz
+          
+          # Extract directly into AppDir/usr, flattening the top-level folder
+          mkdir -p AppDir/usr
+          tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
+
+          # Upgrade pip & install dependencies inside the portable Python
+          AppDir/usr/bin/python3 -m ensurepip
+          AppDir/usr/bin/python3 -m pip install --upgrade pip
+          AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
+
+      # -------------------------
+      # Prepare AppDir
+      # -------------------------
+      - name: Prepare AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/fonts/truetype
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Create the 'app' folder for all scripts and resources
+          mkdir -p AppDir/app
+
+          # Copy Python scripts
+          cp src/gui.pyw AppDir/app/
+          cp src/helper.py AppDir/app/
+          cp src/python_postar.py AppDir/app/
+
+          # Copy resource folders
+          cp -r css AppDir/app/
+          cp -r translations AppDir/app/
+          cp -r qt_translations AppDir/app/
+
+          # Copy fonts
+          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/truetype/
+
+          # Copy icon and desktop file
+          cp icon_linux.png AppDir/
+          cp python_postar_gui.desktop AppDir/
+
+          # Copy AppRun wrapper
+          cp AppRun AppDir/
+          chmod +x AppDir/AppRun
+
+      # -------------------------
+      # Download AppImageTool
+      # -------------------------
+      - name: Download appimagetool
+        run: |
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      # -------------------------
+      # Build AppImage
+      # -------------------------
+      - name: Build AppImage
+        run: |
+          ./appimagetool-x86_64.AppImage AppDir
+          mkdir -p python_postar_linux
+          mv python_postar_gui*.AppImage python_postar_linux/
+
+      # -------------------------
+      # Upload AppImage to GitHub Release
+      # -------------------------
+      - name: Upload AppImage
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_linux/*.AppImage
