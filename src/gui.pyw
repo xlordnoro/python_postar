@@ -413,11 +413,11 @@ class UpdateWorker(QThread):
 
     def run(self):
         try:
-            self.output.emit(f"[Update] Local version: {VERSION}")
+            self.output.emit(self.tr(f"[Update] Local version: {VERSION}"))
             latest_tag, latest_title = get_latest_github_release()
 
             if not latest_tag:
-                self.finished.emit("Could not fetch latest release")
+                self.finished.emit(self.tr("Could not fetch latest release"))
                 return
 
             # Normalize versions
@@ -425,17 +425,17 @@ class UpdateWorker(QThread):
             remote_ver = version.parse(latest_tag)
 
             if local_ver >= remote_ver:
-                self.finished.emit("You are running the latest version")
+                self.finished.emit(self.tr("You are running the latest version"))
             else:
                 msg = (
-                    f"A new version is available!\n\n"
-                    f"Latest: {latest_tag} ({latest_title})\n"
-                    f"Download here:\n{APP_WEBSITE}"
+                    self.tr("A new version is available!") + "\n\n" +
+                    self.tr(f"Latest: {latest_tag} ({latest_title})") + "\n" +
+                    self.tr("Download here:") + f"\n{APP_WEBSITE}"
                 )
                 self.finished.emit(msg)
 
         except Exception as e:
-            self.finished.emit(f"Error checking version: {e}")          
+            self.finished.emit(self.tr(f"Error checking version: {e}"))          
 
 # ---------------------------
 # MAL Search Worker
