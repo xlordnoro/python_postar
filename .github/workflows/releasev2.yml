@@ -75,22 +75,22 @@ jobs:
       - uses: actions/checkout@v4
   
       # -------------------------------
-      # Python ARM64 build
+      # Setup Python (ARM build)
       # -------------------------------
-      - name: Set up Python (ARM64)
+      - name: Set up Python (ARM)
         uses: actions/setup-python@v4
         with:
           python-version: 3.14.2
           architecture: arm64
   
-      - name: Install dependencies (ARM64)
+      - name: Install dependencies (ARM)
         shell: bash
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
   
       # -------------------------------
-      # Generate macOS .icns icon
+      # Generate macOS .icns
       # -------------------------------
       - name: Generate macOS ICNS icon
         shell: bash
@@ -112,12 +112,11 @@ jobs:
           sips -z 1024 1024 $ICON_SRC --out $ICONSET/icon_512x512@2x.png
   
           iconutil -c icns $ICONSET -o icon_macos.icns
-          echo "Generated icon_macos.icns"
   
       # -------------------------------
-      # Build ARM64 apps
+      # Build ARM apps
       # -------------------------------
-      - name: Build GUI App (ARM64)
+      - name: Build GUI App Bundle (ARM)
         shell: bash
         run: |
           cd src
@@ -129,7 +128,7 @@ jobs:
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
   
-      - name: Build Updater App (ARM64)
+      - name: Build Updater App Bundle (ARM)
         shell: bash
         run: |
           cd src
@@ -138,7 +137,7 @@ jobs:
             updater.py
   
       # -------------------------------
-      # Python x86_64 build
+      # Setup Python (Intel build)
       # -------------------------------
       - name: Set up Python (x86_64)
         uses: actions/setup-python@v4
@@ -153,9 +152,9 @@ jobs:
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
   
       # -------------------------------
-      # Build x86_64 apps
+      # Build Intel apps
       # -------------------------------
-      - name: Build GUI App (x86_64)
+      - name: Build GUI App Bundle (x86_64)
         shell: bash
         run: |
           cd src
@@ -167,7 +166,7 @@ jobs:
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
   
-      - name: Build Updater App (x86_64)
+      - name: Build Updater App Bundle (x86_64)
         shell: bash
         run: |
           cd src
@@ -176,29 +175,35 @@ jobs:
             updater.py
   
       # -------------------------------
-      # Merge ARM + Intel into universal2 apps
+      # Merge into Universal2 apps
       # -------------------------------
       - name: Create Universal2 App Bundles
         shell: bash
         run: |
           mkdir -p universal_dist
-  
+          
           # GUI
           mv src/dist/python_postar_gui_arm64 universal_dist/python_postar_gui.app
-          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64/Contents/MacOS/python_postar_gui"
+          
+          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64"
+          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64/Contents/MacOS/python_postar_gui_x64"
           OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
+          
           lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
-  
+          rm "$ARM_BIN"
+          
           # Updater
           mv src/dist/updater_arm64 universal_dist/updater.app
-          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
-          X64_BIN_U="src/dist/updater_x64/updater_x64/Contents/MacOS/updater"
+          
+          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater_arm64"
+          X64_BIN_U="src/dist/updater_x64/updater_x64/Contents/MacOS/updater_x64"
           OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
+          
           lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
+          rm "$ARM_BIN_U"
   
       # -------------------------------
-      # Prepare release layout for DMG
+      # Layout + DMG
       # -------------------------------
       - name: Create macOS App Bundle Layout
         shell: bash
@@ -212,13 +217,11 @@ jobs:
           cp src/helper.py release/python_postar_data/
           cp -r css translations qt_translations guides scripts release/python_postar_data/
   
-      # -------------------------------
-      # Create DMG installer
-      # -------------------------------
       - name: Create DMG Installer
         shell: bash
         run: |
           brew install create-dmg || true
+  
           create-dmg \
             --volname "Python Postar" \
             --window-pos 200 120 \
@@ -229,9 +232,6 @@ jobs:
             python_postar_gui_${{ github.ref_name }}.dmg \
             release/
   
-      # -------------------------------
-      # Upload DMG to GitHub Release
-      # -------------------------------
       - name: Upload DMG to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
