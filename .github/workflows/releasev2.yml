@@ -182,19 +182,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p universal_dist
-
+          
           # GUI
           mv src/dist/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
-          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64"
-          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui_x64"
+          
+          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
+          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui"
           OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
+          
           lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
-
+          
           # Updater
           mv src/dist/updater_arm64.app universal_dist/updater.app
-          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater_arm64"
-          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater_x64"
+          
+          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
+          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater"
           OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
+          
           lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
 
       # -------------------------------
