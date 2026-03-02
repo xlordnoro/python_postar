@@ -100,7 +100,6 @@ jobs:
           ICON_SRC="icon_linux.png"
           ICON_DST="src/dist/python_postar.icns"
           mkdir -p "$(dirname "$ICON_DST")"
-          # Generate .icns from a PNG (requires iconutil / sips)
           ICONSET_DIR="src/dist/python_postar.iconset"
           mkdir -p "$ICONSET_DIR"
           sips -z 16 16     "$ICON_SRC" --out "$ICONSET_DIR/icon_16x16.png"
@@ -119,7 +118,9 @@ jobs:
         shell: bash
         run: |
           cd src
+          # GUI app as a proper .app bundle
           pyinstaller --clean --onedir --windowed --icon=dist/python_postar.icns gui.pyw -n python_postar_gui
+          # CLI apps
           pyinstaller --clean --onefile python_postar.py -n python_postar
           pyinstaller --clean --onefile updater.py -n updater
   
@@ -127,7 +128,15 @@ jobs:
         run: |
           STAGE="src/dist/python_postar_dmg"
           mkdir -p "$STAGE"
-          cp -r dist/python_postar_gui.app "$STAGE/"
+  
+          # Dynamically find the .app bundle (robust)
+          APP_BUNDLE=$(find dist -maxdepth 1 -name "*.app" | head -n1)
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "Error: .app bundle not found in dist/"
+            exit 1
+          fi
+          cp -r "$APP_BUNDLE" "$STAGE/"
+  
           cp dist/python_postar "$STAGE/"
           cp dist/updater "$STAGE/"
           cp -r guides "$STAGE/"
@@ -146,7 +155,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: src/dist/python_postar_macos_x86_64_${{ github.ref_name }}.dmg
-
+  
   build-macos-arm64:
     runs-on: macos-latest
     timeout-minutes: 120
@@ -194,7 +203,14 @@ jobs:
         run: |
           STAGE="src/dist/python_postar_dmg"
           mkdir -p "$STAGE"
-          cp -r dist/python_postar_gui.app "$STAGE/"
+  
+          APP_BUNDLE=$(find dist -maxdepth 1 -name "*.app" | head -n1)
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "Error: .app bundle not found in dist/"
+            exit 1
+          fi
+          cp -r "$APP_BUNDLE" "$STAGE/"
+  
           cp dist/python_postar "$STAGE/"
           cp dist/updater "$STAGE/"
           cp -r guides "$STAGE/"
