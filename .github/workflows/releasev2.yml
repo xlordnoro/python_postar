@@ -80,7 +80,7 @@ jobs:
       - name: Set up Python (ARM)
         uses: actions/setup-python@v4
         with:
-          python-version: 3.14.2
+          python-version: 3.12
           architecture: arm64
   
       - name: Install dependencies (ARM)
@@ -142,7 +142,7 @@ jobs:
       - name: Set up Python (x86_64)
         uses: actions/setup-python@v4
         with:
-          python-version: 3.14.2
+          python-version: 3.12
           architecture: x64
   
       - name: Install dependencies (x86_64)
@@ -181,24 +181,24 @@ jobs:
         shell: bash
         run: |
           mkdir -p universal_dist
-          
+  
           # GUI
-          mv src/dist/python_postar_gui_arm64 universal_dist/python_postar_gui.app
-          
+          cp -R src/dist/python_postar_gui_arm64/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
+  
           ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64"
-          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64/Contents/MacOS/python_postar_gui_x64"
+          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui_x64"
           OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          
+  
           lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
           rm "$ARM_BIN"
-          
+  
           # Updater
-          mv src/dist/updater_arm64 universal_dist/updater.app
-          
+          cp -R src/dist/updater_arm64/updater_arm64.app universal_dist/updater.app
+  
           ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater_arm64"
-          X64_BIN_U="src/dist/updater_x64/updater_x64/Contents/MacOS/updater_x64"
+          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater_x64"
           OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
-          
+  
           lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
           rm "$ARM_BIN_U"
   
