@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-macos-x86_64:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 120
   
     steps:
@@ -80,16 +80,31 @@ jobs:
       - name: Create DMG
         shell: bash
         run: |
+          set -e
+      
+          APP_NAME="python_postar_gui.app"
+          DMG_NAME="python_postar_macos_x86_64_${GITHUB_REF_NAME}.dmg"
+      
+          # Clean leftovers
+          rm -rf dmg_temp
+          rm -f "$DMG_NAME"
+      
+          # Detach any mounted volumes just in case
+          hdiutil detach "/Volumes/Python Postar" 2>/dev/null || true
+      
           mkdir dmg_temp
-          cp -R src/dist/python_postar_gui.app dmg_temp/
+          cp -R "src/dist/$APP_NAME" dmg_temp/
           ln -s /Applications dmg_temp/Applications
-  
+      
           hdiutil create \
             -volname "Python Postar" \
             -srcfolder dmg_temp \
             -ov \
             -format UDZO \
-            python_postar_macos_x86_64_${GITHUB_REF_NAME}.dmg
+            "$DMG_NAME"
+      
+          # Cleanup temp folder
+          rm -rf dmg_temp
   
       # ---------------------------------------------------
       # UPLOAD DMG
