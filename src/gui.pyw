@@ -229,9 +229,12 @@ def get_cli_command(args_list):
 # ---------------------------
 # File constants
 # ---------------------------
-PROFILE_FILE = DATA_DIR / "postar_profiles.json"
-SETTINGS_FILE = DATA_DIR / "postar_last_profile.json"
-QUEUE_FILE = DATA_DIR / "postar_job_queue.json"
+SETTINGS_DIR = DATA_DIR / "settings"
+SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+PROFILE_FILE  = SETTINGS_DIR / "postar_profiles.json"
+SETTINGS_FILE = SETTINGS_DIR / "postar_last_profile.json"
+QUEUE_FILE    = SETTINGS_DIR / "postar_job_queue.json"
 
 APP_NAME = "Postar GUI"
 APP_AUTHOR = "XLordnoro"
@@ -267,7 +270,7 @@ def get_latest_github_release():
 # --------------------------
 # Settings Menu Prompt
 # --------------------------
-POSTAR_SETTINGS_FILE = DATA_DIR / ".postar_settings.json"
+POSTAR_SETTINGS_FILE = SETTINGS_DIR / ".postar_settings.json"
 DEFAULT_POSTAR_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
@@ -301,7 +304,7 @@ def postar_settings_complete(settings: dict) -> bool:
 # ---------------------------
 # Storing UI states
 # ---------------------------
-UI_STATE_FILE = DATA_DIR / "postar_ui_state.json"
+UI_STATE_FILE = SETTINGS_DIR / "postar_ui_state.json"
 DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,

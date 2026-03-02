@@ -8,7 +8,6 @@ def main():
     system = platform.system().lower()
 
     py_script = base_dir / "python_postar.py"
-
     exe_win = base_dir / "python_postar.exe"
     bin_linux = base_dir / "python_postar"
     app_macos = base_dir / "python_postar.app"
@@ -20,7 +19,6 @@ def main():
         if py_script.exists():
             print("[INFO] Running: python python_postar.py -u\n")
             cmd = ["python", str(py_script), "-u"]
-
         elif exe_win.exists():
             print("[INFO] Running: python_postar.exe -u\n")
             cmd = [str(exe_win), "-u"]
@@ -30,7 +28,6 @@ def main():
         if py_script.exists():
             print("[INFO] Running: python3 python_postar.py -u\n")
             cmd = ["python3", str(py_script), "-u"]
-
         elif bin_linux.exists():
             print("[INFO] Running: ./python_postar -u\n")
             cmd = [str(bin_linux), "-u"]
@@ -40,11 +37,9 @@ def main():
         if py_script.exists():
             print("[INFO] Running: python3 python_postar.py -u\n")
             cmd = ["python3", str(py_script), "-u"]
-
         elif app_macos.exists():
             print("[INFO] Running: python_postar.app -u\n")
             cmd = ["open", "-a", str(app_macos), "--args", "-u"]
-
         elif bin_linux.exists():
             print("[INFO] Running: ./python_postar -u\n")
             cmd = [str(bin_linux), "-u"]
@@ -54,6 +49,7 @@ def main():
         print("[ERROR] Could not detect installation type.")
         print("Expected python_postar.py or platform binary in:")
         print(base_dir)
+        pause_before_exit()
         sys.exit(1)
 
     try:
@@ -70,15 +66,31 @@ def main():
             print(line, end="")
 
         process.wait()
+
+        if process.returncode != 0:
+            print(f"[ERROR] Updater exited with code {process.returncode}")
+            pause_before_exit()
+
         sys.exit(process.returncode)
 
     except KeyboardInterrupt:
         process.terminate()
+        pause_before_exit()
         sys.exit(1)
 
     except Exception as e:
         print(f"[ERROR] Failed to launch updater: {e}")
+        pause_before_exit()
         sys.exit(1)
+
+
+def pause_before_exit():
+    """Pause the console to prevent immediate closure on any OS"""
+    try:
+        input("\nPress ENTER to exit...")
+    except EOFError:
+        # Fallback if input() isn't possible
+        pass
 
 
 if __name__ == "__main__":

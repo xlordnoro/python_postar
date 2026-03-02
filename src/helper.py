@@ -6,6 +6,7 @@ import requests, sys
 import zlib, zipfile, shutil, tempfile, subprocess
 import textwrap
 import platform
+import shutil
 
 try:
     from pymediainfo import MediaInfo
@@ -66,7 +67,10 @@ APP_DIR = get_app_dir()
 # ----------------------
 # Settings Loader
 # ----------------------
-SETTINGS_FILE = APP_DIR / ".postar_settings.json"
+SETTINGS_DIR = APP_DIR / "settings"
+SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+SETTINGS_FILE = SETTINGS_DIR / ".postar_settings.json"
 
 DEFAULT_SETTINGS = {
     "B2_SHOWS_BASE": "",
@@ -139,7 +143,7 @@ VERSION = "0.49.0"
 KB = 1024
 MB = KB * 1024
 GB = MB * 1024
-PROCESSED_FILE = APP_DIR / "processed.json"
+PROCESSED_FILE = SETTINGS_DIR / "processed.json"
 #print("[Debug] PROCESSED_FILE =", PROCESSED_FILE)
 
 # ----------------------
@@ -157,7 +161,7 @@ def get_timestamp_file():
     """
     Return path to .postar_update_check file, works for script or PyInstaller.
     """
-    return APP_DIR / ".postar_update_check"
+    return SETTINGS_DIR / ".postar_update_check"
 
 def should_check_update():
     stamp_file = get_timestamp_file()
@@ -196,12 +200,30 @@ def detect_platform_zip():
 # ----------------------
 # Backup helper
 # ----------------------
-def backup_file(target_path: Path):
-    """Create a backup of the file if it exists."""
-    if target_path.exists():
-        backup_path = target_path.with_suffix(target_path.suffix + ".backup")
-        shutil.copy2(target_path, backup_path)
-        print(f"[Update] Backup created: {backup_path}")
+def backup_file(target_path: Path, backup_dir: Path = None):
+    """
+    Create a backup of the file in a backup folder.
+    If the folder doesn't exist, it will be created.
+    
+    Args:
+        target_path: Path to the original file to back up.
+        backup_dir: Optional Path to the backup folder. 
+                    Defaults to 'backup' folder in the same directory as target_path.
+    """
+    if not target_path.exists():
+        return  # Nothing to back up
+
+    # Determine backup folder
+    if backup_dir is None:
+        backup_dir = target_path.parent / "backup"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    # Construct backup file path
+    backup_path = backup_dir / (target_path.name + ".backup")
+
+    # Copy the file
+    shutil.copy2(target_path, backup_path)
+    print(f"[Update] Backup created: {backup_path}")
 
 # ----------------------
 # Portable detection (FINAL)
