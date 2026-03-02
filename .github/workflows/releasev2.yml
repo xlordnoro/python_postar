@@ -67,72 +67,176 @@ jobs:
         with:
           files: python_postar_windows_${{ github.ref_name }}.zip
 
-  build-macos:
-    runs-on: macos-latest
+  build-linux:
+    runs-on: ubuntu-latest
     timeout-minutes: 120
-  
     steps:
       - uses: actions/checkout@v4
-  
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.12
-  
+          python-version: 3.14.2
+
       - name: Install dependencies
-        shell: bash
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
-  
-      - name: Build GUI App Bundle
+
+      - name: Build GUI with PyInstaller
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
-            --name python_postar_gui \
-            --icon ../icon_linux.png \
-            --add-data "../css:css" \
-            --add-data "../translations/*.qm:translations" \
-            --add-data "../qt_translations:qt_translations" \
-            gui.pyw
-  
-      - name: Build Updater App Bundle
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI with PyInstaller
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
-            --name updater \
-            updater.py
-  
-      - name: Create macOS App Bundle Layout
+          pyinstaller --clean --onefile --windowed updater.py -n updater
+
+      - name: Prepare release folder
         shell: bash
         run: |
-          mkdir -p release
-          mv src/dist/python_postar_gui/python_postar_gui.app release/
-          mv src/dist/updater/updater.app release/
-  
-          mkdir -p release/python_postar_data
-          cp src/python_postar.py release/python_postar_data/
-          cp src/helper.py release/python_postar_data/
-          cp -r css translations qt_translations guides scripts release/python_postar_data/
-  
-      - name: Create DMG Installer
+          mkdir -p python_postar_linux/scripts
+          mkdir -p python_postar_linux/translations
+          mkdir -p python_postar_linux/qt_translations
+          cp src/dist/python_postar_gui python_postar_linux/
+          cp src/dist/updater python_postar_linux/
+          cp src/python_postar.py python_postar_linux/
+          cp src/helper.py python_postar_linux/
+          cp src/gui.pyw python_postar_linux/
+          cp src/updater.py python_postar_linux/
+          cp -r css python_postar_linux/
+          cp -r translations python_postar_linux/
+          cp -r qt_translations python_postar_linux/
+          cp icon_linux.png python_postar_linux/
+          cp requirements.txt python_postar_linux/
+          cp -r guides python_postar_linux/
+          cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
+          chmod +x python_postar_linux/scripts/postar_batch_linux.sh
+
+      - name: Create ZIP
         shell: bash
         run: |
-          brew install create-dmg || true
-  
-          create-dmg \
-            --volname "Python Postar" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 128 \
-            --icon "python_postar_gui.app" 200 190 \
-            --app-drop-link 600 185 \
-            python_postar_gui_${{ github.ref_name }}.dmg \
-            release/
-  
-      - name: Upload DMG to GitHub Release
+          zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
+
+      - name: Upload ZIP to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: python_postar_gui_${{ github.ref_name }}.dmg
+          files: python_postar_linux_${{ github.ref_name }}.zip
+
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+
+      - name: Build GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed updater.py -n updater
+
+      - name: Prepare release folder
+        shell: bash
+        run: |
+          mkdir -p python_postar_macos/scripts
+          mkdir -p python_postar_macos/translations
+          mkdir -p python_postar_macos/qt_translations
+          cp src/dist/python_postar_gui python_postar_macos/
+          cp src/dist/updater python_postar_macos/
+          cp src/python_postar.py python_postar_macos/
+          cp src/helper.py python_postar_macos/
+          cp src/gui.pyw python_postar_macos/
+          cp src/updater.py python_postar_macos/
+          cp -r css python_postar_macos/
+          cp -r translations python_postar_macos/
+          cp -r qt_translations python_postar_macos/
+          cp icon_linux.png python_postar_macos/
+          cp requirements.txt python_postar_macos/
+          cp -r guides python_postar_macos/
+          cp scripts/postar_batch_linux.sh python_postar_macos/scripts/
+          chmod +x python_postar_macos/scripts/postar_batch_linux.sh
+
+      - name: Create ZIP
+        shell: bash
+        run: |
+          zip -r python_postar_macos_${{ github.ref_name }}.zip python_postar_macos
+
+      - name: Upload ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_macos_${{ github.ref_name }}.zip
+
+  # =========================================================
+  # ARCH LINUX BUILD (Docker-based)
+  # =========================================================
+  build-arch-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          pacman -Sy --noconfirm python python-pip python-virtualenv zip patchelf base-devel
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build binaries (venv)
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+
+          pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+
+          cd src
+          pyinstaller --clean --onefile --windowed --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" gui.pyw -n python_postar_gui
+          pyinstaller --clean --onefile --windowed updater.py -n updater
+
+      - name: Package Arch Linux release
+        run: |
+          mkdir -p python_postar_linux_arch/scripts
+          mkdir -p python_postar_linux_arch/translations
+          mkdir -p python_postar_linux_arch/qt_translations
+          cp src/dist/python_postar_gui python_postar_linux_arch/
+          cp src/dist/updater python_postar_linux_arch/
+          cp src/python_postar.py python_postar_linux_arch/
+          cp src/helper.py python_postar_linux_arch/
+          cp src/gui.pyw python_postar_linux_arch/
+          cp src/updater.py python_postar_linux_arch/
+          cp -r css python_postar_linux_arch/
+          cp -r translations python_postar_linux_arch/
+          cp -r qt_translations python_postar_linux_arch/
+          cp icon_linux.png python_postar_linux_arch/
+          cp requirements.txt python_postar_linux_arch/
+          cp -r guides python_postar_linux_arch/
+          cp scripts/postar_batch_linux.sh python_postar_linux_arch/scripts/
+          chmod +x python_postar_linux_arch/scripts/postar_batch_linux.sh
+
+          zip -r python_postar_linux_arch_${{ github.ref_name }}.zip python_postar_linux_arch
+
+      - name: Upload Arch ZIP to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            python_postar_linux_arch_${{ github.ref_name }}.zip
