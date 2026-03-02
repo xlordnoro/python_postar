@@ -29,11 +29,10 @@ jobs:
         run: |
           wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python-3.14.3.tar.gz
           
-          # Extract directly into AppDir/usr, flattening the top-level folder
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
 
-          # Upgrade pip & install dependencies inside the portable Python
+          # Upgrade pip & install dependencies inside portable Python
           AppDir/usr/bin/python3 -m ensurepip
           AppDir/usr/bin/python3 -m pip install --upgrade pip
           AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
@@ -46,8 +45,6 @@ jobs:
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/fonts/truetype
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-
-          # Create the 'app' folder for all scripts and resources
           mkdir -p AppDir/usr/app
 
           # Copy Python scripts
@@ -70,6 +67,23 @@ jobs:
           # Copy AppRun wrapper
           cp AppRun AppDir/
           chmod +x AppDir/AppRun
+
+      # -------------------------
+      # Precompile Python code for local __pycache__
+      # -------------------------
+      - name: Precompile Python code
+        run: |
+          APPDIR=AppDir
+          PYTHON_BIN=$APPDIR/usr/bin/python3
+
+          # Create local __pycache__ folder next to AppRun
+          mkdir -p $APPDIR/__pycache__
+
+          # Precompile app scripts into local cache
+          $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
+
+          # Precompile site-packages into local cache (ignore errors for C extensions)
+          $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
       # Download AppImageTool
