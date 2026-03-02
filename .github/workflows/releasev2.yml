@@ -69,48 +69,148 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
   
     steps:
       - uses: actions/checkout@v4
   
-      - name: Set up Python
+      # -------------------------------
+      # Setup Python (ARM build)
+      # -------------------------------
+      - name: Set up Python (ARM)
         uses: actions/setup-python@v4
         with:
           python-version: 3.12
+          architecture: arm64
   
-      - name: Install dependencies
+      - name: Install dependencies (ARM)
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo pillow
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
   
-      - name: Build GUI App Bundle
+      # -------------------------------
+      # Generate macOS .icns
+      # -------------------------------
+      - name: Generate macOS ICNS icon
+        shell: bash
+        run: |
+          ICON_SRC=icon_linux.png
+          ICONSET=icon.iconset
+          rm -rf $ICONSET
+          mkdir -p $ICONSET
+  
+          sips -z 16 16     $ICON_SRC --out $ICONSET/icon_16x16.png
+          sips -z 32 32     $ICON_SRC --out $ICONSET/icon_16x16@2x.png
+          sips -z 32 32     $ICON_SRC --out $ICONSET/icon_32x32.png
+          sips -z 64 64     $ICON_SRC --out $ICONSET/icon_32x32@2x.png
+          sips -z 128 128   $ICON_SRC --out $ICONSET/icon_128x128.png
+          sips -z 256 256   $ICON_SRC --out $ICONSET/icon_128x128@2x.png
+          sips -z 256 256   $ICON_SRC --out $ICONSET/icon_256x256.png
+          sips -z 512 512   $ICON_SRC --out $ICONSET/icon_256x256@2x.png
+          sips -z 512 512   $ICON_SRC --out $ICONSET/icon_512x512.png
+          sips -z 1024 1024 $ICON_SRC --out $ICONSET/icon_512x512@2x.png
+  
+          iconutil -c icns $ICONSET -o icon_macos.icns
+  
+      # -------------------------------
+      # Build ARM apps
+      # -------------------------------
+      - name: Build GUI App Bundle (ARM)
         shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed --onedir \
-            --name python_postar_gui \
-            --icon ../icon_linux.png \
+            --name python_postar_gui_arm64 \
+            --icon ../icon_macos.icns \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
   
-      - name: Build Updater App Bundle
+      - name: Build Updater App Bundle (ARM)
         shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed --onedir \
-            --name updater \
+            --name updater_arm64 \
             updater.py
   
+      # -------------------------------
+      # Setup Python (Intel build)
+      # -------------------------------
+      - name: Set up Python (x86_64)
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+          architecture: x64
+  
+      - name: Install dependencies (x86_64)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
+  
+      # -------------------------------
+      # Build Intel apps
+      # -------------------------------
+      - name: Build GUI App Bundle (x86_64)
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --windowed --onedir \
+            --name python_postar_gui_x64 \
+            --icon ../icon_macos.icns \
+            --add-data "../css:css" \
+            --add-data "../translations/*.qm:translations" \
+            --add-data "../qt_translations:qt_translations" \
+            gui.pyw
+  
+      - name: Build Updater App Bundle (x86_64)
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --windowed --onedir \
+            --name updater_x64 \
+            updater.py
+  
+      # -------------------------------
+      # Merge into Universal2 apps
+      # -------------------------------
+      - name: Create Universal2 App Bundles
+        shell: bash
+        run: |
+          mkdir -p universal_dist
+  
+          # GUI
+          cp -R src/dist/python_postar_gui_arm64/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
+  
+          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64"
+          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui_x64"
+          OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
+  
+          lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
+          rm "$ARM_BIN"
+  
+          # Updater
+          cp -R src/dist/updater_arm64/updater_arm64.app universal_dist/updater.app
+  
+          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater_arm64"
+          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater_x64"
+          OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
+  
+          lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
+          rm "$ARM_BIN_U"
+  
+      # -------------------------------
+      # Layout + DMG
+      # -------------------------------
       - name: Create macOS App Bundle Layout
         shell: bash
         run: |
           mkdir -p release
-          mv src/dist/python_postar_gui/python_postar_gui.app release/
-          mv src/dist/updater/updater.app release/
+          mv universal_dist/python_postar_gui.app release/
+          mv universal_dist/updater.app release/
   
           mkdir -p release/python_postar_data
           cp src/python_postar.py release/python_postar_data/
