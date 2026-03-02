@@ -97,7 +97,7 @@ jobs:
   
       - name: Generate app icon
         run: |
-          ICON_SRC="icon_mac.png"
+          ICON_SRC="icon_linux.png"
           ICON_DST="src/dist/python_postar.icns"
           mkdir -p "$(dirname "$ICON_DST")"
           # Generate .icns from a PNG (requires iconutil / sips)
@@ -165,7 +165,7 @@ jobs:
   
       - name: Generate app icon
         run: |
-          ICON_SRC="icon_mac.png"
+          ICON_SRC="icon_linux.png"
           ICON_DST="src/dist/python_postar.icns"
           mkdir -p "$(dirname "$ICON_DST")"
           ICONSET_DIR="src/dist/python_postar.iconset"
