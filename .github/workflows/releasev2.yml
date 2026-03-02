@@ -67,39 +67,28 @@ jobs:
         with:
           files: python_postar_windows_${{ github.ref_name }}.zip
 
-  build-macos:
+  build-arm64:
     runs-on: macos-latest
-    timeout-minutes: 180
-
     steps:
       - uses: actions/checkout@v4
 
-      # -------------------------------
-      # Python ARM64 build
-      # -------------------------------
       - name: Set up Python (ARM64)
         uses: actions/setup-python@v4
         with:
           python-version: 3.14.2
           architecture: arm64
 
-      - name: Install dependencies (ARM64)
-        shell: bash
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo pillow
 
-      # -------------------------------
-      # Generate macOS ICNS icon
-      # -------------------------------
       - name: Generate macOS ICNS icon
-        shell: bash
         run: |
           ICON_SRC=icon_linux.png
           ICONSET=icon.iconset
           rm -rf $ICONSET
           mkdir -p $ICONSET
-
           sips -z 16 16     $ICON_SRC --out $ICONSET/icon_16x16.png
           sips -z 32 32     $ICON_SRC --out $ICONSET/icon_16x16@2x.png
           sips -z 32 32     $ICON_SRC --out $ICONSET/icon_32x32.png
@@ -110,15 +99,10 @@ jobs:
           sips -z 512 512   $ICON_SRC --out $ICONSET/icon_256x256@2x.png
           sips -z 512 512   $ICON_SRC --out $ICONSET/icon_512x512.png
           sips -z 1024 1024 $ICON_SRC --out $ICONSET/icon_512x512@2x.png
-
           iconutil -c icns $ICONSET -o icon_macos.icns
           echo "Generated icon_macos.icns"
 
-      # -------------------------------
-      # Build ARM64 apps as real .app bundles
-      # -------------------------------
       - name: Build GUI App (ARM64)
-        shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed \
@@ -130,33 +114,41 @@ jobs:
             gui.pyw
 
       - name: Build Updater App (ARM64)
-        shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed \
             --name updater_arm64 \
             updater.py
 
-      # -------------------------------
-      # Python x86_64 build
-      # -------------------------------
+      - name: Upload ARM64 apps
+        uses: actions/upload-artifact@v3
+        with:
+          name: arm64-apps
+          path: |
+            src/dist/python_postar_gui_arm64.app
+            src/dist/updater_arm64.app
+
+  # -------------------------------
+  # 2️⃣ Build x86_64
+  # -------------------------------
+  build-x64:
+    runs-on: macos-latest
+    needs: build-arm64
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Python (x86_64)
         uses: actions/setup-python@v4
         with:
           python-version: 3.14.2
           architecture: x64
 
-      - name: Install dependencies (x86_64)
-        shell: bash
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo pillow
 
-      # -------------------------------
-      # Build x86_64 apps as real .app bundles
-      # -------------------------------
       - name: Build GUI App (x86_64)
-        shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed \
@@ -168,44 +160,58 @@ jobs:
             gui.pyw
 
       - name: Build Updater App (x86_64)
-        shell: bash
         run: |
           cd src
           pyinstaller --clean --windowed \
             --name updater_x64 \
             updater.py
 
-      # -------------------------------
-      # Merge ARM + Intel into universal2 apps
-      # -------------------------------
+      - name: Upload x64 apps
+        uses: actions/upload-artifact@v3
+        with:
+          name: x64-apps
+          path: |
+            src/dist/python_postar_gui_x64.app
+            src/dist/updater_x64.app
+
+  # -------------------------------
+  # 3️⃣ Merge into Universal2 + DMG + Release
+  # -------------------------------
+  merge-universal:
+    runs-on: macos-latest
+    needs: [build-arm64, build-x64]
+    steps:
+      - name: Download ARM64 apps
+        uses: actions/download-artifact@v3
+        with:
+          name: arm64-apps
+          path: dist/arm64
+
+      - name: Download x64 apps
+        uses: actions/download-artifact@v3
+        with:
+          name: x64-apps
+          path: dist/x64
+
       - name: Create Universal2 App Bundles
-        shell: bash
         run: |
           mkdir -p universal_dist
-          
-          # GUI
-          mv src/dist/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
-          
-          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui"
-          OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          
-          lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
-          
-          # Updater
-          mv src/dist/updater_arm64.app universal_dist/updater.app
-          
-          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
-          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater"
-          OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
-          
-          lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
 
-      # -------------------------------
-      # Prepare release layout for DMG
-      # -------------------------------
-      - name: Create macOS App Bundle Layout
-        shell: bash
+          # GUI
+          mv dist/arm64/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
+          lipo -create \
+            "universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64" \
+            "dist/x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui_x64" \
+            -output "universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
+
+          # Updater
+          mv dist/arm64/updater_arm64.app universal_dist/updater.app
+          lipo -create \
+            "universal_dist/updater.app/Contents/MacOS/updater_arm64" \
+            "dist/x64/updater_x64.app/Contents/MacOS/updater_x64" \
+            -output "universal_dist/updater.app/Contents/MacOS/updater"
+
+      - name: Prepare release layout
         run: |
           mkdir -p release
           mv universal_dist/python_postar_gui.app release/
@@ -216,11 +222,7 @@ jobs:
           cp src/helper.py release/python_postar_data/
           cp -r css translations qt_translations guides scripts release/python_postar_data/
 
-      # -------------------------------
-      # Create DMG installer
-      # -------------------------------
       - name: Create DMG Installer
-        shell: bash
         run: |
           brew install create-dmg || true
           create-dmg \
@@ -233,9 +235,6 @@ jobs:
             python_postar_gui_${{ github.ref_name }}.dmg \
             release/
 
-      # -------------------------------
-      # Upload DMG to GitHub Release
-      # -------------------------------
       - name: Upload DMG to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
