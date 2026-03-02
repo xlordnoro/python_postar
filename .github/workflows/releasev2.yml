@@ -70,10 +70,10 @@ jobs:
   build-macos:
     runs-on: macos-latest
     timeout-minutes: 180
-  
+
     steps:
       - uses: actions/checkout@v4
-  
+
       # -------------------------------
       # Python ARM64 build
       # -------------------------------
@@ -82,15 +82,15 @@ jobs:
         with:
           python-version: 3.14.2
           architecture: arm64
-  
+
       - name: Install dependencies (ARM64)
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
-  
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo pillow
+
       # -------------------------------
-      # Generate macOS .icns icon
+      # Generate macOS ICNS icon
       # -------------------------------
       - name: Generate macOS ICNS icon
         shell: bash
@@ -99,7 +99,7 @@ jobs:
           ICONSET=icon.iconset
           rm -rf $ICONSET
           mkdir -p $ICONSET
-  
+
           sips -z 16 16     $ICON_SRC --out $ICONSET/icon_16x16.png
           sips -z 32 32     $ICON_SRC --out $ICONSET/icon_16x16@2x.png
           sips -z 32 32     $ICON_SRC --out $ICONSET/icon_32x32.png
@@ -110,33 +110,33 @@ jobs:
           sips -z 512 512   $ICON_SRC --out $ICONSET/icon_256x256@2x.png
           sips -z 512 512   $ICON_SRC --out $ICONSET/icon_512x512.png
           sips -z 1024 1024 $ICON_SRC --out $ICONSET/icon_512x512@2x.png
-  
+
           iconutil -c icns $ICONSET -o icon_macos.icns
           echo "Generated icon_macos.icns"
-  
+
       # -------------------------------
-      # Build ARM64 apps
+      # Build ARM64 apps as real .app bundles
       # -------------------------------
       - name: Build GUI App (ARM64)
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
+          pyinstaller --clean --windowed \
             --name python_postar_gui_arm64 \
             --icon ../icon_macos.icns \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
-  
+
       - name: Build Updater App (ARM64)
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
+          pyinstaller --clean --windowed \
             --name updater_arm64 \
             updater.py
-  
+
       # -------------------------------
       # Python x86_64 build
       # -------------------------------
@@ -145,36 +145,36 @@ jobs:
         with:
           python-version: 3.14.2
           architecture: x64
-  
+
       - name: Install dependencies (x86_64)
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
-  
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo pillow
+
       # -------------------------------
-      # Build x86_64 apps
+      # Build x86_64 apps as real .app bundles
       # -------------------------------
       - name: Build GUI App (x86_64)
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
+          pyinstaller --clean --windowed \
             --name python_postar_gui_x64 \
             --icon ../icon_macos.icns \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
-  
+
       - name: Build Updater App (x86_64)
         shell: bash
         run: |
           cd src
-          pyinstaller --clean --windowed --onedir \
+          pyinstaller --clean --windowed \
             --name updater_x64 \
             updater.py
-  
+
       # -------------------------------
       # Merge ARM + Intel into universal2 apps
       # -------------------------------
@@ -182,21 +182,21 @@ jobs:
         shell: bash
         run: |
           mkdir -p universal_dist
-  
+
           # GUI
-          mv src/dist/python_postar_gui_arm64 universal_dist/python_postar_gui.app
-          ARM_BIN=$(find universal_dist/python_postar_gui.app/Contents/MacOS -type f)
-          X64_BIN=$(find src/dist/python_postar_gui_x64/python_postar_gui_x64/Contents/MacOS -type f)
+          mv src/dist/python_postar_gui_arm64.app universal_dist/python_postar_gui.app
+          ARM_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui_arm64"
+          X64_BIN="src/dist/python_postar_gui_x64/python_postar_gui_x64.app/Contents/MacOS/python_postar_gui_x64"
           OUT_BIN="universal_dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
           lipo -create "$ARM_BIN" "$X64_BIN" -output "$OUT_BIN"
-  
+
           # Updater
-          mv src/dist/updater_arm64 universal_dist/updater.app
-          ARM_BIN_U=$(find universal_dist/updater.app/Contents/MacOS -type f)
-          X64_BIN_U=$(find src/dist/updater_x64/updater_x64/Contents/MacOS -type f)
+          mv src/dist/updater_arm64.app universal_dist/updater.app
+          ARM_BIN_U="universal_dist/updater.app/Contents/MacOS/updater_arm64"
+          X64_BIN_U="src/dist/updater_x64/updater_x64.app/Contents/MacOS/updater_x64"
           OUT_BIN_U="universal_dist/updater.app/Contents/MacOS/updater"
           lipo -create "$ARM_BIN_U" "$X64_BIN_U" -output "$OUT_BIN_U"
-  
+
       # -------------------------------
       # Prepare release layout for DMG
       # -------------------------------
@@ -206,12 +206,12 @@ jobs:
           mkdir -p release
           mv universal_dist/python_postar_gui.app release/
           mv universal_dist/updater.app release/
-  
+
           mkdir -p release/python_postar_data
           cp src/python_postar.py release/python_postar_data/
           cp src/helper.py release/python_postar_data/
           cp -r css translations qt_translations guides scripts release/python_postar_data/
-  
+
       # -------------------------------
       # Create DMG installer
       # -------------------------------
@@ -228,7 +228,7 @@ jobs:
             --app-drop-link 600 185 \
             python_postar_gui_${{ github.ref_name }}.dmg \
             release/
-  
+
       # -------------------------------
       # Upload DMG to GitHub Release
       # -------------------------------
