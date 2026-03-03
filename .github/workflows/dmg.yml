@@ -1,4 +1,4 @@
-name: Build macOS Universal DMG
+name: Build macOS dmg
 
 on:
   release:
@@ -8,29 +8,31 @@ permissions:
   contents: write
 
 jobs:
-
-  # =====================================================
-  # BUILD INTEL
-  # =====================================================
-  build-intel:
+  build-macos-x86_64:
     runs-on: macos-15-intel
     timeout-minutes: 120
-
+  
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v4
+  
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.14.2
-
+  
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
-
-      - name: Build Intel .app
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo packaging
+  
+      # ---------------------------------------------------
+      # BUILD .APP
+      # ---------------------------------------------------
+      - name: Build macOS App Bundle
+        shell: bash
         run: |
           cd src
+  
           pyinstaller --clean \
             --windowed \
             --name python_postar_gui \
@@ -38,141 +40,182 @@ jobs:
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
             gui.pyw
-
-      - name: Upload Intel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-intel
-          path: src/dist/python_postar_gui.app
-
-
-  # =====================================================
-  # BUILD ARM
-  # =====================================================
-  build-arm:
-    runs-on: macos-latest
-    timeout-minutes: 120
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.14.2
-
-      - name: Install dependencies
+  
+      # ---------------------------------------------------
+      # GENERATE .ICNS FROM icon_linux.png
+      # ---------------------------------------------------
+      - name: Generate ICNS icon
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo
-
-      - name: Build ARM .app
-        run: |
-          cd src
-          pyinstaller --clean \
-            --windowed \
-            --name python_postar_gui \
-            --add-data "../css:css" \
-            --add-data "../translations/*.qm:translations" \
-            --add-data "../qt_translations:qt_translations" \
-            gui.pyw
-
-      - name: Upload ARM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-arm
-          path: src/dist/python_postar_gui.app
-
-
-  # =====================================================
-  # MERGE + UNIVERSAL DMG
-  # =====================================================
-  merge-universal:
-    runs-on: macos-latest
-    needs: [build-intel, build-arm]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Intel
-        uses: actions/download-artifact@v4
-        with:
-          name: app-intel
-          path: intel
-
-      - name: Download ARM
-        uses: actions/download-artifact@v4
-        with:
-          name: app-arm
-          path: arm
-
-      # -------------------------------------------------
-      # Merge binaries with lipo
-      # -------------------------------------------------
-      - name: Create Universal Binary
-        run: |
-          cp -R arm/python_postar_gui.app universal.app
-
-          INTEL_BIN="intel/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          ARM_BIN="arm/python_postar_gui.app/Contents/MacOS/python_postar_gui"
-          UNIVERSAL_BIN="universal.app/Contents/MacOS/python_postar_gui"
-
-          lipo -create "$INTEL_BIN" "$ARM_BIN" -output "$UNIVERSAL_BIN"
-
-          lipo -info "$UNIVERSAL_BIN"
-
-      # -------------------------------------------------
-      # Generate ICNS
-      # -------------------------------------------------
-      - name: Generate ICNS
-        run: |
-          rm -rf icon.iconset
           mkdir icon.iconset
-
-          sips -z 16 16 icon_linux.png --out icon.iconset/icon_16x16.png
-          sips -z 32 32 icon_linux.png --out icon.iconset/icon_16x16@2x.png
-          sips -z 128 128 icon_linux.png --out icon.iconset/icon_128x128.png
-          sips -z 256 256 icon_linux.png --out icon.iconset/icon_256x256.png
-          sips -z 512 512 icon_linux.png --out icon.iconset/icon_512x512.png
+  
+          sips -z 16 16     icon_linux.png --out icon.iconset/icon_16x16.png
+          sips -z 32 32     icon_linux.png --out icon.iconset/icon_16x16@2x.png
+          sips -z 32 32     icon_linux.png --out icon.iconset/icon_32x32.png
+          sips -z 64 64     icon_linux.png --out icon.iconset/icon_32x32@2x.png
+          sips -z 128 128   icon_linux.png --out icon.iconset/icon_128x128.png
+          sips -z 256 256   icon_linux.png --out icon.iconset/icon_128x128@2x.png
+          sips -z 256 256   icon_linux.png --out icon.iconset/icon_256x256.png
+          sips -z 512 512   icon_linux.png --out icon.iconset/icon_256x256@2x.png
+          sips -z 512 512   icon_linux.png --out icon.iconset/icon_512x512.png
           sips -z 1024 1024 icon_linux.png --out icon.iconset/icon_512x512@2x.png
-
+  
           iconutil -c icns icon.iconset -o python_postar_gui.icns
-
-          cp python_postar_gui.icns universal.app/Contents/Resources/
-
-          /usr/libexec/PlistBuddy \
-            -c "Set :CFBundleIconFile python_postar_gui.icns" \
-            universal.app/Contents/Info.plist
-
-      # -------------------------------------------------
-      # Create Universal DMG
-      # -------------------------------------------------
-      - name: Create Universal DMG
+  
+      # ---------------------------------------------------
+      # INJECT ICON INTO .APP
+      # ---------------------------------------------------
+      - name: Attach icon to app
+        shell: bash
+        run: |
+          APP_PATH="src/dist/python_postar_gui.app"
+          cp python_postar_gui.icns "$APP_PATH/Contents/Resources/"
+  
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile python_postar_gui.icns" \
+            "$APP_PATH/Contents/Info.plist"
+  
+      # ---------------------------------------------------
+      # CREATE DMG
+      # ---------------------------------------------------
+      - name: Create DMG
+        shell: bash
         run: |
           set -e
-
-          DMG_NAME="python_postar_macos_universal_${GITHUB_REF_NAME}.dmg"
-
+      
+          APP_NAME="python_postar_gui.app"
+          DMG_NAME="python_postar_macos_x86_64_${GITHUB_REF_NAME}.dmg"
+      
+          # Clean leftovers
           rm -rf dmg_temp
           rm -f "$DMG_NAME"
+      
+          # Detach any mounted volumes just in case
           hdiutil detach "/Volumes/Python Postar" 2>/dev/null || true
-
+      
           mkdir dmg_temp
-          mv universal.app dmg_temp/python_postar_gui.app
+          cp -R "src/dist/$APP_NAME" dmg_temp/
           ln -s /Applications dmg_temp/Applications
-
+      
           hdiutil create \
             -volname "Python Postar" \
             -srcfolder dmg_temp \
             -ov \
             -format UDZO \
             "$DMG_NAME"
-
+      
+          # Cleanup temp folder
           rm -rf dmg_temp
-
-      # -------------------------------------------------
-      # Upload Single Universal DMG
-      # -------------------------------------------------
-      - name: Upload Universal DMG
+  
+      # ---------------------------------------------------
+      # UPLOAD DMG
+      # ---------------------------------------------------
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: python_postar_macos_universal_${{ github.ref_name }}.dmg
+          files: python_postar_macos_x86_64_${{ github.ref_name }}.dmg
+
+  build-macos-arm64:
+    runs-on: macos-latest
+    timeout-minutes: 120
+  
+    steps:
+      - uses: actions/checkout@v4
+  
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
+  
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo packaging
+  
+      # ---------------------------------------------------
+      # BUILD .APP (NO --onefile)
+      # ---------------------------------------------------
+      - name: Build macOS App Bundle
+        shell: bash
+        run: |
+          cd src
+  
+          pyinstaller --clean \
+            --windowed \
+            --name python_postar_gui \
+            --add-data "../css:css" \
+            --add-data "../translations/*.qm:translations" \
+            --add-data "../qt_translations:qt_translations" \
+            gui.pyw
+  
+      # ---------------------------------------------------
+      # GENERATE .ICNS FROM icon_linux.png
+      # ---------------------------------------------------
+      - name: Generate ICNS icon
+        shell: bash
+        run: |
+          rm -rf icon.iconset python_postar_gui.icns
+          mkdir icon.iconset
+  
+          sips -z 16 16     icon_linux.png --out icon.iconset/icon_16x16.png
+          sips -z 32 32     icon_linux.png --out icon.iconset/icon_16x16@2x.png
+          sips -z 32 32     icon_linux.png --out icon.iconset/icon_32x32.png
+          sips -z 64 64     icon_linux.png --out icon.iconset/icon_32x32@2x.png
+          sips -z 128 128   icon_linux.png --out icon.iconset/icon_128x128.png
+          sips -z 256 256   icon_linux.png --out icon.iconset/icon_128x128@2x.png
+          sips -z 256 256   icon_linux.png --out icon.iconset/icon_256x256.png
+          sips -z 512 512   icon_linux.png --out icon.iconset/icon_256x256@2x.png
+          sips -z 512 512   icon_linux.png --out icon.iconset/icon_512x512.png
+          sips -z 1024 1024 icon_linux.png --out icon.iconset/icon_512x512@2x.png
+  
+          iconutil -c icns icon.iconset -o python_postar_gui.icns
+  
+      # ---------------------------------------------------
+      # ATTACH ICON TO .APP
+      # ---------------------------------------------------
+      - name: Attach icon to app
+        shell: bash
+        run: |
+          APP_PATH="src/dist/python_postar_gui.app"
+  
+          cp python_postar_gui.icns "$APP_PATH/Contents/Resources/"
+  
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleIconFile python_postar_gui.icns" \
+            "$APP_PATH/Contents/Info.plist"
+  
+      # ---------------------------------------------------
+      # CREATE DMG (CI SAFE)
+      # ---------------------------------------------------
+      - name: Create DMG
+        shell: bash
+        run: |
+          set -e
+  
+          APP_NAME="python_postar_gui.app"
+          DMG_NAME="python_postar_macos_arm64_${GITHUB_REF_NAME}.dmg"
+  
+          rm -rf dmg_temp
+          rm -f "$DMG_NAME"
+  
+          hdiutil detach "/Volumes/Python Postar" 2>/dev/null || true
+  
+          mkdir dmg_temp
+          cp -R "src/dist/$APP_NAME" dmg_temp/
+          ln -s /Applications dmg_temp/Applications
+  
+          hdiutil create \
+            -volname "Python Postar" \
+            -srcfolder dmg_temp \
+            -ov \
+            -format UDZO \
+            "$DMG_NAME"
+  
+          rm -rf dmg_temp
+  
+      # ---------------------------------------------------
+      # UPLOAD DMG
+      # ---------------------------------------------------
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: python_postar_macos_arm64_${{ github.ref_name }}.dmg
