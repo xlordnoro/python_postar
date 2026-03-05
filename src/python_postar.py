@@ -772,12 +772,7 @@ def main():
         kage=args.kage
     )
 
-    OUTPUT_DIR = Path.cwd() / "output"
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    out_name = args.output or default_filename
-    out_file = OUTPUT_DIR / out_name
-
+    out_file = args.output or default_filename    
     with open(out_file, "w", encoding="utf-8") as f:
         f.write(output_text)
 
