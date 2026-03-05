@@ -126,7 +126,7 @@ def load_language(app, lang_code=""):
         reply = msg_box.exec()
 
         if reply == QMessageBox.StandardButton.Yes:
-            restart_application()
+            sys.exit(0)
 
     return lang_code
 
@@ -309,6 +309,7 @@ DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,
     "html_preview": True,
+    "options_visible": True,
 }
 
 def load_ui_state():
@@ -897,9 +898,15 @@ class PostarGUI(QMainWindow):
         # Menu bar
         menubar = self.menuBar()
         
-        about_action = menubar.addAction(tr("About"))
+        about_menu = menubar.addMenu(self.tr("About"))
+
+        about_action = about_menu.addAction(self.tr("About Postar"))
         about_action.setShortcut("F1")
         about_action.triggered.connect(self.show_about)
+
+        shortcuts_action = about_menu.addAction(self.tr("Keyboard Shortcuts"))
+        shortcuts_action.setShortcut("F11")
+        shortcuts_action.triggered.connect(self.show_shortcuts)
 
         # Job Queue Menu
         self.queue_window = JobQueueWindow(self)
@@ -1133,6 +1140,11 @@ class PostarGUI(QMainWindow):
                     }
                     QMenuBar::item:selected {
                         background-color: #dcdcdc;
+                        color: #000000;
+                    }
+                    QMenu::item:selected {
+                        background-color: #dcdcdc;
+                        color: #000000;
                     }
                 """)
 
@@ -1210,7 +1222,7 @@ class PostarGUI(QMainWindow):
         self.cmd_toggle_btn = QPushButton(self.tr("Hide"))
         self.cmd_toggle_btn.setMaximumWidth(60)
         self.cmd_toggle_btn.clicked.connect(
-            lambda: self.toggle_widget(self.cmd_preview, self.cmd_toggle_btn)
+            lambda: self.toggle_widget(self.cmd_preview, self.cmd_toggle_btn, "cmd_preview")
         )
         cmd_header.addWidget(cmd_label)
         cmd_header.addStretch()
@@ -1228,7 +1240,7 @@ class PostarGUI(QMainWindow):
         self.output_toggle_btn = QPushButton(self.tr("Hide"))
         self.output_toggle_btn.setMaximumWidth(60)
         self.output_toggle_btn.clicked.connect(
-            lambda: self.toggle_widget(self.process_output, self.output_toggle_btn)
+            lambda: self.toggle_widget(self.process_output, self.output_toggle_btn, "process_output")
         )
         output_header.addWidget(output_label)
         output_header.addStretch()
@@ -1247,7 +1259,7 @@ class PostarGUI(QMainWindow):
         self.html_toggle_btn = QPushButton(self.tr("Hide"))
         self.html_toggle_btn.setMaximumWidth(60)
         self.html_toggle_btn.clicked.connect(
-            lambda: self.toggle_widget(self.html_preview, self.html_toggle_btn)
+            lambda: self.toggle_widget(self.html_preview, self.html_toggle_btn, "html_preview")
         )
         self.html_edit_btn = QPushButton(self.tr("Edit"))
         self.html_edit_btn.setMaximumWidth(60)
@@ -1283,7 +1295,6 @@ class PostarGUI(QMainWindow):
         self.layout.addLayout(btn_row)
 
         # Store the UI states
-        self.ui_state = load_ui_state()
         self.apply_ui_state()
 
         # Populate queue list if jobs were loaded
@@ -1321,6 +1332,48 @@ class PostarGUI(QMainWindow):
         self.queue_window.show()
         self.queue_window.raise_()
         self.queue_window.activateWindow()
+
+    # Keyboard shortcuts Menu
+    def show_shortcuts(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Postar Keyboard Shortcuts"))
+        dialog.resize(520, 420)
+
+        layout = QVBoxLayout(dialog)
+
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setStyleSheet("font-size: 13px;")
+
+        shortcuts_text = """
+        <h3>General</h3>
+        <table cellspacing="6">
+            <tr><td><b>F1</b></td><td>About</td></tr>
+            <tr><td><b>F2</b></td><td>Open Job Queue</td></tr>
+            <tr><td><b>F3</b></td><td>Clear Entire Queue</td></tr>
+            <tr><td><b>F4</b></td><td>Set Background</td></tr>
+            <tr><td><b>F5</b></td><td>Clear Background</td></tr>
+            <tr><td><b>F6</b></td><td>Live Preview</td></tr>
+            <tr><td><b>F11</b></td><td>Show Keyboard Shortcuts</td></tr>
+            <tr><td><b>F12</b></td><td>Check for Updates</td></tr>
+        </table>
+
+        <h3>Language</h3>
+        <table cellspacing="6">
+            <tr><td><b>Ctrl + 1</b></td><td>English</td></tr>
+            <tr><td><b>Ctrl + 2</b></td><td>日本語</td></tr>
+        </table>
+        """
+
+        text.setHtml(shortcuts_text)
+
+        layout.addWidget(text)
+
+        close_btn = QPushButton(self.tr("Close"))
+        close_btn.clicked.connect(dialog.close)
+        layout.addWidget(close_btn)
+
+        dialog.exec()
 
     # Update/Version Check
     def fetch_release_metadata(self):
@@ -1890,10 +1943,11 @@ class PostarGUI(QMainWindow):
         self.setStyleSheet(style)
 
     def toggle_widget(self, widget, button, state_key=None):
-        """Toggle visibility of a widget and update the corresponding button and UI state."""
         visible = not widget.isVisible()
         widget.setVisible(visible)
+
         button.setText(self.tr("Hide") if visible else self.tr("Show"))
+
         if state_key:
             self.ui_state[state_key] = visible
             save_ui_state(self.ui_state)
@@ -1906,9 +1960,15 @@ class PostarGUI(QMainWindow):
         save_ui_state(self.ui_state)
 
     def apply_ui_state(self):
-        self.set_preview_state(self.cmd_preview, self.cmd_toggle_btn, self.ui_state["cmd_preview"])
-        self.set_preview_state(self.process_output, self.output_toggle_btn, self.ui_state["process_output"])
-        self.set_preview_state(self.html_preview, self.html_toggle_btn, self.ui_state["html_preview"])
+        for key, widget, button in [
+            ("cmd_preview", self.cmd_preview, self.cmd_toggle_btn),
+            ("process_output", self.process_output, self.output_toggle_btn),
+            ("html_preview", self.html_preview, self.html_toggle_btn),
+            ("options_visible", self.options_container, self.options_toggle_btn),
+        ]:
+            visible = self.ui_state.get(key, True)
+            widget.setVisible(visible)
+            button.setText(self.tr("Hide") if visible else self.tr("Show"))
         
     def set_preview_state(self, widget, button, visible):
         widget.setVisible(visible)
