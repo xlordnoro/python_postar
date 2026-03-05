@@ -189,9 +189,9 @@ def app_dir():
 # ---------------------------
 def get_cli_command(args_list):
     """
-    Correct execution model for:
-      - Linux AppImage
+    Returns the proper command to execute the CLI, handling:
       - Windows frozen exe
+      - Linux AppImage
       - macOS frozen app
       - Normal Python execution
     """
