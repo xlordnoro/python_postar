@@ -27,7 +27,7 @@ Once Python is fully installed, run the following command in cmd, PowerShell, or
 
 NOTE: You can also run pip install -r requirements.txt if you're running the commands in the same location as the folder containing python postar.
 
-**pip install requests pymediainfo PyQt6 PyQt6-WebEngine**
+**pip install requests pymediainfo PyQt6 PyQt6-WebEngine packaging**
 
 If you happen to get a message about updating pip after installing the needed dependencies, please feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
 
