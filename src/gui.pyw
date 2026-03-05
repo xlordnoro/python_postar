@@ -1345,25 +1345,25 @@ class PostarGUI(QMainWindow):
         text.setReadOnly(True)
         text.setStyleSheet("font-size: 13px;")
 
-        shortcuts_text = """
-        <h3>General</h3>
-        <table cellspacing="6">
-            <tr><td><b>F1</b></td><td>About</td></tr>
-            <tr><td><b>F2</b></td><td>Open Job Queue</td></tr>
-            <tr><td><b>F3</b></td><td>Clear Entire Queue</td></tr>
-            <tr><td><b>F4</b></td><td>Set Background</td></tr>
-            <tr><td><b>F5</b></td><td>Clear Background</td></tr>
-            <tr><td><b>F6</b></td><td>Live Preview</td></tr>
-            <tr><td><b>F11</b></td><td>Show Keyboard Shortcuts</td></tr>
-            <tr><td><b>F12</b></td><td>Check for Updates</td></tr>
-        </table>
+        shortcuts_text = (
+            "<h3>" + self.tr("General") + "</h3>"
+            "<table cellspacing='6'>"
+            "<tr><td><b>F1</b></td><td>" + self.tr("About") + "</td></tr>"
+            "<tr><td><b>F2</b></td><td>" + self.tr("Open Job Queue") + "</td></tr>"
+            "<tr><td><b>F3</b></td><td>" + self.tr("Clear Entire Queue") + "</td></tr>"
+            "<tr><td><b>F4</b></td><td>" + self.tr("Set Background") + "</td></tr>"
+            "<tr><td><b>F5</b></td><td>" + self.tr("Clear Background") + "</td></tr>"
+            "<tr><td><b>F6</b></td><td>" + self.tr("Live Preview") + "</td></tr>"
+            "<tr><td><b>F11</b></td><td>" + self.tr("Show Keyboard Shortcuts") + "</td></tr>"
+            "<tr><td><b>F12</b></td><td>" + self.tr("Check for Updates") + "</td></tr>"
+            "</table>"
 
-        <h3>Language</h3>
-        <table cellspacing="6">
-            <tr><td><b>Ctrl + 1</b></td><td>English</td></tr>
-            <tr><td><b>Ctrl + 2</b></td><td>日本語</td></tr>
-        </table>
-        """
+            "<h3>" + self.tr("Language") + "</h3>"
+            "<table cellspacing='6'>"
+            "<tr><td><b>Ctrl + 1</b></td><td>" + self.tr("English") + "</td></tr>"
+            "<tr><td><b>Ctrl + 2</b></td><td>" + self.tr("日本語") + "</td></tr>"
+            "</table>"
+        )
 
         text.setHtml(shortcuts_text)
 
