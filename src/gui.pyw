@@ -189,52 +189,38 @@ def app_dir():
 # ---------------------------
 def get_cli_command(args_list):
     """
-    Returns the proper command to execute the CLI, handling:
-      - Windows frozen exe
+    Correct execution model for:
       - Linux AppImage
+      - Windows frozen exe
       - macOS frozen app
       - Normal Python execution
     """
-    folder = app_dir()  # your read-only app folder
-    exe_path = folder / "python_postar.exe"
-    py_path = folder / "python_postar.py"
     system = platform.system()
 
     # -------------------------------
     # Linux AppImage
     # -------------------------------
     if system == "Linux" and "APPIMAGE" in os.environ:
-        # Use python_postar.py if exists, else fallback to APPIMAGE itself
-        if py_path.exists():
-            return ["python3", str(py_path)] + args_list
         return [os.environ["APPIMAGE"]] + args_list
 
     # -------------------------------
-    # Windows frozen exe
+    # Windows frozen EXE
     # -------------------------------
-    if system == "Windows":
-        if exe_path.exists():
-            return [str(exe_path)] + args_list
-        elif py_path.exists():
-            # Frozen GUI: call Python explicitly
-            return ["python", str(py_path)] + args_list
-        else:
-            raise FileNotFoundError("Neither python_postar.exe nor python_postar.py found")
+    if system == "Windows" and getattr(sys, "frozen", False):
+        return [sys.executable] + args_list
 
     # -------------------------------
     # macOS frozen app
     # -------------------------------
-    if system == "Darwin":
-        if py_path.exists():
-            return ["python3", str(py_path)] + args_list
-        elif getattr(sys, "frozen", False):
-            return [sys.executable] + args_list
-        else:
-            return [sys.executable, str(py_path)] + args_list
+    if system == "Darwin" and getattr(sys, "frozen", False):
+        return [sys.executable] + args_list
 
     # -------------------------------
-    # Normal Python execution (Linux / others)
+    # Normal python execution
     # -------------------------------
+    base = Path(__file__).resolve().parent
+    py_path = base / "python_postar.py"
+
     if py_path.exists():
         return [sys.executable, str(py_path)] + args_list
 
