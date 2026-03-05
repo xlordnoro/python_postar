@@ -737,7 +737,7 @@ class LivePreviewWindow(QDialog):
 
         # Base URL for images / local files
         self.base_url = QUrl.fromLocalFile(
-            str(Path(__file__).parent.resolve()) + "/"
+            str((Path(__file__).parent / "output").resolve()) + "/"
         )
 
         self.webview.setHtml(BASE_SANDBOX_HTML, self.base_url)
@@ -1752,12 +1752,18 @@ class PostarGUI(QMainWindow):
         self.worker.start()
 
     def on_finished(self):
-        if self.current_output_file.exists():
-            html = self.current_output_file.read_text(encoding="utf-8")
+        # Ensure we look in the "output" subfolder
+        output_file = Path.cwd() / "output" / self.current_output_file.name
+
+        if output_file.exists():
+            html = output_file.read_text(encoding="utf-8")
             self.html_preview.setPlainText(html)
 
             if self.live_preview.isVisible():
                 self.live_preview.set_html(html)
+        else:
+            print(f"Warning: output file not found: {output_file}")
+
         self.cleanup_worker()
 
     def on_error(self, err):
