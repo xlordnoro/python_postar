@@ -952,31 +952,32 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
-            "Nekopara v0.49": "themes/nekopara.jpg",
-            "Sora v0.48": "themes/sora.jpg",
-            "Erina v0.47": "themes/erina.jpg",
-            "Megumin v0.45": "themes/megumin.jpg",
-            "Emilia v0.44": "themes/emilia.jpg",
-            "Mahiru v0.43.3": "themes/mahiru.jpg",
-            "Albedo v0.43.1": "themes/albedo.jpg",
-            "Shalltear v0.43": "themes/shalltear.jpg",
-            "Yuki v0.42": "themes/yuki.jpg",
-            "Darkness v0.41.2": "themes/darkness.jpg",
-            "Sylpha v0.40.1": "themes/sylpha.jpg",
-            "Lupin v0.39.1": "themes/lupin.jpg",
+            self.tr("Nekopara v0.49"): "themes/nekopara.jpg",
+            self.tr("Sora v0.48"): "themes/sora.jpg",
+            self.tr("Erina v0.47"): "themes/erina.jpg",
+            self.tr("Megumin v0.45"): "themes/megumin.jpg",
+            self.tr("Emilia v0.44"): "themes/emilia.jpg",
+            self.tr("Mahiru v0.43.3"): "themes/mahiru.jpg",
+            self.tr("Albedo v0.43.1"): "themes/albedo.jpg",
+            self.tr("Shalltear v0.43"): "themes/shalltear.jpg",
+            self.tr("Yuki v0.42"): "themes/yuki.jpg",
+            self.tr("Darkness v0.41.2"): "themes/darkness.jpg",
+            self.tr("Sylpha v0.40.1"): "themes/sylpha.jpg",
+            self.tr("Lupin v0.39.1"): "themes/lupin.jpg",
         }
 
         # Create the Themes menu
-        themes_menu = view_menu.addMenu("Themes")
+        themes_menu = view_menu.addMenu(self.tr("Themes"))
+
+        DEBUG = False
 
         for name, rel_path in themes.items():
-            full_path = DATA_DIR / rel_path  # use DATA_DIR here
+            full_path = DATA_DIR / rel_path
             if full_path.exists():
                 action = themes_menu.addAction(name)
-                # Pass the relative path to the handler so settings store relative paths
                 action.triggered.connect(partial(self.set_theme_background, rel_path))
             else:
-                print("Theme missing:", full_path)
+                DEBUG and print("Theme missing:", full_path)
 
         # Live Preview
         preview_action = menubar.addAction(self.tr("Live Preview"))
