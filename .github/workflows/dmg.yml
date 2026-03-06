@@ -39,6 +39,7 @@ jobs:
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
+            --add-data "../themes:themes" \
             gui.pyw
   
       # ---------------------------------------------------
@@ -145,6 +146,7 @@ jobs:
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
+            --add-data "../themes:themes" \
             gui.pyw
   
       # ---------------------------------------------------
