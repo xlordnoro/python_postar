@@ -7,6 +7,7 @@ import time
 import subprocess
 import threading
 from packaging import version
+from functools import partial
 from pathlib import Path
 from datetime import datetime
 from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette
@@ -946,6 +947,37 @@ class PostarGUI(QMainWindow):
         clear_bg_action.setShortcut("F5")
         clear_bg_action.triggered.connect(self.clear_background_image)
 
+        # Themes submenu
+        themes_dir = DATA_DIR / "themes"
+
+        # Define your themes as relative paths
+        themes = {
+            "Nekopara v0.49": "themes/nekopara.jpg",
+            "Sora v0.48": "themes/sora.jpg",
+            "Erina v0.47": "themes/erina.jpg",
+            "Megumin v0.45": "themes/megumin.jpg",
+            "Emilia v0.44": "themes/emilia.jpg",
+            "Mahiru v0.43.3": "themes/mahiru.jpg",
+            "Albedo v0.43.1": "themes/albedo.jpg",
+            "Shalltear v0.43": "themes/shalltear.jpg",
+            "Yuki v0.42": "themes/yuki.jpg",
+            "Darkness v0.41.2": "themes/darkness.jpg",
+            "Sylpha v0.40.1": "themes/sylpha.jpg",
+            "Lupin v0.39.1": "themes/lupin.jpg",
+        }
+
+        # Create the Themes menu
+        themes_menu = view_menu.addMenu("Themes")
+
+        for name, rel_path in themes.items():
+            full_path = DATA_DIR / rel_path  # use DATA_DIR here
+            if full_path.exists():
+                action = themes_menu.addAction(name)
+                # Pass the relative path to the handler so settings store relative paths
+                action.triggered.connect(partial(self.set_theme_background, rel_path))
+            else:
+                print("Theme missing:", full_path)
+
         # Live Preview
         preview_action = menubar.addAction(self.tr("Live Preview"))
         preview_action.setShortcut("F6")
@@ -1876,6 +1908,18 @@ class PostarGUI(QMainWindow):
         settings["BACKGROUND_IMAGE"] = ""
         save_postar_settings(settings)
         self.apply_background_image("")
+
+    def set_theme_background(self, rel_path):
+        # Use DATA_DIR as the base for themes
+        image_path = DATA_DIR / rel_path
+
+        # Save relative path in settings so it works across launches
+        settings = load_postar_settings()
+        settings["BACKGROUND_IMAGE"] = rel_path
+        save_postar_settings(settings)
+
+        # Apply the image
+        self.apply_background_image(str(image_path))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
