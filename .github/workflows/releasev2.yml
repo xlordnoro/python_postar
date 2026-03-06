@@ -52,6 +52,7 @@ jobs:
           Copy-Item -Recurse css\* python_postar_windows\css\
           Copy-Item -Recurse translations\* python_postar_windows\translations\
           Copy-Item -Recurse qt_translations\* python_postar_windows\qt_translations\
+          Copy-Item -Recurse themes\* python_postar_windows\themes\
           Copy-Item icon.ico python_postar_windows\
           Copy-Item requirements.txt python_postar_windows\
           Copy-Item -Recurse guides python_postar_windows\
@@ -110,6 +111,7 @@ jobs:
           cp -r css python_postar_macos/
           cp -r translations python_postar_macos/
           cp -r qt_translations python_postar_macos/
+          cp -r themes python_postar_macos/
           cp icon_linux.png python_postar_macos/
           cp requirements.txt python_postar_macos/
           cp -r guides python_postar_macos/
