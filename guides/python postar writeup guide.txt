@@ -7,7 +7,7 @@ Any version of python in theory will work with this script, even older ones. How
 # Getting thisssss sssssslithery sssssnake installed on our sssssssystem
 
 All the windows builds for python can found here: https://www.python.org/downloads/windows/
-Make sure to select the stable 64-bit version of 3.13.9.
+Make sure to select the latest stable 64-bit version of python.
 It's never a good idea to run the beta builds unless you're a developer since most of the dependencies for python haven't been rebuilt for beta builds due to the constant changes in the codebase.
 When installing python, MAKE SURE YOU CHECK THE BOX THAT SAYS ADD PYTHON TO SYSTEM PATH. It's in the bottom left corner of the installer.
 That will allow you to call python and pip anywhere on your system without having to specify the path to python or pip which is needed for the script to work effortlessly.
@@ -22,7 +22,7 @@ The script uses mostly default dependencies but requests is needed to retrieve m
 
 # Installing requests and optionally upgrading pip
 
-Type pip install requests pymediainfo PyQt6 PyQt6-WebEngine
+Type pip install requests pymediainfo PyQt6 PyQt6-WebEngine packaging
 It will take a moment to look up requests from their database and prompt you to install requests.
 Type y and press enter to install requests.
 It's a really small dependency so it shouldn't take very long to install.
@@ -64,7 +64,7 @@ e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 -v shows the version of the script. Older versions had it marked in the file itself.
 -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
 -configure allows users to re-configure their settings if a mistake is made. They can also edit the settings file directly.
-e.g. test_v51.txt since it took me that many revisions to get to this point after wrestling the AI to the ground and pinning it for the victory rofl OOOH! I AM THE MACHO MAN!
+e.g. test_v59.txt since it took me that many revisions to get to this point after wrestling the AI to the ground and pinning it for the victory rofl OOOH! I AM THE MACHO MAN!
 -kage adds a discord widget and modifies how the donation images are placed at the bottom of posts. Along with removing the green buttons hiding the episodes table.
 -u manually forces an update check.
 -du completely disables the auto-updater if you prefer to stay on a specific version.
