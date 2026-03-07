@@ -6,6 +6,7 @@ import platform
 import time
 import subprocess
 import threading
+import shutil
 from packaging import version
 from functools import partial
 from pathlib import Path
@@ -241,11 +242,66 @@ def get_cli_command(args_list):
 
     raise FileNotFoundError("Could not locate python_postar script or executable")
 
+# Settings Migrator for versions lower than v0.49
+def migrate_old_settings_gui():
+    SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    files_to_migrate = {
+        ".postar_settings.json": SETTINGS_DIR / ".postar_settings.json",
+        "processed.json": SETTINGS_DIR / "processed.json",
+        ".postar_update_check": SETTINGS_DIR / ".postar_update_check",
+        "postar_job_queue.json": SETTINGS_DIR / "postar_job_queue.json",
+        "postar_last_profile.json": SETTINGS_DIR / "postar_last_profile.json",
+        "postar_profiles.json": SETTINGS_DIR / "postar_profiles.json",
+        "postar_ui_state.json": SETTINGS_DIR / "postar_ui_state.json",
+    }
+
+    existing = []
+
+    for name, new_path in files_to_migrate.items():
+        old_path = DATA_DIR / name
+        if old_path.exists() and not new_path.exists():
+            existing.append((old_path, new_path))
+
+    if not existing:
+        return
+
+    # Build file list string
+    file_list = "\n".join(f"• {old.name}" for old, _ in existing)
+
+    msg = QMessageBox()
+    msg.setWindowTitle(QCoreApplication.translate("PostarGUI", "Postar Settings Migration"))
+    msg.setWindowIcon(QIcon("icon.ico"))
+    msg.setText(QCoreApplication.translate("PostarGUI", "Legacy Postar configuration files were detected."))
+    msg.setInformativeText(QCoreApplication.translate("PostarGUI", "Move them into the new 'settings' folder?"))
+    msg.setDetailedText(file_list)  # file_list can remain as-is
+    msg.setStandardButtons(
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+    )
+    msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+
+    if msg.exec() != QMessageBox.StandardButton.Yes:
+        return
+
+    for old, new in existing:
+        try:
+            new.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old), str(new))
+        except Exception as e:
+            print(f"[Migration] Failed to move {old.name}: {e}")
+
+    done = QMessageBox()
+    done.setWindowTitle(QCoreApplication.translate("PostarGUI", "Migration Complete"))
+    done.setWindowIcon(QIcon("icon.ico"))
+    done.setText(QCoreApplication.translate(
+        "PostarGUI", "Postar settings were successfully migrated to the settings folder."
+    ))
+    done.exec()
+
 # ---------------------------
 # File constants
 # ---------------------------
 SETTINGS_DIR = DATA_DIR / "settings"
-SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
 
 PROFILE_FILE  = SETTINGS_DIR / "postar_profiles.json"
 SETTINGS_FILE = SETTINGS_DIR / "postar_last_profile.json"
@@ -256,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.49.0"
-RELEASE_NAME = "Vanilla"
+VERSION = "0.49.1"
+RELEASE_NAME = "Azuki & Coconut"
 
 # ----------------------
 # GitHub release metadata
@@ -952,6 +1008,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Azuki v0.49.1"): "themes/azuki.jpg",
             self.tr("Nekopara v0.49"): "themes/nekopara.jpg",
             self.tr("Sora v0.48"): "themes/sora.jpg",
             self.tr("Erina v0.47"): "themes/erina.jpg",
@@ -2242,13 +2299,24 @@ class PostarGUI(QMainWindow):
 # ---------------------------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
     translator = load_language(app)
+
+    # Run GUI migration and capture if any files were moved
+    migrated = migrate_old_settings_gui()
+
+    # Load settings; reload if migration occurred
     postar_settings = load_postar_settings()
+    if migrated:
+        postar_settings = load_postar_settings()
+
+    # Only prompt setup if settings are still incomplete
     if not postar_settings_complete(postar_settings):
         dlg = PostarSettingsDialog(postar_settings)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             sys.exit(0)
         save_postar_settings(postar_settings)
+
     win = PostarGUI()
     win.show()
     sys.exit(app.exec())

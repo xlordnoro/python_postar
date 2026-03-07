@@ -2,9 +2,9 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="nb_NO">
 <context>
-    <name>PostarGUI</name>
+    <name></name>
     <message>
-        <location filename="../gui_test_v50.py" line="1757"/>
+        <location filename="../gui_test_v52.py" line="1814"/>
         <source>Language</source>
         <translation type="unfinished"></translation>
     </message>
@@ -12,32 +12,32 @@
 <context>
     <name>AboutDialog</name>
     <message>
-        <location filename="../gui_test_v50.py" line="368"/>
+        <location filename="../gui_test_v52.py" line="424"/>
         <source>About {app}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="379"/>
+        <location filename="../gui_test_v52.py" line="435"/>
         <source>Version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="380"/>
+        <location filename="../gui_test_v52.py" line="436"/>
         <source>Release</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="381"/>
+        <location filename="../gui_test_v52.py" line="437"/>
         <source>Author</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="382"/>
+        <location filename="../gui_test_v52.py" line="438"/>
         <source>Website</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="397"/>
+        <location filename="../gui_test_v52.py" line="453"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
@@ -45,12 +45,12 @@
 <context>
     <name>HtmlWorker</name>
     <message>
-        <location filename="../gui_test_v50.py" line="572"/>
+        <location filename="../gui_test_v52.py" line="628"/>
         <source>Process exited with code {code}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="580"/>
+        <location filename="../gui_test_v52.py" line="636"/>
         <source>Error: {message}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -58,22 +58,22 @@
 <context>
     <name>JobQueueWindow</name>
     <message>
-        <location filename="../gui_test_v50.py" line="645"/>
+        <location filename="../gui_test_v52.py" line="701"/>
         <source>Job Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="655"/>
+        <location filename="../gui_test_v52.py" line="711"/>
         <source>Elapsed Time: {time}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="661"/>
+        <location filename="../gui_test_v52.py" line="717"/>
         <source>Remove Selected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="665"/>
+        <location filename="../gui_test_v52.py" line="721"/>
         <source>Run Queue</source>
         <translation type="unfinished"></translation>
     </message>
@@ -81,23 +81,23 @@
 <context>
     <name>LivePreviewWindow</name>
     <message>
-        <location filename="../gui_test_v50.py" line="706"/>
-        <location filename="../gui_test_v50.py" line="720"/>
+        <location filename="../gui_test_v52.py" line="762"/>
+        <location filename="../gui_test_v52.py" line="776"/>
         <source>Live HTML Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="714"/>
+        <location filename="../gui_test_v52.py" line="770"/>
         <source>Reload Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="717"/>
+        <location filename="../gui_test_v52.py" line="773"/>
         <source>Dark Mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="762"/>
+        <location filename="../gui_test_v52.py" line="818"/>
         <source>Warning: No local CSS files found!</source>
         <translation type="unfinished"></translation>
     </message>
@@ -105,17 +105,17 @@
 <context>
     <name>MalSearchByIdWorker</name>
     <message>
-        <location filename="../gui_test_v50.py" line="512"/>
+        <location filename="../gui_test_v52.py" line="568"/>
         <source>HTTP {code} error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="517"/>
+        <location filename="../gui_test_v52.py" line="573"/>
         <source>No data found for that MAL ID</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="530"/>
+        <location filename="../gui_test_v52.py" line="586"/>
         <source>Request failed: {error}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -123,12 +123,12 @@
 <context>
     <name>MalSearchWorker</name>
     <message>
-        <location filename="../gui_test_v50.py" line="475"/>
+        <location filename="../gui_test_v52.py" line="531"/>
         <source>HTTP {code} error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="496"/>
+        <location filename="../gui_test_v52.py" line="552"/>
         <source>Request failed: {error}</source>
         <translation type="unfinished"></translation>
     </message>
@@ -136,555 +136,585 @@
 <context>
     <name>PostarGUI</name>
     <message>
-        <location filename="../gui_test_v50.py" line="916"/>
-        <location filename="../gui_test_v50.py" line="1398"/>
-        <source>About</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../gui_test_v50.py" line="990"/>
-        <location filename="../gui_test_v50.py" line="1408"/>
+        <location filename="../gui_test_v52.py" line="1047"/>
+        <location filename="../gui_test_v52.py" line="1465"/>
         <source>Language</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="117"/>
+        <location filename="../gui_test_v52.py" line="972"/>
+        <location filename="../gui_test_v52.py" line="1455"/>
+        <source>About</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="118"/>
         <source>Close Required</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="119"/>
+        <location filename="../gui_test_v52.py" line="120"/>
         <source>The program must be closed for the language change to take effect.
 
 Close now?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="918"/>
+        <location filename="../gui_test_v52.py" line="273"/>
+        <source>Postar Settings Migration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="275"/>
+        <source>Legacy Postar configuration files were detected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="276"/>
+        <source>Move them into the new &apos;settings&apos; folder?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="294"/>
+        <source>Migration Complete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="296"/>
+        <source>Postar settings were successfully migrated to the settings folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="974"/>
         <source>About Postar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="922"/>
+        <location filename="../gui_test_v52.py" line="978"/>
         <source>Keyboard Shortcuts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="930"/>
+        <location filename="../gui_test_v52.py" line="986"/>
         <source>Job Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="932"/>
+        <location filename="../gui_test_v52.py" line="988"/>
         <source>Jobs</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="936"/>
-        <location filename="../gui_test_v50.py" line="1400"/>
+        <location filename="../gui_test_v52.py" line="992"/>
+        <location filename="../gui_test_v52.py" line="1457"/>
         <source>Clear Entire Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="940"/>
+        <location filename="../gui_test_v52.py" line="996"/>
         <source>Custom Background</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="942"/>
-        <location filename="../gui_test_v50.py" line="1401"/>
+        <location filename="../gui_test_v52.py" line="998"/>
+        <location filename="../gui_test_v52.py" line="1458"/>
         <source>Set Background</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="946"/>
-        <location filename="../gui_test_v50.py" line="1402"/>
+        <location filename="../gui_test_v52.py" line="1002"/>
+        <location filename="../gui_test_v52.py" line="1459"/>
         <source>Clear Background</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="955"/>
-        <source>Nekopara v0.49</source>
+        <location filename="../gui_test_v52.py" line="1011"/>
+        <source>Azuki &amp; Coconut v0.49.1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="956"/>
+        <location filename="../gui_test_v52.py" line="1012"/>
+        <source>Chocola &amp; Vanilla v0.49</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../gui_test_v52.py" line="1013"/>
         <source>Sora v0.48</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="957"/>
+        <location filename="../gui_test_v52.py" line="1014"/>
         <source>Erina v0.47</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="958"/>
+        <location filename="../gui_test_v52.py" line="1015"/>
         <source>Megumin v0.45</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="959"/>
+        <location filename="../gui_test_v52.py" line="1016"/>
         <source>Emilia v0.44</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="960"/>
+        <location filename="../gui_test_v52.py" line="1017"/>
         <source>Mahiru v0.43.3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="961"/>
+        <location filename="../gui_test_v52.py" line="1018"/>
         <source>Albedo v0.43.1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="962"/>
+        <location filename="../gui_test_v52.py" line="1019"/>
         <source>Shalltear v0.43</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="963"/>
+        <location filename="../gui_test_v52.py" line="1020"/>
         <source>Yuki v0.42</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="964"/>
+        <location filename="../gui_test_v52.py" line="1021"/>
         <source>Darkness v0.41.2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="965"/>
+        <location filename="../gui_test_v52.py" line="1022"/>
         <source>Sylpha v0.40.1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="966"/>
+        <location filename="../gui_test_v52.py" line="1023"/>
         <source>Lupin v0.39.1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="970"/>
+        <location filename="../gui_test_v52.py" line="1027"/>
         <source>Themes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="983"/>
-        <location filename="../gui_test_v50.py" line="1403"/>
+        <location filename="../gui_test_v52.py" line="1040"/>
+        <location filename="../gui_test_v52.py" line="1460"/>
         <source>Live Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1021"/>
-        <location filename="../gui_test_v50.py" line="1405"/>
-        <location filename="../gui_test_v50.py" line="1666"/>
+        <location filename="../gui_test_v52.py" line="1078"/>
+        <location filename="../gui_test_v52.py" line="1462"/>
+        <location filename="../gui_test_v52.py" line="1723"/>
         <source>Check for Updates</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1032"/>
-        <location filename="../gui_test_v50.py" line="2181"/>
+        <location filename="../gui_test_v52.py" line="1089"/>
+        <location filename="../gui_test_v52.py" line="2238"/>
         <source>BD 1080p Folders</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1033"/>
-        <location filename="../gui_test_v50.py" line="2182"/>
+        <location filename="../gui_test_v52.py" line="1090"/>
+        <location filename="../gui_test_v52.py" line="2239"/>
         <source>BD 720p Folders</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1034"/>
-        <location filename="../gui_test_v50.py" line="2183"/>
+        <location filename="../gui_test_v52.py" line="1091"/>
+        <location filename="../gui_test_v52.py" line="2240"/>
         <source>Non-BD Folders</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1035"/>
-        <location filename="../gui_test_v50.py" line="2184"/>
+        <location filename="../gui_test_v52.py" line="1092"/>
+        <location filename="../gui_test_v52.py" line="2241"/>
         <source>MAL IDs</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1036"/>
-        <location filename="../gui_test_v50.py" line="2185"/>
+        <location filename="../gui_test_v52.py" line="1093"/>
+        <location filename="../gui_test_v52.py" line="2242"/>
         <source>Heading Colors</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1037"/>
-        <location filename="../gui_test_v50.py" line="2186"/>
+        <location filename="../gui_test_v52.py" line="1094"/>
+        <location filename="../gui_test_v52.py" line="2243"/>
         <source>Airing Images</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1038"/>
-        <location filename="../gui_test_v50.py" line="2187"/>
+        <location filename="../gui_test_v52.py" line="1095"/>
+        <location filename="../gui_test_v52.py" line="2244"/>
         <source>Donation Images</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1039"/>
-        <location filename="../gui_test_v50.py" line="2188"/>
+        <location filename="../gui_test_v52.py" line="1096"/>
+        <location filename="../gui_test_v52.py" line="2245"/>
         <source>BD Resolution Images</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1052"/>
+        <location filename="../gui_test_v52.py" line="1109"/>
         <source>Search For MAL ID</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1070"/>
+        <location filename="../gui_test_v52.py" line="1127"/>
         <source>Color Picker</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1095"/>
+        <location filename="../gui_test_v52.py" line="1152"/>
         <source>Enable BD toggle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1096"/>
+        <location filename="../gui_test_v52.py" line="1153"/>
         <source>Seasonal / Airing style</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1097"/>
+        <location filename="../gui_test_v52.py" line="1154"/>
         <source>Include CRC32 column</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1098"/>
+        <location filename="../gui_test_v52.py" line="1155"/>
         <source>Kage Layout</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1099"/>
+        <location filename="../gui_test_v52.py" line="1156"/>
         <source>Dark Mode</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1100"/>
+        <location filename="../gui_test_v52.py" line="1157"/>
         <source>Disable auto-update (-du)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1101"/>
+        <location filename="../gui_test_v52.py" line="1158"/>
         <source>Re-run setup (-configure)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1126"/>
+        <location filename="../gui_test_v52.py" line="1183"/>
         <source>Options</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1127"/>
-        <location filename="../gui_test_v50.py" line="1143"/>
-        <location filename="../gui_test_v50.py" line="1269"/>
-        <location filename="../gui_test_v50.py" line="1287"/>
-        <location filename="../gui_test_v50.py" line="1306"/>
-        <location filename="../gui_test_v50.py" line="2014"/>
-        <location filename="../gui_test_v50.py" line="2036"/>
-        <location filename="../gui_test_v50.py" line="2040"/>
+        <location filename="../gui_test_v52.py" line="1184"/>
+        <location filename="../gui_test_v52.py" line="1200"/>
+        <location filename="../gui_test_v52.py" line="1326"/>
+        <location filename="../gui_test_v52.py" line="1344"/>
+        <location filename="../gui_test_v52.py" line="1363"/>
+        <location filename="../gui_test_v52.py" line="2071"/>
+        <location filename="../gui_test_v52.py" line="2093"/>
+        <location filename="../gui_test_v52.py" line="2097"/>
         <source>Hide</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1143"/>
-        <location filename="../gui_test_v50.py" line="2014"/>
-        <location filename="../gui_test_v50.py" line="2036"/>
-        <location filename="../gui_test_v50.py" line="2040"/>
+        <location filename="../gui_test_v52.py" line="1200"/>
+        <location filename="../gui_test_v52.py" line="2071"/>
+        <location filename="../gui_test_v52.py" line="2093"/>
+        <location filename="../gui_test_v52.py" line="2097"/>
         <source>Show</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1211"/>
+        <location filename="../gui_test_v52.py" line="1268"/>
         <source>Output HTML File</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1212"/>
+        <location filename="../gui_test_v52.py" line="1269"/>
         <source>output.txt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1230"/>
+        <location filename="../gui_test_v52.py" line="1287"/>
         <source>Profile</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1234"/>
+        <location filename="../gui_test_v52.py" line="1291"/>
         <source>Profile name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1246"/>
+        <location filename="../gui_test_v52.py" line="1303"/>
         <source>Save</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1251"/>
+        <location filename="../gui_test_v52.py" line="1308"/>
         <source>Load</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1256"/>
+        <location filename="../gui_test_v52.py" line="1313"/>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1268"/>
+        <location filename="../gui_test_v52.py" line="1325"/>
         <source>Command Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1286"/>
+        <location filename="../gui_test_v52.py" line="1343"/>
         <source>Process Output</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1305"/>
+        <location filename="../gui_test_v52.py" line="1362"/>
         <source>HTML Preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1311"/>
-        <location filename="../gui_test_v50.py" line="1464"/>
+        <location filename="../gui_test_v52.py" line="1368"/>
+        <location filename="../gui_test_v52.py" line="1521"/>
         <source>Edit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1333"/>
+        <location filename="../gui_test_v52.py" line="1390"/>
         <source>Add To Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1335"/>
+        <location filename="../gui_test_v52.py" line="1392"/>
         <source>Run Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1337"/>
+        <location filename="../gui_test_v52.py" line="1394"/>
         <source>Generate HTML (Single)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1367"/>
+        <location filename="../gui_test_v52.py" line="1424"/>
         <source>Clear Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1368"/>
+        <location filename="../gui_test_v52.py" line="1425"/>
         <source>Are you sure you want to remove all jobs from the queue?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1375"/>
+        <location filename="../gui_test_v52.py" line="1432"/>
         <source>Job queue cleared</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1386"/>
+        <location filename="../gui_test_v52.py" line="1443"/>
         <source>Postar Keyboard Shortcuts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1396"/>
+        <location filename="../gui_test_v52.py" line="1453"/>
         <source>General</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1399"/>
+        <location filename="../gui_test_v52.py" line="1456"/>
         <source>Open Job Queue</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1404"/>
+        <location filename="../gui_test_v52.py" line="1461"/>
         <source>Show Keyboard Shortcuts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1410"/>
+        <location filename="../gui_test_v52.py" line="1467"/>
         <source>English</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1411"/>
+        <location filename="../gui_test_v52.py" line="1468"/>
         <source>日本語</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1419"/>
+        <location filename="../gui_test_v52.py" line="1476"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1459"/>
+        <location filename="../gui_test_v52.py" line="1516"/>
         <source>Lock</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1461"/>
+        <location filename="../gui_test_v52.py" line="1518"/>
         <source>HTML edit mode enabled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1473"/>
+        <location filename="../gui_test_v52.py" line="1530"/>
         <source>HTML changes saved successfully at {time}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1481"/>
+        <location filename="../gui_test_v52.py" line="1538"/>
         <source>Save Error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1482"/>
+        <location filename="../gui_test_v52.py" line="1539"/>
         <source>Failed to write HTML file:
 {error}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1536"/>
+        <location filename="../gui_test_v52.py" line="1593"/>
         <source>Added job to queue — {total} total</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1541"/>
+        <location filename="../gui_test_v52.py" line="1598"/>
         <source>Queue Empty</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1541"/>
+        <location filename="../gui_test_v52.py" line="1598"/>
         <source>No jobs in queue.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1550"/>
-        <location filename="../gui_test_v50.py" line="1625"/>
+        <location filename="../gui_test_v52.py" line="1607"/>
+        <location filename="../gui_test_v52.py" line="1682"/>
         <source>Queue completed successfully</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1575"/>
+        <location filename="../gui_test_v52.py" line="1632"/>
         <source>
 --- Running job ({current}/{total}) ---
 </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1609"/>
-        <location filename="../gui_test_v50.py" line="1642"/>
-        <location filename="../gui_test_v50.py" line="1803"/>
+        <location filename="../gui_test_v52.py" line="1666"/>
+        <location filename="../gui_test_v52.py" line="1699"/>
+        <location filename="../gui_test_v52.py" line="1860"/>
         <source>ERROR: {err}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1639"/>
+        <location filename="../gui_test_v52.py" line="1696"/>
         <source>Selected job(s) removed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1654"/>
+        <location filename="../gui_test_v52.py" line="1711"/>
         <source>Elapsed Time: {h:02}:{m:02}:{s:02}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1667"/>
+        <location filename="../gui_test_v52.py" line="1724"/>
         <source>Check GitHub for updates now?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1673"/>
+        <location filename="../gui_test_v52.py" line="1730"/>
         <source>Checking for updates...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1675"/>
+        <location filename="../gui_test_v52.py" line="1732"/>
         <source>[Update] Checking GitHub for latest release...
 </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1698"/>
+        <location filename="../gui_test_v52.py" line="1755"/>
         <source>Version Check</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1729"/>
+        <location filename="../gui_test_v52.py" line="1786"/>
         <source>Select Color</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1819"/>
+        <location filename="../gui_test_v52.py" line="1876"/>
         <source>Input Required</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1820"/>
+        <location filename="../gui_test_v52.py" line="1877"/>
         <source>Please enter a series name or MAL ID to search.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1825"/>
+        <location filename="../gui_test_v52.py" line="1882"/>
         <source>Searching...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1839"/>
-        <location filename="../gui_test_v50.py" line="1875"/>
+        <location filename="../gui_test_v52.py" line="1896"/>
+        <location filename="../gui_test_v52.py" line="1932"/>
         <source>Search MAL ID</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1844"/>
+        <location filename="../gui_test_v52.py" line="1901"/>
         <source>No Results</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1845"/>
+        <location filename="../gui_test_v52.py" line="1902"/>
         <source>No matching anime found on MAL.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1852"/>
+        <location filename="../gui_test_v52.py" line="1909"/>
         <source>Select Anime</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1853"/>
+        <location filename="../gui_test_v52.py" line="1910"/>
         <source>Select anime to use MAL ID:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1878"/>
+        <location filename="../gui_test_v52.py" line="1935"/>
         <source>Search Error</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1879"/>
+        <location filename="../gui_test_v52.py" line="1936"/>
         <source>Failed to search MAL:
 {err}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1896"/>
+        <location filename="../gui_test_v52.py" line="1953"/>
         <source>Select Background Image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="1898"/>
+        <location filename="../gui_test_v52.py" line="1955"/>
         <source>Images (*.png *.jpg *.jpeg)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="2072"/>
+        <location filename="../gui_test_v52.py" line="2129"/>
         <source>Settings Updated</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="2073"/>
+        <location filename="../gui_test_v52.py" line="2130"/>
         <source>Postar configuration updated successfully.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -692,42 +722,42 @@ Close now?</source>
 <context>
     <name>PostarSettingsDialog</name>
     <message>
-        <location filename="../gui_test_v50.py" line="590"/>
+        <location filename="../gui_test_v52.py" line="646"/>
         <source>Postar – First-Time Setup</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="601"/>
+        <location filename="../gui_test_v52.py" line="657"/>
         <source>Enable auto-update</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="605"/>
+        <location filename="../gui_test_v52.py" line="661"/>
         <source>Backblaze B2 Shows Base URL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="607"/>
+        <location filename="../gui_test_v52.py" line="663"/>
         <source>Backblaze B2 Torrents Base URL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="609"/>
+        <location filename="../gui_test_v52.py" line="665"/>
         <source>Encoder Name</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="614"/>
+        <location filename="../gui_test_v52.py" line="670"/>
         <source>Save</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="628"/>
+        <location filename="../gui_test_v52.py" line="684"/>
         <source>Missing values</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="629"/>
+        <location filename="../gui_test_v52.py" line="685"/>
         <source>All fields are required.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -735,37 +765,37 @@ Close now?</source>
 <context>
     <name>UpdateWorker</name>
     <message>
-        <location filename="../gui_test_v50.py" line="435"/>
+        <location filename="../gui_test_v52.py" line="491"/>
         <source>[Update] Local version: {VERSION}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="439"/>
+        <location filename="../gui_test_v52.py" line="495"/>
         <source>Could not fetch latest release</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="447"/>
+        <location filename="../gui_test_v52.py" line="503"/>
         <source>You are running the latest version</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="450"/>
+        <location filename="../gui_test_v52.py" line="506"/>
         <source>A new version is available!</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="451"/>
+        <location filename="../gui_test_v52.py" line="507"/>
         <source>Latest: {latest_tag} ({latest_title})</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="452"/>
+        <location filename="../gui_test_v52.py" line="508"/>
         <source>Download here:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../gui_test_v50.py" line="457"/>
+        <location filename="../gui_test_v52.py" line="513"/>
         <source>Error checking version: {e}</source>
         <translation type="unfinished"></translation>
     </message>

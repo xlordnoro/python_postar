@@ -64,6 +64,50 @@ def get_app_dir():
 
 APP_DIR = get_app_dir()
 
+# Settings migrator for versions lower than v0.49
+def migrate_old_settings():
+    """
+    Detect old settings/UI files in APP_DIR and offer to move them to SETTINGS_DIR.
+    """
+
+    files_to_migrate = {
+        ".postar_settings.json": SETTINGS_FILE,
+        "processed.json": SETTINGS_DIR / "processed.json",
+        ".postar_update_check": SETTINGS_DIR / ".postar_update_check",
+        "postar_job_queue.json": SETTINGS_DIR / "postar_job_queue.json",
+        "postar_last_profile.json": SETTINGS_DIR / "postar_last_profile.json",
+        "postar_profiles.json": SETTINGS_DIR / "postar_profiles.json",
+        "postar_ui_state.json": SETTINGS_DIR / "postar_ui_state.json",
+    }
+
+    existing = []
+
+    for name, new_path in files_to_migrate.items():
+        old_path = APP_DIR / name
+
+        if old_path.exists() and not new_path.exists():
+            existing.append((old_path, new_path))
+
+    if not existing:
+        return
+
+    print("\n[Migration] Legacy Postar files detected in the program directory.")
+
+    answer = input("Move them into the new 'settings' folder? [Y/n]: ").strip().lower()
+    if answer == "n":
+        print("[Migration] Skipped.\n")
+        return
+
+    for old, new in existing:
+        try:
+            new.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old), str(new))
+            print(f"[Migration] Moved {old.name} -> settings/{new.name}")
+        except Exception as e:
+            print(f"[Migration] Failed to move {old.name}: {e}")
+
+    print("[Migration] Migration complete.\n")
+
 # ----------------------
 # Settings Loader
 # ----------------------
@@ -81,6 +125,9 @@ DEFAULT_SETTINGS = {
 
 def load_settings(force_reconfigure=False):
     """Ensure .postar_settings.json exists and is writable next to the AppImage."""
+
+    migrate_old_settings()
+    
     if force_reconfigure:
         settings = prompt_for_settings()
         SETTINGS_FILE.write_text(json.dumps(settings, indent=2), encoding="utf-8")
@@ -138,7 +185,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.49.0"
+VERSION = "0.49.1"
 
 KB = 1024
 MB = KB * 1024
