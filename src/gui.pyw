@@ -1008,8 +1008,8 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
-            self.tr("Azuki v0.49.1"): "themes/azuki.jpg",
-            self.tr("Nekopara v0.49"): "themes/nekopara.jpg",
+            self.tr("Azuki & Coconut v0.49.1"): "themes/azuki_coconut.jpg",
+            self.tr("Chocola & Vanilla v0.49"): "themes/chocola_vanilla.jpg",
             self.tr("Sora v0.48"): "themes/sora.jpg",
             self.tr("Erina v0.47"): "themes/erina.jpg",
             self.tr("Megumin v0.45"): "themes/megumin.jpg",
