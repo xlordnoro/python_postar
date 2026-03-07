@@ -85,12 +85,16 @@ def main():
 
 
 def pause_before_exit():
-    """Pause the console to prevent immediate closure on any OS"""
-    try:
-        input("\nPress ENTER to exit...")
-    except EOFError:
-        # Fallback if input() isn't possible
-        pass
+    """Pause the console safely only if stdin is available."""
+    if sys.stdin and sys.stdin.isatty():
+        try:
+            input("\nPress ENTER to exit...")
+        except (EOFError, RuntimeError):
+            # In case stdin disappears unexpectedly
+            print("[INFO] No console input available. Exiting...")
+    else:
+        # No terminal attached (GUI, service, double-clicked exe, etc.)
+        print("[INFO] No console attached. Exiting...")
 
 
 if __name__ == "__main__":
