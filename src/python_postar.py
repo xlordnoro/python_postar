@@ -512,8 +512,9 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
             total_bytes_1080 = sum((p.stat().st_size for p in folder1080.rglob("*") if p.is_file()), 0)
             total_size_1080 = total_size_gb_str(total_bytes_1080)
             torrent_path_1080 = torrent_url_for_folder(folder1080.name)
+            new_tag = "<sup>New</sup>" if mark_new(str(folder1080)) else ""
             batch_lines.append(f'        <tr>')
-            batch_lines.append(f'            <td>BD 1080p<sup>{"New" if mark_new(folder1080.name) else ""}</sup></td>')
+            batch_lines.append(f'            <td>BD 1080p{new_tag}</td>')
             batch_lines.append(f'            <td>{total_size_1080}</td>')
             batch_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_1080}"><img src="{TORRENT_IMAGE}"></a></td>')
             batch_lines.append(f'            <td><a href="{OUO_PREFIX}{torrent_path_1080}"><img src="{TORRENT_IMAGE}"></a></td>')
@@ -525,8 +526,9 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
                 total_bytes_720 = sum((p.stat().st_size for p in folder720.rglob("*") if p.is_file()), 0)
                 total_size_720 = total_size_gb_str(total_bytes_720)
                 torrent_path_720 = torrent_url_for_folder(folder720.name)
+                new_tag = "<sup>New</sup>" if mark_new(str(folder720)) else ""
                 batch_lines.append(f'        <tr>')
-                batch_lines.append(f'            <td>BD 720p<sup>{"New" if mark_new(folder720.name) else ""}</sup></td>')
+                batch_lines.append(f'            <td>BD 720p{new_tag}</td>')
                 batch_lines.append(f'            <td>{total_size_720}</td>')
                 batch_lines.append(f'            <td><a href="{SPASTE_PREFIX}{torrent_path_720}"><img src="{TORRENT_IMAGE}"></a></td>')
                 batch_lines.append(f'            <td><a href="{OUO_PREFIX}{torrent_path_720}"><img src="{TORRENT_IMAGE}"></a></td>')
