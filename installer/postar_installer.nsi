@@ -1,17 +1,17 @@
 ;--------------------------------
-; Postar Installer (Desktop Install)
+; Postar Installer (Desktop Default)
 ;--------------------------------
 
 !define APP_NAME "Postar"
 !define APP_EXE "python_postar_gui.exe"
 !define COMPANY_NAME "Postar"
-!define INSTALL_DIR "$DESKTOP\Postar"   ; Install on Desktop
+!define INSTALL_DIR "$DESKTOP\Postar"   ; Default install location
 
 Name "${APP_NAME}"
 OutFile "postar_setup_${VERSION}.exe"
 InstallDir "${INSTALL_DIR}"
 
-; No admin rights needed for Desktop install
+; No admin rights needed
 RequestExecutionLevel user
 
 SetCompressor /SOLID lzma
@@ -23,26 +23,25 @@ UninstallIcon "..\icon.ico"
 ; Pages
 ;--------------------------------
 
+Page directory          ; Allow user to change install folder
 Page instfiles
-
-; No directory page needed since we fixed Desktop install
-;Page directory  
 
 UninstPage uninstConfirm
 UninstPage instfiles
 
 ;--------------------------------
-; Install
+; Install Section
 ;--------------------------------
 
 Section "Install"
 
+  ; Set output path
   SetOutPath "$INSTDIR"
 
-  ; Copy entire prepared release folder
+  ; Copy all prepared files (includes _internal and EXEs)
   File /r "..\python_postar_windows\*"
 
-  ; Start Menu folder (optional)
+  ; Optional Start Menu folder
   CreateDirectory "$SMPROGRAMS\Postar"
 
   CreateShortcut \
@@ -58,8 +57,7 @@ Section "Install"
     "$DESKTOP\Postar GUI.lnk" \
     "$INSTDIR\python_postar_gui.exe"
 
-  ; Registry for Add/Remove Programs (still optional, may fail without admin)
-  ; Using HKCU instead of HKLM so admin rights not needed
+  ; Registry entries for Add/Remove Programs (HKCU so no admin needed)
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Postar" "DisplayName" "Postar"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Postar" "UninstallString" "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Postar" "DisplayIcon" "$INSTDIR\python_postar_gui.exe"
@@ -74,21 +72,21 @@ Section "Install"
 SectionEnd
 
 ;--------------------------------
-; Uninstall
+; Uninstall Section
 ;--------------------------------
 
 Section "Uninstall"
 
+  ; Delete shortcuts
   Delete "$DESKTOP\Postar GUI.lnk"
-
   Delete "$SMPROGRAMS\Postar\Postar GUI.lnk"
   Delete "$SMPROGRAMS\Postar\Uninstall Postar.lnk"
   RMDir "$SMPROGRAMS\Postar"
 
-  ; Remove program files from Desktop
+  ; Remove program files
   RMDir /r "$INSTDIR"
 
-  ; Remove registry entries from HKCU
+  ; Remove registry entries
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Postar"
 
 SectionEnd
