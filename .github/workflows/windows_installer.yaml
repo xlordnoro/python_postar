@@ -81,8 +81,6 @@ jobs:
       - name: Create Release & Upload Installer
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Postar Windows Installer ${{ github.ref_name }}
           files: installer/postar_setup_${{ github.ref_name }}.exe
           overwrite_files: true
         env:
