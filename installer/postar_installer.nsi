@@ -8,7 +8,7 @@
 !define INSTALL_DIR "$DESKTOP\Postar"   ; Default install location
 
 Name "${APP_NAME}"
-OutFile "postar_setup_${VERSION}.exe"
+OutFile "python_postar_setup_${VERSION}.exe"
 InstallDir "${INSTALL_DIR}"
 
 ; No admin rights needed
