@@ -76,7 +76,7 @@ jobs:
 
       - name: Build Installer
         run: |
-          makensis /DVERSION=${{ github.ref_name }} installer/postar_installer.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=${{ github.ref_name }} installer/postar_installer.nsi
 
       - name: Upload Installer Only
         uses: softprops/action-gh-release@v2
