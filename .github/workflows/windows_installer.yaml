@@ -1,0 +1,84 @@
+name: Build Windows Installer (NSIS Test)
+
+on:
+  release:
+    types: [created]
+
+jobs:
+
+  build-windows:
+
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.14.2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo packaging
+
+      - name: Build GUI with PyInstaller
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed `
+          --add-data "../css;css" `
+          --add-data "../translations/*.qm;translations" `
+          --add-data "../qt_translations;qt_translations" `
+          --add-data "../themes;themes" `
+          --icon=../icon.ico gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed `
+          --icon=../icon.ico updater.py -n updater
+
+      - name: Prepare release folder
+        shell: pwsh
+        run: |
+
+          New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
+          New-Item -ItemType Directory -Force -Path python_postar_windows\css
+          New-Item -ItemType Directory -Force -Path python_postar_windows\translations
+          New-Item -ItemType Directory -Force -Path python_postar_windows\qt_translations
+          New-Item -ItemType Directory -Force -Path python_postar_windows\themes
+
+          Copy-Item src\dist\python_postar_gui.exe python_postar_windows\
+          Copy-Item src\dist\updater.exe python_postar_windows\
+
+          Copy-Item src\python_postar.py python_postar_windows\
+          Copy-Item src\helper.py python_postar_windows\
+          Copy-Item src\gui.pyw python_postar_windows\
+          Copy-Item src\updater.py python_postar_windows\
+
+          Copy-Item -Recurse css\* python_postar_windows\css\
+          Copy-Item -Recurse translations\* python_postar_windows\translations\
+          Copy-Item -Recurse qt_translations\* python_postar_windows\qt_translations\
+          Copy-Item -Recurse themes\* python_postar_windows\themes\
+
+          Copy-Item icon.ico python_postar_windows\
+          Copy-Item requirements.txt python_postar_windows\
+          Copy-Item -Recurse guides python_postar_windows\
+          Copy-Item scripts\postar_batch.bat python_postar_windows\scripts\
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Build Installer
+        run: |
+          makensis /DVERSION=${{ github.ref_name }} installer/postar_installer.nsi
+
+      - name: Upload Installer Only
+        uses: softprops/action-gh-release@v2
+        with:
+          files: postar_setup_${{ github.ref_name }}.exe
