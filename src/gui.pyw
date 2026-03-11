@@ -647,6 +647,7 @@ class PostarSettingsDialog(QDialog):
         self.setWindowIcon(QIcon("icon.ico"))
         self.resize(500, 250)
         self.settings = settings
+        self.settings["AUTO_UPDATE"] = False
 
         layout = QVBoxLayout(self)
         self.shows_edit = QLineEdit(settings["B2_SHOWS_BASE"])
@@ -656,7 +657,26 @@ class PostarSettingsDialog(QDialog):
         self.auto_update_check = QCheckBox(
             self.tr("Enable auto-update")
         )
-        self.auto_update_check.setChecked(settings["AUTO_UPDATE"])
+
+        # GUI cannot auto-update
+        self.auto_update_check.setChecked(False)
+        self.auto_update_check.setEnabled(False)
+
+        self.auto_update_check.setToolTip(
+            self.tr("Auto-update is disabled in the GUI version.")
+        )
+
+        # Force a clearly greyed-out appearance
+        self.auto_update_check.setStyleSheet("""
+        QCheckBox:disabled {
+            color: gray;
+        }
+
+        QCheckBox::indicator:disabled {
+            background-color: #c0c0c0;
+            border: 1px solid #8a8a8a;
+        }
+        """)
 
         layout.addWidget(QLabel(self.tr("Backblaze B2 Shows Base URL")))
         layout.addWidget(self.shows_edit)
@@ -690,7 +710,7 @@ class PostarSettingsDialog(QDialog):
             "B2_SHOWS_BASE": self.shows_edit.text().strip(),
             "B2_TORRENTS_BASE": self.torrents_edit.text().strip(),
             "ENCODER_NAME": self.encoder_edit.text().strip(),
-            "AUTO_UPDATE": self.auto_update_check.isChecked()
+            "AUTO_UPDATE": False
         })
         self.accept()
 
