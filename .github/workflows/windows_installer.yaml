@@ -2,10 +2,11 @@ name: Build Windows Installer (NSIS)
 
 # Trigger manually or on tag push
 on:
-  workflow_dispatch:
-  push:
-    tags:
-      - 'v*.*.*'   # Automatically runs on version tags like v0.50
+  release:
+    types: [created]
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -88,3 +89,5 @@ jobs:
           name: Postar Windows Installer ${{ github.ref_name }}
           files: installer/postar_setup_${{ github.ref_name }}.exe
           overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }} 
