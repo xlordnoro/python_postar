@@ -1,15 +1,19 @@
-name: Build Windows Installer (NSIS Test)
+name: Build Windows Installer (NSIS)
 
+# Trigger manually or on tag push
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'   # Automatically runs on version tags like v0.50
 
 jobs:
-
   build-windows:
-
     runs-on: windows-latest
     timeout-minutes: 120
+
+    permissions:
+      contents: write   # Needed for creating releases
 
     steps:
 
@@ -46,7 +50,6 @@ jobs:
       - name: Prepare release folder
         shell: pwsh
         run: |
-
           New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
           New-Item -ItemType Directory -Force -Path python_postar_windows\css
           New-Item -ItemType Directory -Force -Path python_postar_windows\translations
@@ -56,18 +59,12 @@ jobs:
           Copy-Item src\dist\python_postar_gui.exe python_postar_windows\
           Copy-Item src\dist\updater.exe python_postar_windows\
 
-          Copy-Item src\python_postar.py python_postar_windows\
-          Copy-Item src\helper.py python_postar_windows\
-          Copy-Item src\gui.pyw python_postar_windows\
-          Copy-Item src\updater.py python_postar_windows\
-
           Copy-Item -Recurse css\* python_postar_windows\css\
           Copy-Item -Recurse translations\* python_postar_windows\translations\
           Copy-Item -Recurse qt_translations\* python_postar_windows\qt_translations\
           Copy-Item -Recurse themes\* python_postar_windows\themes\
 
           Copy-Item icon.ico python_postar_windows\
-          Copy-Item requirements.txt python_postar_windows\
           Copy-Item -Recurse guides python_postar_windows\
           Copy-Item scripts\postar_batch.bat python_postar_windows\scripts\
 
@@ -75,10 +72,19 @@ jobs:
         run: choco install nsis -y --no-progress
 
       - name: Build Installer
+        shell: pwsh
         run: |
+          # Use makensis full path to avoid PATH issues
           & "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=${{ github.ref_name }} installer/postar_installer.nsi
 
-      - name: Upload Installer Only
+      - name: Verify installer
+        shell: pwsh
+        run: dir installer\postar_setup_${{ github.ref_name }}.exe
+
+      - name: Create Release & Upload Installer
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Postar Windows Installer ${{ github.ref_name }}
           files: installer/postar_setup_${{ github.ref_name }}.exe
+          overwrite_files: true
