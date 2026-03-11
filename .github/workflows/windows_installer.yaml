@@ -96,12 +96,12 @@ jobs:
 
       - name: Verify installer
         shell: pwsh
-        run: dir installer\postar_setup_${{ github.ref_name }}.exe
+        run: dir installer\python_postar_setup_${{ github.ref_name }}.exe
 
       - name: Upload Installer
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/postar_setup_${{ github.ref_name }}.exe
+          files: installer/python_postar_setup_${{ github.ref_name }}.exe
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
