@@ -1778,9 +1778,28 @@ class PostarGUI(QMainWindow):
             msg_box.setText(message)
 
         msg_box.exec()
+
+    # Loads & stores custom color values from the color picker which didn't persist between restarts in previous releases   
+    def load_custom_colors(self):
+        settings = QSettings("Postar", "PostarGUI")
+
+        for i in range(16):
+            val = settings.value(f"customColor{i}")
+            if val:
+                QColorDialog.setCustomColor(i, QColor(val))
+
+    def save_custom_colors(self):
+        settings = QSettings("Postar", "PostarGUI")
+
+        for i in range(16):
+            color = QColorDialog.customColor(i)
+            settings.setValue(f"customColor{i}", color.name())
     
     # Color picker function
     def pick_color(self, line_edit: QLineEdit):
+
+        self.load_custom_colors()
+
         color = QColorDialog.getColor(
             parent=self,
             title=self.tr("Select Color")
@@ -1789,7 +1808,9 @@ class PostarGUI(QMainWindow):
         if not color.isValid():
             return
 
-        hex_color = color.name()  # "#RRGGBB"
+        self.save_custom_colors()
+
+        hex_color = color.name()
 
         existing = [c.strip() for c in line_edit.text().split(",") if c.strip()]
 
