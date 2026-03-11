@@ -5,7 +5,7 @@
 !define APP_NAME "Postar"
 !define APP_EXE "python_postar_gui.exe"
 !define COMPANY_NAME "Postar"
-!define VERSION "${VERSION}"
+;!define VERSION "${VERSION}"
 !define INSTALL_DIR "$PROGRAMFILES\Postar"
 
 Name "${APP_NAME}"
