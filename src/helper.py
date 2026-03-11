@@ -120,7 +120,7 @@ DEFAULT_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
     "ENCODER_NAME": "",
-    "AUTO_UPDATE": True  # <-- New setting to enable/disable auto-update
+    "AUTO_UPDATE": False  # <-- New setting to enable/disable auto-update
 }
 
 def load_settings(force_reconfigure=False):
