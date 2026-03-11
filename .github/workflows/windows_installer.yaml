@@ -81,4 +81,4 @@ jobs:
       - name: Upload Installer Only
         uses: softprops/action-gh-release@v2
         with:
-          files: postar_setup_${{ github.ref_name }}.exe
+          files: installer/postar_setup_${{ github.ref_name }}.exe
