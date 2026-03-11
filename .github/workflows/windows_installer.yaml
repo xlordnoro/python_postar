@@ -1,6 +1,5 @@
 name: Build Windows Installer (NSIS)
 
-# Trigger manually or on tag push
 on:
   release:
     types: [created]
@@ -12,9 +11,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 120
-
-    permissions:
-      contents: write   # Needed for creating releases
 
     steps:
 
