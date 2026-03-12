@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.49.1"
-RELEASE_NAME = "Azuki & Coconut"
+VERSION = "0.50"
+RELEASE_NAME = "Shizuku"
 
 # ----------------------
 # GitHub release metadata
@@ -346,7 +346,7 @@ DEFAULT_POSTAR_SETTINGS = {
     "B2_SHOWS_BASE": "",
     "B2_TORRENTS_BASE": "",
     "ENCODER_NAME": "",
-    "AUTO_UPDATE": True,
+    "AUTO_UPDATE": False,
     "BACKGROUND_IMAGE": "",
     "DARK_MODE": False
 }
@@ -364,6 +364,11 @@ def load_postar_settings():
         return DEFAULT_POSTAR_SETTINGS.copy()
     for k, v in DEFAULT_POSTAR_SETTINGS.items():
         data.setdefault(k, v)
+
+    # GUI version cannot auto-update
+    data["AUTO_UPDATE"] = False
+    POSTAR_SETTINGS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    
     return data
 
 def save_postar_settings(settings: dict):
@@ -662,9 +667,8 @@ class PostarSettingsDialog(QDialog):
         self.auto_update_check.setChecked(False)
         self.auto_update_check.setEnabled(False)
 
-        self.auto_update_check.setToolTip(
-            self.tr("Auto-update is disabled in the GUI version.")
-        )
+        tooltip = self.tr("Auto-update is disabled in the GUI version.")
+        self.auto_update_check.setToolTip(tooltip)
 
         # Force a clearly greyed-out appearance
         self.auto_update_check.setStyleSheet("""
@@ -1028,6 +1032,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Shizuku v0.50"): "themes/shizuku.jpg",
             self.tr("Azuki & Coconut v0.49.1"): "themes/azuki_coconut.jpg",
             self.tr("Chocola & Vanilla v0.49"): "themes/chocola_vanilla.jpg",
             self.tr("Sora v0.48"): "themes/sora.jpg",
