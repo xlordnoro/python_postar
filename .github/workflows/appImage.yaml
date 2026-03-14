@@ -20,15 +20,7 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
-
-      # -------------------------
-      # Get release tag
-      # -------------------------
-      - name: Set release tag
-        run: |
-          # Extract tag from GitHub ref (e.g., refs/tags/v0.50 -> v0.50)
-          echo "RELEASE_TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk
 
       # -------------------------
       # Download Portable Python 3.14
@@ -36,9 +28,11 @@ jobs:
       - name: Download and extract portable Python 3.14.3
         run: |
           wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python-3.14.3.tar.gz
+          
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
 
+          # Upgrade pip & install dependencies inside portable Python
           AppDir/usr/bin/python3 -m ensurepip
           AppDir/usr/bin/python3 -m pip install --upgrade pip
           AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
@@ -48,23 +42,49 @@ jobs:
       # -------------------------
       - name: Prepare AppDir
         run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/fonts/truetype AppDir/usr/share/icons/hicolor/256x256/apps AppDir/usr/app
-          cp src/*.py* AppDir/usr/app/
-          cp -r css translations qt_translations themes AppDir/usr/app/
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/fonts/truetype
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/usr/app
+
+          # Copy Python scripts
+          cp src/gui.pyw AppDir/usr/app/
+          cp src/helper.py AppDir/usr/app/
+          cp src/python_postar.py AppDir/usr/app/
+
+          # Copy resource folders
+          cp -r css AppDir/usr/app/
+          cp -r translations AppDir/usr/app/
+          cp -r qt_translations AppDir/usr/app/
+          cp -r themes AppDir/usr/app/
+
+          # Copy fonts
           cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/truetype/
-          cp icon_linux.png icon.ico python_postar_gui.desktop AppDir/
+
+          # Copy icon and desktop file
+          cp icon_linux.png AppDir/
+          cp icon.ico AppDir/
+          cp python_postar_gui.desktop AppDir/
+
+          # Copy AppRun wrapper
           cp AppRun AppDir/
           chmod +x AppDir/AppRun
 
       # -------------------------
-      # Precompile Python code
+      # Precompile Python code for local __pycache__
       # -------------------------
       - name: Precompile Python code
         run: |
           APPDIR=AppDir
           PYTHON_BIN=$APPDIR/usr/bin/python3
+
+          # Create local __pycache__ folder next to AppRun
           mkdir -p $APPDIR/__pycache__
+
+          # Precompile app scripts into local cache
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
+
+          # Precompile site-packages into local cache (ignore errors for C extensions)
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
@@ -76,43 +96,18 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
 
       # -------------------------
-      # Build AppImage with dynamic name and zsync URL
+      # Build AppImage
       # -------------------------
       - name: Build AppImage
         run: |
-          RELEASE_TAG=$RELEASE_TAG
-          APPIMAGE_NAME="python_postar_gui-${RELEASE_TAG}-x86_64.AppImage"
-          ZSYNC_URL="https://github.com/xlordnoro/python_postar/releases/download/${RELEASE_TAG}/${APPIMAGE_NAME}.zsync"
-
-          echo "Building AppImage: $APPIMAGE_NAME"
-          echo "Embedding zsync update URL: $ZSYNC_URL"
-
-          ./appimagetool-x86_64.AppImage -u "zsync|$ZSYNC_URL" AppDir
+          ./appimagetool-x86_64.AppImage AppDir
           mkdir -p python_postar_linux
-          mv python_postar_gui*.AppImage python_postar_linux/"$APPIMAGE_NAME"
+          mv python_postar_gui*.AppImage python_postar_linux/
 
       # -------------------------
-      # Debug: show embedded update info
+      # Upload AppImage to GitHub Release
       # -------------------------
-      - name: Debug AppImage update info
-        run: |
-          APPIMAGE=$(ls python_postar_linux/*.AppImage)
-          echo "Embedded update information:"
-          ./appimagetool-x86_64.AppImage --appimage-info "$APPIMAGE"
-
-      # -------------------------
-      # Generate zsync file
-      # -------------------------
-      - name: Generate zsync
-        run: |
-          for appimage in python_postar_linux/*.AppImage; do
-            zsyncmake "$appimage"
-          done
-
-      # -------------------------
-      # Upload AppImage + zsync
-      # -------------------------
-      - name: Upload AppImage and zsync
+      - name: Upload AppImage
         uses: softprops/action-gh-release@v2
         with:
-          files: python_postar_linux/*.AppImage python_postar_linux/*.AppImage.zsync
+          files: python_postar_linux/*.AppImage
