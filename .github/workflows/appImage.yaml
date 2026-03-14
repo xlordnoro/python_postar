@@ -102,27 +102,21 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME}
       
-          # Final AppImage filename
-          APPIMAGE_NAME=python_postar_gui-${VERSION}-x86_64.AppImage
+          export UPDATE_INFORMATION="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-*x86_64.AppImage"
       
-          # Embed update information using the exact filename
-          export UPDATE_INFORMATION="gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}"
-      
-          # Build AppImage
           ./appimagetool-x86_64.AppImage AppDir
       
-          # Move and rename the AppImage to include version (with v)
           mkdir -p python_postar_linux
-          mv python_postar_gui*.AppImage python_postar_linux/${APPIMAGE_NAME}
       
-          # Install zsync
+          mv python_postar_gui*.AppImage python_postar_gui-${VERSION}-x86_64.AppImage
+          mv python_postar_gui-${VERSION}-x86_64.AppImage python_postar_linux/
+      
           sudo apt-get install -y zsync
       
-          # Generate zsync file for delta updates
           zsyncmake \
-            -u https://github.com/xlordnoro/python_postar/releases/latest/download/${APPIMAGE_NAME} \
-            -o python_postar_linux/${APPIMAGE_NAME}.zsync \
-            python_postar_linux/${APPIMAGE_NAME}
+            -u https://github.com/xlordnoro/python_postar/releases/latest/download/python_postar_gui-${VERSION}-x86_64.AppImage \
+            -o python_postar_linux/python_postar_gui-${VERSION}-x86_64.AppImage.zsync \
+            python_postar_linux/python_postar_gui-${VERSION}-x86_64.AppImage
 
       # -------------------------
       # Upload AppImage to GitHub Release
