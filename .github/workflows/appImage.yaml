@@ -21,7 +21,7 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync gh
 
       # -------------------------
       # Set release tag
@@ -92,7 +92,7 @@ jobs:
           mv "$APPIMAGE_NAME" "$APPIMAGE_DIR/"
 
       # -------------------------
-      # Debug embedded update info
+      # Debug: check embedded update info
       # -------------------------
       - name: Debug AppImage update info
         run: |
@@ -115,11 +115,11 @@ jobs:
           ls -lh "$APPIMAGE_DIR/"
 
       # -------------------------
-      # Upload AppImage + zsync
+      # Upload AppImage + zsync using GitHub CLI
       # -------------------------
       - name: Upload AppImage and zsync
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            python_postar_linux/*.AppImage
-            python_postar_linux/*.zsync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APPIMAGE_DIR="python_postar_linux"
+          gh release upload "$VERSION" "$APPIMAGE_DIR"/*.AppImage "$APPIMAGE_DIR"/*.zsync --clobber
