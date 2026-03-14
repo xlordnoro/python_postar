@@ -115,8 +115,10 @@ jobs:
           strings "python_postar_linux/${APPIMAGE_NAME}" | grep gh-releases-zsync || echo "No update info found!"
 
           # Generate zsync for delta updates
+          APPIMAGE_URL="https://github.com/xlordnoro/python_postar/releases/download/${VERSION}/${APPIMAGE_NAME}"
+          
           zsyncmake \
-            -u "https://github.com/xlordnoro/python_postar/releases/latest/download/${APPIMAGE_NAME}" \
+            -u "${APPIMAGE_URL}" \
             -o "python_postar_linux/${APPIMAGE_NAME}.zsync" \
             "python_postar_linux/${APPIMAGE_NAME}"
 
