@@ -24,7 +24,7 @@ jobs:
           sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
 
       # -------------------------
-      # Set release tag
+      # Get release tag
       # -------------------------
       - name: Set release tag
         run: |
@@ -68,11 +68,12 @@ jobs:
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
-      # Download continuous AppImageTool
+      # Download stable AppImageTool
       # -------------------------
       - name: Download appimagetool
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          # Using latest stable release for --appimage-info support
+          wget https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
       # -------------------------
@@ -85,19 +86,22 @@ jobs:
           APPIMAGE_DIR="python_postar_linux"
           mkdir -p "$APPIMAGE_DIR"
 
+          # Embed GitHub release zsync info (-u)
           ./appimagetool-x86_64.AppImage \
             -u "gh-releases-zsync|xlordnoro|python_postar|${VERSION}|${APPIMAGE_NAME}" \
             AppDir "$APPIMAGE_NAME"
 
+          # Move AppImage to upload folder
           mv "$APPIMAGE_NAME" "$APPIMAGE_DIR/"
 
       # -------------------------
-      # Debug embedded update info
+      # Debug: check embedded update info
       # -------------------------
       - name: Debug AppImage update info
         run: |
+          ls -lh python_postar_linux/
           APPIMAGE=$(ls python_postar_linux/*.AppImage)
-          echo "Checking embedded update info (raw search):"
+          echo "Checking for embedded gh-releases-zsync string..."
           strings "$APPIMAGE" | grep gh-releases-zsync || echo "No update info found!"
 
       # -------------------------
