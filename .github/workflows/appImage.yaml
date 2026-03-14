@@ -11,6 +11,7 @@ jobs:
   build-appimage:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +28,7 @@ jobs:
       # -------------------------
       - name: Set release tag
         run: |
-          # Extract tag from GitHub ref (e.g., refs/tags/v0.50 -> v0.50)
-          echo "RELEASE_TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
       # -------------------------
       # Download Portable Python 3.14
@@ -68,46 +68,55 @@ jobs:
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
-      # Download AppImageTool
+      # Download stable AppImageTool
       # -------------------------
       - name: Download appimagetool
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          # Using latest stable release for --appimage-info support
+          wget https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
       # -------------------------
-      # Build AppImage with dynamic name and zsync URL
+      # Build AppImage and embed update info
       # -------------------------
       - name: Build AppImage
         run: |
-          RELEASE_TAG=$RELEASE_TAG
-          APPIMAGE_NAME="python_postar_gui-${RELEASE_TAG}-x86_64.AppImage"
-          ZSYNC_URL="https://github.com/xlordnoro/python_postar/releases/download/${RELEASE_TAG}/${APPIMAGE_NAME}.zsync"
+          VERSION=$VERSION
+          APPIMAGE_NAME="python_postar_gui-${VERSION}-x86_64.AppImage"
+          APPIMAGE_DIR="python_postar_linux"
+          mkdir -p "$APPIMAGE_DIR"
 
-          echo "Building AppImage: $APPIMAGE_NAME"
-          echo "Embedding zsync update URL: $ZSYNC_URL"
+          # Embed GitHub release zsync info (-u)
+          ./appimagetool-x86_64.AppImage \
+            -u "gh-releases-zsync|xlordnoro|python_postar|${VERSION}|${APPIMAGE_NAME}" \
+            AppDir "$APPIMAGE_NAME"
 
-          ./appimagetool-x86_64.AppImage -u "zsync|$ZSYNC_URL" AppDir
-          mkdir -p python_postar_linux
-          mv python_postar_gui*.AppImage python_postar_linux/"$APPIMAGE_NAME"
+          # Move AppImage to upload folder
+          mv "$APPIMAGE_NAME" "$APPIMAGE_DIR/"
 
       # -------------------------
-      # Debug: show embedded update info
+      # Debug: check embedded update info
       # -------------------------
       - name: Debug AppImage update info
         run: |
+          ls -lh python_postar_linux/
           APPIMAGE=$(ls python_postar_linux/*.AppImage)
-          echo "Embedded update information (raw check):"
-          strings "$APPIMAGE" | grep -i zsync
+          echo "Checking for embedded gh-releases-zsync string..."
+          strings "$APPIMAGE" | grep gh-releases-zsync || echo "No update info found!"
 
       # -------------------------
-      # Generate zsync file
+      # Generate .zsync file
       # -------------------------
-      - name: Generate zsync
+      - name: Generate zsync file
         run: |
-          for appimage in python_postar_linux/*.AppImage; do
-            zsyncmake "$appimage"
-          done
+          APPIMAGE_DIR="python_postar_linux"
+          APPIMAGE=$(ls "$APPIMAGE_DIR"/*.AppImage)
+          APPIMAGE_URL="https://github.com/xlordnoro/python_postar/releases/download/${VERSION}/$(basename $APPIMAGE)"
+
+          echo "Generating zsync file pointing to: $APPIMAGE_URL"
+          zsyncmake -u "$APPIMAGE_URL" -o "$APPIMAGE_DIR/$(basename $APPIMAGE).zsync" "$APPIMAGE"
+
+          ls -lh "$APPIMAGE_DIR/"
 
       # -------------------------
       # Upload AppImage + zsync
@@ -115,4 +124,6 @@ jobs:
       - name: Upload AppImage and zsync
         uses: softprops/action-gh-release@v2
         with:
-          files: python_postar_linux/*.AppImage python_postar_linux/*.AppImage.zsync
+          files: |
+            python_postar_linux/*.AppImage
+            python_postar_linux/*.zsync
