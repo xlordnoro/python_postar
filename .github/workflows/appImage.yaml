@@ -11,6 +11,7 @@ jobs:
   build-appimage:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +32,6 @@ jobs:
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
 
-          # Upgrade pip & install dependencies inside portable Python
           AppDir/usr/bin/python3 -m ensurepip
           AppDir/usr/bin/python3 -m pip install --upgrade pip
           AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
@@ -46,84 +46,73 @@ jobs:
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           mkdir -p AppDir/usr/app
 
-          # Copy Python scripts
           cp src/gui.pyw AppDir/usr/app/
           cp src/helper.py AppDir/usr/app/
           cp src/python_postar.py AppDir/usr/app/
 
-          # Copy resource folders
           cp -r css AppDir/usr/app/
           cp -r translations AppDir/usr/app/
           cp -r qt_translations AppDir/usr/app/
           cp -r themes AppDir/usr/app/
 
-          # Copy fonts
           cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/truetype/
-
-          # Copy icon and desktop file
           cp icon_linux.png AppDir/
           cp icon.ico AppDir/
           cp python_postar_gui.desktop AppDir/
 
-          # Copy AppRun wrapper
           cp AppRun AppDir/
           chmod +x AppDir/AppRun
 
       # -------------------------
-      # Precompile Python code for local __pycache__
+      # Precompile Python code
       # -------------------------
       - name: Precompile Python code
         run: |
           APPDIR=AppDir
           PYTHON_BIN=$APPDIR/usr/bin/python3
-
           mkdir -p $APPDIR/__pycache__
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
-      # Download AppImageTool (continuous build)
+      # Download AppImageTool
       # -------------------------
       - name: Download appimagetool
         run: |
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
-          # Extract AppImageTool so we can run AppRun directly
-          ./appimagetool-x86_64.AppImage --appimage-extract
-
       # -------------------------
-      # Build AppImage with embedded update info
+      # Build AppImage with correct update info
       # -------------------------
       - name: Build AppImage
         run: |
-          VERSION=${GITHUB_REF_NAME}
+          VERSION=${GITHUB_REF_NAME}                             
           APPIMAGE_NAME=python_postar_gui-${VERSION}-x86_64.AppImage
-          
+          APPIMAGE_URL="https://github.com/xlordnoro/python_postar/releases/download/${VERSION}/${APPIMAGE_NAME}"
+
           chmod +x AppDir/AppRun
-          
-          # Build AppImage and embed update info using the correct argument
+
+          # Build AppImage and embed update info with exact URL
           ./appimagetool-x86_64.AppImage \
-            -u "gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}" \
+            -u "gh-releases-zsync|xlordnoro|python_postar|${VERSION}|${APPIMAGE_NAME}" \
             AppDir "${APPIMAGE_NAME}"
-          
+
           mkdir -p python_postar_linux
           mv "${APPIMAGE_NAME}" python_postar_linux/
-          
-          # Debug: print embedded update info
+
+          # Debug: check update info
           echo "=== Embedded UPDATE_INFORMATION in AppImage ==="
           strings "python_postar_linux/${APPIMAGE_NAME}" | grep gh-releases-zsync || echo "No update info found!"
 
-          # Generate zsync for delta updates
-          APPIMAGE_URL="https://github.com/xlordnoro/python_postar/releases/download/${VERSION}/${APPIMAGE_NAME}"
-          
+          # Generate .zsync for delta updates (must point to exact version URL)
           zsyncmake \
             -u "${APPIMAGE_URL}" \
             -o "python_postar_linux/${APPIMAGE_NAME}.zsync" \
             "python_postar_linux/${APPIMAGE_NAME}"
 
       # -------------------------
-      # Upload AppImage and zsync to GitHub Release
+      # Upload AppImage and zsync
       # -------------------------
       - name: Upload AppImage
         uses: softprops/action-gh-release@v2
