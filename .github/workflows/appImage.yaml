@@ -101,22 +101,22 @@ jobs:
       - name: Build AppImage
         run: |
           VERSION=${GITHUB_REF_NAME}
+      
+          # Final AppImage filename with v
           APPIMAGE_NAME=python_postar_gui-${VERSION}-x86_64.AppImage
+      
+          # Export update information for AppImageUpdate
+          export UPDATE_INFORMATION="gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}"
       
           # Ensure AppRun is executable
           chmod +x AppDir/AppRun
       
-          # Build AppImage and embed update info explicitly
-          ./appimagetool-x86_64.AppImage \
-            --update-information "gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}" \
-            AppDir "${APPIMAGE_NAME}"
+          # Build AppImage with the correct final filename
+          ./appimagetool-x86_64.AppImage AppDir "${APPIMAGE_NAME}"
       
+          # Move AppImage to release folder
           mkdir -p python_postar_linux
           mv "${APPIMAGE_NAME}" python_postar_linux/
-      
-          # Debug: print the embedded update information
-          echo "=== Embedded UPDATE_INFORMATION in AppImage ==="
-          strings "python_postar_linux/${APPIMAGE_NAME}" | grep "gh-releases-zsync" || echo "No update info found!"
       
           # Install zsync
           sudo apt-get install -y zsync
