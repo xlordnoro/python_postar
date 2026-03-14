@@ -20,7 +20,7 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
 
       # -------------------------
       # Download Portable Python 3.14
@@ -28,7 +28,6 @@ jobs:
       - name: Download and extract portable Python 3.14.3
         run: |
           wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python-3.14.3.tar.gz
-          
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
 
@@ -78,49 +77,43 @@ jobs:
           APPDIR=AppDir
           PYTHON_BIN=$APPDIR/usr/bin/python3
 
-          # Create local __pycache__ folder next to AppRun
           mkdir -p $APPDIR/__pycache__
-
-          # Precompile app scripts into local cache
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
-
-          # Precompile site-packages into local cache (ignore errors for C extensions)
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
       # -------------------------
-      # Download AppImageTool
+      # Download AppImageTool (continuous build)
       # -------------------------
       - name: Download appimagetool
         run: |
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
+          # Extract AppImageTool so we can run AppRun directly
+          ./appimagetool-x86_64.AppImage --appimage-extract
+
       # -------------------------
-      # Build AppImage
+      # Build AppImage with embedded update info
       # -------------------------
       - name: Build AppImage
         run: |
           VERSION=${GITHUB_REF_NAME}
           APPIMAGE_NAME=python_postar_gui-${VERSION}-x86_64.AppImage
-      
-          # Ensure AppRun is executable
+
           chmod +x AppDir/AppRun
-      
-          # Build AppImage and embed update info explicitly
-          ./appimagetool-x86_64.AppImage \
+
+          # Run extracted AppRun to build AppImage and embed update info
+          ./squashfs-root/AppRun \
             --update-information "gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}" \
             AppDir "${APPIMAGE_NAME}"
-      
+
           mkdir -p python_postar_linux
           mv "${APPIMAGE_NAME}" python_postar_linux/
-      
-          # Debug: print the embedded update information
+
+          # Debug: print embedded update information
           echo "=== Embedded UPDATE_INFORMATION in AppImage ==="
-          strings "python_postar_linux/${APPIMAGE_NAME}" | grep "gh-releases-zsync" || echo "No update info found!"
-      
-          # Install zsync
-          sudo apt-get install -y zsync
-      
+          strings "python_postar_linux/${APPIMAGE_NAME}" | grep gh-releases-zsync || echo "No update info found!"
+
           # Generate zsync for delta updates
           zsyncmake \
             -u "https://github.com/xlordnoro/python_postar/releases/latest/download/${APPIMAGE_NAME}" \
@@ -128,7 +121,7 @@ jobs:
             "python_postar_linux/${APPIMAGE_NAME}"
 
       # -------------------------
-      # Upload AppImage to GitHub Release
+      # Upload AppImage and zsync to GitHub Release
       # -------------------------
       - name: Upload AppImage
         uses: softprops/action-gh-release@v2
