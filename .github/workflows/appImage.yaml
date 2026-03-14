@@ -97,8 +97,8 @@ jobs:
       - name: Debug AppImage update info
         run: |
           APPIMAGE=$(ls python_postar_linux/*.AppImage)
-          echo "Embedded update information:"
-          ./appimagetool-x86_64.AppImage --appimage-info "$APPIMAGE"
+          echo "Embedded update information (raw check):"
+          strings "$APPIMAGE" | grep -i zsync
 
       # -------------------------
       # Generate zsync file
