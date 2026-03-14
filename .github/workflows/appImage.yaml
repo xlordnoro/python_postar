@@ -99,18 +99,18 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME}
           APPIMAGE_NAME=python_postar_gui-${VERSION}-x86_64.AppImage
-
+          
           chmod +x AppDir/AppRun
-
-          # Run extracted AppRun to build AppImage and embed update info
-          ./squashfs-root/AppRun \
-            --update-information "gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}" \
+          
+          # Build AppImage and embed update info using the correct argument
+          ./appimagetool-x86_64.AppImage \
+            -u "gh-releases-zsync|xlordnoro|python_postar|latest|${APPIMAGE_NAME}" \
             AppDir "${APPIMAGE_NAME}"
-
+          
           mkdir -p python_postar_linux
           mv "${APPIMAGE_NAME}" python_postar_linux/
-
-          # Debug: print embedded update information
+          
+          # Debug: print embedded update info
           echo "=== Embedded UPDATE_INFORMATION in AppImage ==="
           strings "python_postar_linux/${APPIMAGE_NAME}" | grep gh-releases-zsync || echo "No update info found!"
 
