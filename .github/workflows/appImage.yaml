@@ -100,9 +100,24 @@ jobs:
       # -------------------------
       - name: Build AppImage
         run: |
+          VERSION=${GITHUB_REF_NAME}
+
+          export UPDATE_INFORMATION="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-*x86_64.AppImage"
+
           ./appimagetool-x86_64.AppImage AppDir
+
           mkdir -p python_postar_linux
-          mv python_postar_gui*.AppImage python_postar_linux/
+
+          # Rename AppImage to include version
+          mv python_postar_gui*.AppImage python_postar_gui-${VERSION}-x86_64.AppImage
+
+          mv python_postar_gui-${VERSION}-x86_64.AppImage python_postar_linux/
+
+          # Install zsync
+          sudo apt-get install -y zsync
+
+          # Generate zsync update file
+          zsyncmake python_postar_linux/python_postar_gui-${VERSION}-x86_64.AppImage
 
       # -------------------------
       # Upload AppImage to GitHub Release
@@ -110,4 +125,6 @@ jobs:
       - name: Upload AppImage
         uses: softprops/action-gh-release@v2
         with:
-          files: python_postar_linux/*.AppImage
+          files: |
+            python_postar_linux/*.AppImage
+            python_postar_linux/*.zsync
