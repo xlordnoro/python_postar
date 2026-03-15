@@ -1,9 +1,8 @@
 name: Build Linux AppImage
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [created]
 
 permissions:
   contents: write
@@ -106,11 +105,9 @@ jobs:
       # -------------------------
       # Upload AppImage + zsync
       # -------------------------
-      - name: Upload artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          wget -q https://github.com/TheAssassin/pyuploadtool/releases/download/continuous/pyuploadtool-x86_64.AppImage
-          chmod +x pyuploadtool-x86_64.AppImage
-
-          ./pyuploadtool-x86_64.AppImage python_postar_linux/*
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            python_postar_linux/*.AppImage
+            python_postar_linux/*.zsync
