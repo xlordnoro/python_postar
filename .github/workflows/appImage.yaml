@@ -1,8 +1,9 @@
 name: Build Linux AppImage
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
