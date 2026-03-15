@@ -21,17 +21,17 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
 
       # -------------------------
       # Download Portable Python 3.14
       # -------------------------
       - name: Download and extract portable Python 3.14.3
         run: |
-          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python-3.14.3.tar.gz
+          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
           
           mkdir -p AppDir/usr
-          tar --strip-components=1 -xzf python-3.14.3.tar.gz -C AppDir/usr
+          tar --strip-components=1 -xzf python.tar.gz -C AppDir/usr
 
           AppDir/usr/bin/python3 -m ensurepip
           AppDir/usr/bin/python3 -m pip install --upgrade pip
@@ -87,28 +87,30 @@ jobs:
           chmod +x appimagetool-x86_64.AppImage
 
       # -------------------------
-      # Build AppImage (with update info)
+      # Build AppImage (with zsync)
       # -------------------------
       - name: Build AppImage
         run: |
-          export ARCH=x86_64
+          ARCH=x86_64
 
-          export UPDATE_INFORMATION="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-$ARCH.AppImage.zsync"
+          UPDATE_INFO="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-$ARCH.AppImage.zsync"
 
-          ./appimagetool-x86_64.AppImage AppDir python_postar_gui-$ARCH.AppImage
+          ./appimagetool-x86_64.AppImage \
+            -u "$UPDATE_INFO" \
+            AppDir python_postar_gui-$ARCH.AppImage
 
           mkdir -p python_postar_linux
-          mv python_postar_gui*.AppImage python_postar_linux/
+
+          mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
 
       # -------------------------
       # Upload AppImage + zsync
       # -------------------------
-      - name: Upload AppImage
+      - name: Upload artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_TYPE: release
         run: |
           wget -q https://github.com/TheAssassin/pyuploadtool/releases/download/continuous/pyuploadtool-x86_64.AppImage
           chmod +x pyuploadtool-x86_64.AppImage
-      
-          ./pyuploadtool-x86_64.AppImage python_postar_linux/*.AppImage
+
+          ./pyuploadtool-x86_64.AppImage python_postar_linux/*
