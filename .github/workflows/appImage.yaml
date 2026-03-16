@@ -76,9 +76,6 @@ jobs:
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
-          # Optional: remove .py so updates stay smaller
-          find $APPDIR -name "*.py" -delete
-
       - name: Normalize timestamps for reproducible build
         run: |
           find AppDir -exec touch -h -d "@1700000000" {} +
@@ -173,8 +170,6 @@ jobs:
 
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
-
-          find $APPDIR -name "*.py" -delete
 
       - name: Normalize timestamps for reproducible build
         run: |
