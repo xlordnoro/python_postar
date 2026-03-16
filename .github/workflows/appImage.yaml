@@ -35,14 +35,9 @@ jobs:
           AppDir/usr/bin/python3 -m pip install --upgrade pip
           AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
 
-          # Remove build metadata
+          # Remove metadata that changes every build
           find AppDir -name "*.dist-info" -type d -exec rm -rf {} +
           find AppDir -name "*.egg-info" -type d -exec rm -rf {} +
-
-      - name: Split PyQt6-WebEngine into runtime folder
-        run: |
-          mkdir -p AppDir/runtime/usr/lib/python3.14/site-packages/PyQt6
-          mv AppDir/usr/lib/python3.14/site-packages/PyQt6/Qt6WebEngine* AppDir/runtime/usr/lib/python3.14/site-packages/PyQt6/
 
       - name: Prepare AppDir
         run: |
@@ -78,12 +73,10 @@ jobs:
 
           mkdir -p $APPDIR/__pycache__
 
-          # Precompile app code
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
-          # Precompile all site-packages
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
-      - name: Normalize timestamps
+      - name: Normalize timestamps for reproducible build
         run: |
           find AppDir -exec touch -h -d "@1700000000" {} +
 
@@ -104,7 +97,7 @@ jobs:
           mkdir -p python_postar_linux
           mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
 
-      - name: Upload artifacts
+      - name: Upload artifacts to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -138,14 +131,8 @@ jobs:
           AppDir/usr/bin/python3 -m pip install --upgrade pip
           AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
 
-          # Remove build metadata
           find AppDir -name "*.dist-info" -type d -exec rm -rf {} +
           find AppDir -name "*.egg-info" -type d -exec rm -rf {} +
-
-      - name: Split PyQt6-WebEngine into runtime folder
-        run: |
-          mkdir -p AppDir/runtime/usr/lib/python3.14/site-packages/PyQt6
-          mv AppDir/usr/lib/python3.14/site-packages/PyQt6/Qt6WebEngine* AppDir/runtime/usr/lib/python3.14/site-packages/PyQt6/
 
       - name: Prepare AppDir
         run: |
@@ -184,7 +171,7 @@ jobs:
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
-      - name: Normalize timestamps
+      - name: Normalize timestamps for reproducible build
         run: |
           find AppDir -exec touch -h -d "@1700000000" {} +
 
@@ -205,7 +192,7 @@ jobs:
           mkdir -p python_postar_linux
           mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
 
-      - name: Upload artifacts
+      - name: Upload artifacts to release
         uses: softprops/action-gh-release@v2
         with:
           files: |
