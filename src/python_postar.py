@@ -33,7 +33,7 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
     out_lines = []
 
     mal_info = get_mal_info(mal_id)
-    header_title = mal_info["full_title"]
+    header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
         header_title += f" ({mal_info['season_info']})"
 
@@ -46,7 +46,7 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
     out_lines.append(
         f'<th colspan="1"><span style="color: {heading_color};">'
         f'<a style="color: {heading_color};" href="https://myanimelist.net/anime/{mal_id}" target="_blank" rel="noopener noreferrer">'
-        f'<strong>{mal_info["short_title"]}</strong></a></span> | {header_title}</th></tr></thead>'
+        f'<strong>{header_title}</strong></a></span> | {mal_info["short_title"]}</th></tr></thead>'
     )
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 
@@ -114,7 +114,7 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
 def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False):
     out_lines = []
     mal_info = get_mal_info(mal_id)
-    header_title = mal_info["full_title"]
+    header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
         header_title += f" ({mal_info['season_info']})"
 
@@ -127,7 +127,7 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     out_lines.append(
         f'<th colspan="1"><span style="color: {heading_color};">'
         f'<a style="color: {heading_color};" href="https://myanimelist.net/anime/{mal_id}" target="_blank" rel="noopener noreferrer">'
-        f'<strong>{mal_info["short_title"]}</strong></a></span> | {header_title}</th></tr></thead>'
+        f'<strong>{header_title}</strong></a></span> | {mal_info["short_title"]}</th></tr></thead>'
     )
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 

@@ -185,7 +185,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.50"
+VERSION = "0.51"
 
 KB = 1024
 MB = KB * 1024
@@ -909,24 +909,36 @@ def get_mal_info(mal_id: str) -> dict:
         r = requests.get(f"https://api.jikan.moe/v4/anime/{mal_id}")
         r.raise_for_status()
         data = r.json().get("data", {})
+
         title = data.get("title", "Unknown Title")
+        title_english = data.get("title_english")
+        synonyms = data.get("title_synonyms", [])
         title_jp = data.get("title_japanese", "")
-        full_title = f"{title}" if not title_jp else f"{title}"
+
+        full_title = title
+
         season = data.get("season", "")
         year = data.get("year", "")
         season_info = f"{season.capitalize()} {year}" if season and year else ""
+
         synopsis = data.get("synopsis", "No synopsis available.").replace("\n", " ").strip()
+
         return {
             "short_title": title,
             "full_title": full_title,
+            "english_title": title_english,
+            "synonyms": synonyms,
             "season_info": season_info,
             "synopsis": synopsis
         }
+
     except Exception as e:
         print(f"Warning: Could not fetch MAL {mal_id}: {e}")
         return {
             "short_title": f"Anime {mal_id}",
             "full_title": f"Anime {mal_id}",
+            "english_title": None,
+            "synonyms": [],
             "season_info": "",
             "synopsis": "No synopsis available."
         }

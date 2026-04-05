@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.50"
-RELEASE_NAME = "Shizuku"
+VERSION = "0.51"
+RELEASE_NAME = "Liliel"
 
 # ----------------------
 # GitHub release metadata
@@ -1032,6 +1032,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Liliel v0.51"): "themes/liliel.jpg",
             self.tr("Shizuku v0.50"): "themes/shizuku.jpg",
             self.tr("Azuki & Coconut v0.49.1"): "themes/azuki_coconut.jpg",
             self.tr("Chocola & Vanilla v0.49"): "themes/chocola_vanilla.jpg",
