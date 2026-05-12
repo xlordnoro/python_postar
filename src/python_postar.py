@@ -31,11 +31,10 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
     idx_name = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"]
     season_id = idx_name[season_index] if season_index < len(idx_name) else f"season{season_index + 1}"
     out_lines = []
-
     mal_info = get_mal_info(mal_id)
     header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
-        header_title += f" ({mal_info['season_info']})"
+        mal_info["short_title"] += f" ({mal_info['season_info']})"
 
     if not globals().get("_s2if_opened", False):
         out_lines.append('[s2If is_user_logged_in()]')
@@ -116,7 +115,7 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     mal_info = get_mal_info(mal_id)
     header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
-        header_title += f" ({mal_info['season_info']})"
+        mal_info["short_title"] += f" ({mal_info['season_info']})"
 
     if not globals().get("_s2if_opened", False):
         out_lines.append('[s2If is_user_logged_in()]')

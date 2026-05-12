@@ -7,6 +7,8 @@ import zlib, zipfile, shutil, tempfile, subprocess
 import textwrap
 import platform
 import shutil
+import time
+import threading
 
 try:
     from pymediainfo import MediaInfo
@@ -185,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.51"
+VERSION = "0.52"
 
 KB = 1024
 MB = KB * 1024
@@ -904,10 +906,44 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
 # -----------------------------
 # MAL retrieval
 # -----------------------------
+# Global rate limiting
+_last_request_time = 0
+_rate_limit_lock = threading.Lock()
+
+# 3 requests/sec = ~0.34s minimum spacing
+MIN_REQUEST_INTERVAL = 0.4
+
 def get_mal_info(mal_id: str) -> dict:
+    global _last_request_time
+
     try:
-        r = requests.get(f"https://api.jikan.moe/v4/anime/{mal_id}")
+        # Thread-safe rate limiting
+        with _rate_limit_lock:
+            now = time.time()
+            elapsed = now - _last_request_time
+
+            if elapsed < MIN_REQUEST_INTERVAL:
+                time.sleep(MIN_REQUEST_INTERVAL - elapsed)
+
+            _last_request_time = time.time()
+
+        r = requests.get(
+            f"https://api.jikan.moe/v4/anime/{mal_id}",
+            timeout=10
+        )
+
+        # Handle rate limit response
+        if r.status_code == 429:
+            print(f"Rate limited for MAL {mal_id}, retrying...")
+            time.sleep(2)
+
+            r = requests.get(
+                f"https://api.jikan.moe/v4/anime/{mal_id}",
+                timeout=10
+            )
+
         r.raise_for_status()
+
         data = r.json().get("data", {})
 
         title = data.get("title", "Unknown Title")
@@ -921,7 +957,8 @@ def get_mal_info(mal_id: str) -> dict:
         year = data.get("year", "")
         season_info = f"{season.capitalize()} {year}" if season and year else ""
 
-        synopsis = data.get("synopsis", "No synopsis available.").replace("\n", " ").strip()
+        synopsis = data.get("synopsis") or "No synopsis available."
+        synopsis = synopsis.replace("\n", " ").strip()
 
         return {
             "short_title": title,
@@ -934,6 +971,7 @@ def get_mal_info(mal_id: str) -> dict:
 
     except Exception as e:
         print(f"Warning: Could not fetch MAL {mal_id}: {e}")
+
         return {
             "short_title": f"Anime {mal_id}",
             "full_title": f"Anime {mal_id}",
