@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.52"
+VERSION = "0.53"
 
 KB = 1024
 MB = KB * 1024
@@ -910,67 +910,212 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
 _last_request_time = 0
 _rate_limit_lock = threading.Lock()
 
-# 3 requests/sec = ~0.34s minimum spacing
 MIN_REQUEST_INTERVAL = 0.4
 
-def get_mal_info(mal_id: str) -> dict:
-    global _last_request_time
+MAL_CLIENT_ID_FILE = SETTINGS_DIR / "mal_client_id.txt"
 
+def _load_mal_client_id() -> str:
     try:
-        # Thread-safe rate limiting
-        with _rate_limit_lock:
-            now = time.time()
-            elapsed = now - _last_request_time
 
-            if elapsed < MIN_REQUEST_INTERVAL:
-                time.sleep(MIN_REQUEST_INTERVAL - elapsed)
+        # Ensure settings directory exists
+        SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
 
-            _last_request_time = time.time()
+        # Auto-create blank file if missing
+        if not MAL_CLIENT_ID_FILE.exists():
+            MAL_CLIENT_ID_FILE.write_text("", encoding="utf-8")
 
-        r = requests.get(
-            f"https://api.jikan.moe/v4/anime/{mal_id}",
-            timeout=10
-        )
+            print(f"[MAL CONFIG] Created: {MAL_CLIENT_ID_FILE}")
+            print("[MAL CONFIG] mal_client_id.txt is blank.")
+            print("[MAL CONFIG] Official MAL API requests will fail until a Client ID is added. This can be safely ignored if you don't plan on using the MAL API.")
 
-        # Handle rate limit response
-        if r.status_code == 429:
-            print(f"Rate limited for MAL {mal_id}, retrying...")
-            time.sleep(2)
+            return ""
 
-            r = requests.get(
-                f"https://api.jikan.moe/v4/anime/{mal_id}",
-                timeout=10
-            )
+        client_id = MAL_CLIENT_ID_FILE.read_text(
+            encoding="utf-8"
+        ).strip()
 
-        r.raise_for_status()
+        # Explicit empty-file check
+        if not client_id:
+            print(f"[MAL CONFIG] Empty Client ID file: {MAL_CLIENT_ID_FILE}")
+            print("[MAL CONFIG] Official MAL API requests will fail until a Client ID is added. This can be safely ignored if you don't plan on using the MAL API.")
 
-        data = r.json().get("data", {})
+            return ""
 
-        title = data.get("title", "Unknown Title")
-        title_english = data.get("title_english")
-        synonyms = data.get("title_synonyms", [])
-        title_jp = data.get("title_japanese", "")
-
-        full_title = title
-
-        season = data.get("season", "")
-        year = data.get("year", "")
-        season_info = f"{season.capitalize()} {year}" if season and year else ""
-
-        synopsis = data.get("synopsis") or "No synopsis available."
-        synopsis = synopsis.replace("\n", " ").strip()
-
-        return {
-            "short_title": title,
-            "full_title": full_title,
-            "english_title": title_english,
-            "synonyms": synonyms,
-            "season_info": season_info,
-            "synopsis": synopsis
-        }
+        return client_id
 
     except Exception as e:
-        print(f"Warning: Could not fetch MAL {mal_id}: {e}")
+        print(f"[MAL CONFIG] Failed to load client ID: {e}")
+
+        return ""
+
+MAL_CLIENT_ID = _load_mal_client_id()
+
+def _rate_limit():
+    global _last_request_time
+
+    with _rate_limit_lock:
+        now = time.time()
+        elapsed = now - _last_request_time
+
+        if elapsed < MIN_REQUEST_INTERVAL:
+            print(f"[RATE LIMIT] Sleeping {round(MIN_REQUEST_INTERVAL - elapsed, 3)}s")
+            time.sleep(MIN_REQUEST_INTERVAL - elapsed)
+
+        _last_request_time = time.time()
+
+def _parse_mal_data(data: dict) -> dict:
+    title = data.get("title", "Unknown Title")
+
+    alt = data.get("alternative_titles", {}) or {}
+
+    title_english = (
+        data.get("title_english")
+        or alt.get("en")
+    )
+
+    synonyms = (
+        data.get("title_synonyms")
+        or alt.get("synonyms", [])
+    )
+
+    title_jp = (
+        data.get("title_japanese")
+        or alt.get("ja", "")
+    )
+
+    full_title = title
+
+    season = data.get("season", "")
+    year = data.get("year", "")
+
+    # Official MAL API uses start_season
+    if not season or not year:
+        start_season = data.get("start_season", {}) or {}
+        season = start_season.get("season", "")
+        year = start_season.get("year", "")
+
+    season_info = (
+        f"{season.capitalize()} {year}"
+        if season and year
+        else ""
+    )
+
+    synopsis = data.get("synopsis") or "No synopsis available."
+    synopsis = synopsis.replace("\n", " ").strip()
+
+    return {
+        "short_title": title,
+        "full_title": full_title,
+        "english_title": title_english,
+        "synonyms": synonyms,
+        "season_info": season_info,
+        "synopsis": synopsis
+    }
+
+# =========================================================
+# JIKAN API
+# =========================================================
+def _fetch_jikan_info(mal_id: str) -> dict:
+    _rate_limit()
+
+    jikan_url = f"https://api.jikan.moe/v4/anime/{mal_id}"
+
+    #print(f"[API] Trying Jikan: {jikan_url}")
+
+    r = requests.get(jikan_url, timeout=10)
+
+    # Retry once if rate limited
+    if r.status_code == 429:
+        print(f"[JIKAN] Rate limited for MAL {mal_id}, retrying...")
+        time.sleep(2)
+
+        _rate_limit()
+
+        r = requests.get(jikan_url, timeout=10)
+
+    r.raise_for_status()
+
+    print("[API] Using Jikan API")
+
+    return r.json().get("data", {})
+
+# =========================================================
+# OFFICIAL MAL API
+# =========================================================
+def _fetch_official_mal_info(mal_id: str) -> dict:
+    _rate_limit()
+
+    headers = {
+        "X-MAL-CLIENT-ID": MAL_CLIENT_ID
+    }
+
+    fields = ",".join([
+        "title",
+        "alternative_titles",
+        "synopsis",
+        "start_season"
+    ])
+
+    mal_url = f"https://api.myanimelist.net/v2/anime/{mal_id}"
+
+    #print(f"[API] Trying OFFICIAL MAL API: {mal_url}")
+
+    r = requests.get(
+        mal_url,
+        headers=headers,
+        params={"fields": fields},
+        timeout=10
+    )
+
+    r.raise_for_status()
+
+    print("[API] Using OFFICIAL MAL API")
+
+    return r.json()
+
+# =========================================================
+# MAIN API WRAPPER
+# =========================================================
+def get_mal_info(mal_id: str, api: str = "jikan") -> dict:
+    try:
+
+        # =====================================================
+        # FORCE OFFICIAL MAL API
+        # =====================================================
+        if api == "mal":
+            data = _fetch_official_mal_info(mal_id)
+
+            return _parse_mal_data(data)
+
+        # =====================================================
+        # DEFAULT: JIKAN API
+        # =====================================================
+        try:
+            data = _fetch_jikan_info(mal_id)
+
+            return _parse_mal_data(data)
+
+        except requests.exceptions.HTTPError as e:
+
+            status = e.response.status_code if e.response else None
+
+            print(f"[JIKAN] HTTP error for MAL {mal_id}: {status}")
+
+            # =================================================
+            # FALLBACK TO OFFICIAL MAL API
+            # =================================================
+            if status in (429, 500, 502, 503, 504):
+
+                print("[API] Falling back to OFFICIAL MAL API")
+
+                data = _fetch_official_mal_info(mal_id)
+
+                return _parse_mal_data(data)
+
+            raise
+
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch MAL {mal_id}: {e}")
 
         return {
             "short_title": f"Anime {mal_id}",
@@ -1034,4 +1179,5 @@ __all__ = [
 
     # MAL
     "get_mal_info",
+    "MAL_CLIENT_ID"
 ]

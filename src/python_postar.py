@@ -2,14 +2,13 @@
 """
 python_postar.py
 
-v48:
-- Major changes to the GUI were added:
-- Added multi-language support via qtranslator
-- Added templates for common languages so users can translate the UI and submit translations to me
-- Massively overhauled the label system to use keys and labels so profiles will load and run properly
-- Otherwise, the GUI crashed before anything was even loaded with an older profile
-- Older profiles should automatically be converted to the new format which uses keys and labels
-- If not, just save the existing profile again and it will change to the new format
+v0.53:
+- Added a new argument --api/-api which allows users to change the API endpoint from Jikan to the official MAL API. This requires adding a client ID tied to your MAL account.
+- If you're not familiar with API's or don't care about using the official MAL API, then you can continue to use Jikan which is still the default for retrieving info for anime.
+- Add a dropdown menu which allows users to change the API endpoint in the GUI.
+- If Jikan returns certain error codes i.e 429, 500, 502, 503, 504, it will try to fallback on the MAL API as a failsafe.
+- While Jikan has only had one connectivity issue recently and it was resolved within a few hours, I'd like to avoid issues whenever possible to ensure a smooth experience for everyone.
+
 """
 
 # --- Imports and constants ---
@@ -27,11 +26,11 @@ from helper import *
 # -----------------------------
 # BD / season block
 # -----------------------------
-def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False, crc_enabled=False, kage=False):
+def build_season_block(folder1080: Path, folder720: Path, heading_color: str, season_index: int, mal_id: str, bd_toggle=False, bd_images=None, is_airing=False, crc_enabled=False, kage=False, api="jikan"):
     idx_name = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"]
     season_id = idx_name[season_index] if season_index < len(idx_name) else f"season{season_index + 1}"
     out_lines = []
-    mal_info = get_mal_info(mal_id)
+    mal_info = get_mal_info(mal_id, api=api)
     header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
         mal_info["short_title"] += f" ({mal_info['season_info']})"
@@ -110,9 +109,9 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
 # -----------------------------
 # Non-BD block with MAL synopsis
 # -----------------------------
-def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False):
+def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False, api="jikan"):
     out_lines = []
-    mal_info = get_mal_info(mal_id)
+    mal_info = get_mal_info(mal_id, api=api)
     header_title = mal_info.get("english_title") or mal_info["full_title"]
     if mal_info["season_info"]:
         mal_info["short_title"] += f" ({mal_info['season_info']})"
@@ -328,7 +327,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     batch_is_new = mark_new(folder_basename)
     batch_sup = "<sup>New</sup>" if batch_is_new else ""
     torrent_path_for_folder = torrent_url_for_folder(folder_basename)
-    anime_title = mal_info["short_title"] if mal_info else sanitize_display_name_from_folder(folder_path.name)
+    anime_title = mal_info.get("english_title") if mal_info else sanitize_display_name_from_folder(folder_path.name)
 
     out_lines = []
 
@@ -425,7 +424,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 # Build HTML block (modified to use single s2If and add href to donations)
 # Also integrated encoding table generation before cover images.
 # -----------------------------
-def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False):
+def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False, api="jikan"):
     out_lines = []
 
     # single s2If opens once for all show content
@@ -443,7 +442,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full season block ---
-        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage)
+        season_block = build_season_block(folder1080, folder720, heading_color, idx, mal_id, bd_toggle, bd_images, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, api=api)
 
         # --- 1080p encoding table ---
         enc_1080 = build_encoding_table(folder1080, display_name, heading_color)
@@ -556,7 +555,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full non-BD block ---
-        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage)
+        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, api=api)
 
         # --- Encoding table for non-BD above episodes ---
         enc_table = build_encoding_table(folder, display_name, heading_color)
@@ -698,6 +697,7 @@ def main():
     parser.add_argument("--output", "-o", help="Output TXT filename (optional)")
     parser.add_argument("--version", "-v", action="store_true", help="Shows the version of the script")
     parser.add_argument("--crc", "-crc", action="store_true", help="Show CRC32 column in the episode table")
+    parser.add_argument("--api", "-api", choices=["jikan", "mal"], default="jikan", help="Changes the API endpoint used to retrieve series information from MAL")
     parser.add_argument("--configure", "-configure", action="store_true", help="Reconfigure postar settings and overwrite postar_settings.json")
     parser.add_argument("--kage", "-kage", action="store_true", help="Modifies the post layout to include the discord widget and various minor changes in the layout")
     parser.add_argument("--update", "-u", action="store_true", help="Manually checks updates for postar")
@@ -770,7 +770,8 @@ def main():
         args.bd_image,
         is_airing=args.seasonal,
         crc_enabled=args.crc,
-        kage=args.kage
+        kage=args.kage,
+        api=args.api
     )
 
     OUTPUT_DIR = Path.cwd() / "output"
