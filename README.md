@@ -47,6 +47,7 @@ If you happen to get a message about updating pip after installing the needed de
 - -o allows you to change the filename of the txt file that is going to be generated.
 - -v shows the version of the script. Older versions had it marked in the file itself.
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
+- -api allows users to change the API endpoint to the official MAL instead of Jikan, which is used by default. It requires a MAL client ID to make requests to their API, whereas Jikan doesn't require anything.
 - -configure allows the user to re-configure their settings for postar, or they can edit the .postar_settings.json file directly.
 - -kage adds a Discord widget and modifies how the donation images are placed at the bottom of posts. Also removes the buttons hiding the episodes table.
 - -u manually force an update check.
