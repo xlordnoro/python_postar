@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-#from helper import MAL_CLIENT_ID
+from helper import *
 
 # Translation helpers
 def tr(text):
