@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
         run: |
           cd src
-          pyinstaller --clean --onedir `
+          pyinstaller --clean --onefile `
           --add-data "../css;css" `
           --add-data "../translations/*.qm;translations" `
           --add-data "../qt_translations;qt_translations" `
