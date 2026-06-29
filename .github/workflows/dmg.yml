@@ -34,7 +34,6 @@ jobs:
           cd src
   
           pyinstaller --clean \
-            --windowed \
             --name python_postar_gui \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
@@ -141,7 +140,6 @@ jobs:
           cd src
   
           pyinstaller --clean \
-            --windowed \
             --name python_postar_gui \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
