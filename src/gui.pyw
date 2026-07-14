@@ -20,7 +20,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from helper import get_mal_client_id
 
 # Translation helpers
 def tr(text):
@@ -315,6 +314,170 @@ REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
 VERSION = "0.54"
 RELEASE_NAME = "Wolfgang"
+
+# -----------------------------
+# MAL retrieval
+# -----------------------------
+# Global rate limiting
+_last_request_time = 0
+_rate_limit_lock = threading.Lock()
+
+MIN_REQUEST_INTERVAL = 0.4
+
+MAL_CLIENT_ID_FILE = SETTINGS_DIR / "mal_client_id.txt"
+
+def _load_mal_client_id() -> str:
+    try:
+
+        # Ensure settings directory exists
+        SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Auto-create blank file if missing
+        if not MAL_CLIENT_ID_FILE.exists():
+            MAL_CLIENT_ID_FILE.write_text("", encoding="utf-8")
+
+            print(f"[MAL CONFIG] Created: {MAL_CLIENT_ID_FILE}")
+            print("[MAL CONFIG] mal_client_id.txt is blank.")
+            print("[MAL CONFIG] Official MAL API requests will fail until a Client ID is added. This can be safely ignored if you don't plan on using the MAL API.")
+
+            return ""
+
+        client_id = MAL_CLIENT_ID_FILE.read_text(
+            encoding="utf-8"
+        ).strip()
+
+        # Explicit empty-file check
+        if not client_id:
+            print(f"[MAL CONFIG] Empty Client ID file: {MAL_CLIENT_ID_FILE}")
+            print("[MAL CONFIG] Official MAL API requests will fail until a Client ID is added. This can be safely ignored if you don't plan on using the MAL API.")
+
+            return ""
+
+        return client_id
+
+    except Exception as e:
+        print(f"[MAL CONFIG] Failed to load client ID: {e}")
+
+        return ""
+
+def get_mal_client_id() -> str:
+    return _load_mal_client_id()
+
+def _rate_limit():
+    global _last_request_time
+
+    with _rate_limit_lock:
+        now = time.time()
+        elapsed = now - _last_request_time
+
+        if elapsed < MIN_REQUEST_INTERVAL:
+            print(f"[RATE LIMIT] Sleeping {round(MIN_REQUEST_INTERVAL - elapsed, 3)}s")
+            time.sleep(MIN_REQUEST_INTERVAL - elapsed)
+
+        _last_request_time = time.time()
+
+def _parse_mal_data(data: dict) -> dict:
+    title = data.get("title", "Unknown Title")
+
+    alt = data.get("alternative_titles", {}) or {}
+
+    title_english = (
+        data.get("title_english")
+        or alt.get("en")
+    )
+
+    synonyms = (
+        data.get("title_synonyms")
+        or alt.get("synonyms", [])
+    )
+
+    title_jp = (
+        data.get("title_japanese")
+        or alt.get("ja", "")
+    )
+
+    full_title = title
+
+    season = data.get("season", "")
+    year = data.get("year", "")
+
+    # Official MAL API uses start_season
+    if not season or not year:
+        start_season = data.get("start_season", {}) or {}
+        season = start_season.get("season", "")
+        year = start_season.get("year", "")
+
+    season_info = (
+        f"{season.capitalize()} {year}"
+        if season and year
+        else ""
+    )
+
+    synopsis = data.get("synopsis") or "No synopsis available."
+    synopsis = synopsis.replace("\n", " ").strip()
+
+    return {
+        "short_title": title,
+        "full_title": full_title,
+        "english_title": title_english,
+        "synonyms": synonyms,
+        "season_info": season_info,
+        "synopsis": synopsis
+    }
+
+# =========================================================
+# OFFICIAL MAL API
+# =========================================================
+def _fetch_official_mal_info(mal_id: str) -> dict:
+    _rate_limit()
+
+    headers = {
+        "X-MAL-CLIENT-ID": get_mal_client_id()
+    }
+
+    fields = ",".join([
+        "title",
+        "alternative_titles",
+        "synopsis",
+        "start_season"
+    ])
+
+    mal_url = f"https://api.myanimelist.net/v2/anime/{mal_id}"
+
+    #print(f"[API] Trying OFFICIAL MAL API: {mal_url}")
+
+    r = requests.get(
+        mal_url,
+        headers=headers,
+        params={"fields": fields},
+        timeout=10
+    )
+
+    r.raise_for_status()
+
+    print("[API] Using OFFICIAL MAL API")
+
+    return r.json()
+
+# =========================================================
+# MAIN API WRAPPER
+# =========================================================
+def get_mal_info(mal_id: str) -> dict:
+    try:
+        data = _fetch_official_mal_info(mal_id)
+        return _parse_mal_data(data)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch MAL {mal_id}: {e}")
+
+        return {
+            "short_title": f"Anime {mal_id}",
+            "full_title": f"Anime {mal_id}",
+            "english_title": None,
+            "synonyms": [],
+            "season_info": "",
+            "synopsis": "No synopsis available."
+        }
 
 # ----------------------
 # GitHub release metadata
