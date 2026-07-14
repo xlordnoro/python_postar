@@ -313,8 +313,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.53"
-RELEASE_NAME = "Scathach_Skadi"
+VERSION = "0.54"
+RELEASE_NAME = "Wolfgang"
 
 # ----------------------
 # GitHub release metadata
@@ -525,39 +525,13 @@ class MalSearchWorker(QThread):
     finished = pyqtSignal(list)  # List of (title, mal_id)
     error = pyqtSignal(str)
 
-    def __init__(self, query, api_mode="jikan"):
+    def __init__(self, query):
         super().__init__()
         self.query = query
-        self.api_mode = api_mode
 
     def run(self):
         try:
             lang = QApplication.instance()._current_lang
-
-            # ---------------------------
-            # JIKAN MODE (unchanged)
-            # ---------------------------
-            if self.api_mode == "jikan":
-                url = f"https://api.jikan.moe/v4/anime?q={self.query}&limit=5"
-                resp = requests.get(url, timeout=10)
-
-                if resp.status_code != 200:
-                    self.error.emit(self.tr("HTTP {code} error").format(code=resp.status_code))
-                    return
-
-                data = resp.json()
-                results = []
-
-                for item in data.get("data", []):
-                    title = (
-                        item.get("title_japanese")
-                        if lang.startswith("ja") and item.get("title_japanese")
-                        else item.get("title")
-                    )
-                    results.append((title, str(item.get("mal_id"))))
-
-                self.finished.emit(results)
-                return
 
             # ---------------------------
             # OFFICIAL MAL API MODE
@@ -605,39 +579,13 @@ class MalSearchByIdWorker(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, mal_id, api_mode="jikan"):
+    def __init__(self, mal_id):
         super().__init__()
         self.mal_id = mal_id
-        self.api_mode = api_mode
 
     def run(self):
         try:
             lang = QApplication.instance()._current_lang
-
-            # ---------------------------
-            # JIKAN MODE
-            # ---------------------------
-            if self.api_mode == "jikan":
-                url = f"https://api.jikan.moe/v4/anime/{self.mal_id}"
-                resp = requests.get(url, timeout=10)
-
-                if resp.status_code != 200:
-                    self.error.emit(self.tr("HTTP {code} error").format(code=resp.status_code))
-                    return
-
-                data = resp.json().get("data")
-                if not data:
-                    self.error.emit(self.tr("No data found for that MAL ID"))
-                    return
-
-                title = (
-                    data.get("title_japanese")
-                    if lang.startswith("ja") and data.get("title_japanese")
-                    else data.get("title")
-                )
-
-                self.finished.emit([(title, str(self.mal_id))])
-                return
 
             # ---------------------------
             # OFFICIAL MAL API MODE
@@ -1115,6 +1063,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Wolfgang v0.54"): "themes/wolfgang.jpg",
             self.tr("Scathach-Skadi v0.53"): "themes/scathach_skadi.jpg",
             self.tr("Saber v0.52"): "themes/saber.jpg",
             self.tr("Liliel v0.51"): "themes/liliel.jpg",
@@ -1214,20 +1163,13 @@ class PostarGUI(QMainWindow):
                 row.addWidget(QLabel(label))
 
                 mal_input = DragDropLineEdit()
-                mal_input.setFixedWidth(778 - button_width - 10)
+                mal_input.setFixedWidth(input_width - button_width - 5)
                 row.addWidget(mal_input)
 
-                self.mal_search_btn = QPushButton(self.tr("Search For MAL ID"))
+                self.mal_search_btn = QPushButton(self.tr("Search MAL ID"))
                 self.mal_search_btn.setFixedWidth(button_width)
                 self.mal_search_btn.clicked.connect(self.search_mal_id)
                 row.addWidget(self.mal_search_btn)
-
-                self.mal_api_selector = QComboBox()
-                self.mal_api_selector.addItem("Jikan API (default)", "jikan")
-                self.mal_api_selector.addItem("Official MAL API", "mal")
-                self.mal_api_selector.setFixedWidth(button_width)
-
-                row.addWidget(self.mal_api_selector)
 
                 self.layout.addLayout(row)
 
@@ -2017,19 +1959,13 @@ class PostarGUI(QMainWindow):
             )
             return
 
-        # ---------------------------
-        # Get selected API mode
-        # ---------------------------
-        api_mode = self.mal_api_selector.currentData()  # "jikan" or "mal"
-
         self.mal_search_btn.setEnabled(False)
         self.mal_search_btn.setText(self.tr("Searching..."))
 
-        # Pass API mode into worker
         if query.isdigit():
-            self.mal_worker = MalSearchByIdWorker(query, api_mode=api_mode)
+            self.mal_worker = MalSearchByIdWorker(query)
         else:
-            self.mal_worker = MalSearchWorker(query, api_mode=api_mode)
+            self.mal_worker = MalSearchWorker(query)
 
         self.mal_worker.finished.connect(self.on_mal_search_finished)
         self.mal_worker.error.connect(self.on_mal_search_error)

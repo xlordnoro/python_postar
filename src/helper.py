@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.53"
+VERSION = "0.54"
 
 KB = 1024
 MB = KB * 1024
@@ -1013,33 +1013,6 @@ def _parse_mal_data(data: dict) -> dict:
     }
 
 # =========================================================
-# JIKAN API
-# =========================================================
-def _fetch_jikan_info(mal_id: str) -> dict:
-    _rate_limit()
-
-    jikan_url = f"https://api.jikan.moe/v4/anime/{mal_id}"
-
-    #print(f"[API] Trying Jikan: {jikan_url}")
-
-    r = requests.get(jikan_url, timeout=10)
-
-    # Retry once if rate limited
-    if r.status_code == 429:
-        print(f"[JIKAN] Rate limited for MAL {mal_id}, retrying...")
-        time.sleep(2)
-
-        _rate_limit()
-
-        r = requests.get(jikan_url, timeout=10)
-
-    r.raise_for_status()
-
-    print("[API] Using Jikan API")
-
-    return r.json().get("data", {})
-
-# =========================================================
 # OFFICIAL MAL API
 # =========================================================
 def _fetch_official_mal_info(mal_id: str) -> dict:
@@ -1076,43 +1049,10 @@ def _fetch_official_mal_info(mal_id: str) -> dict:
 # =========================================================
 # MAIN API WRAPPER
 # =========================================================
-def get_mal_info(mal_id: str, api: str = "jikan") -> dict:
+def get_mal_info(mal_id: str) -> dict:
     try:
-
-        # =====================================================
-        # FORCE OFFICIAL MAL API
-        # =====================================================
-        if api == "mal":
-            data = _fetch_official_mal_info(mal_id)
-
-            return _parse_mal_data(data)
-
-        # =====================================================
-        # DEFAULT: JIKAN API
-        # =====================================================
-        try:
-            data = _fetch_jikan_info(mal_id)
-
-            return _parse_mal_data(data)
-
-        except requests.exceptions.HTTPError as e:
-
-            status = e.response.status_code if e.response else None
-
-            print(f"[JIKAN] HTTP error for MAL {mal_id}: {status}")
-
-            # =================================================
-            # FALLBACK TO OFFICIAL MAL API
-            # =================================================
-            if status in (429, 500, 502, 503, 504):
-
-                print("[API] Falling back to OFFICIAL MAL API")
-
-                data = _fetch_official_mal_info(mal_id)
-
-                return _parse_mal_data(data)
-
-            raise
+        data = _fetch_official_mal_info(mal_id)
+        return _parse_mal_data(data)
 
     except Exception as e:
         print(f"[ERROR] Failed to fetch MAL {mal_id}: {e}")
