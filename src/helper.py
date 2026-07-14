@@ -948,7 +948,8 @@ def _load_mal_client_id() -> str:
 
         return ""
 
-MAL_CLIENT_ID = _load_mal_client_id()
+def get_mal_client_id() -> str:
+    return _load_mal_client_id()
 
 def _rate_limit():
     global _last_request_time
@@ -1019,7 +1020,7 @@ def _fetch_official_mal_info(mal_id: str) -> dict:
     _rate_limit()
 
     headers = {
-        "X-MAL-CLIENT-ID": MAL_CLIENT_ID
+        "X-MAL-CLIENT-ID": get_mal_client_id()
     }
 
     fields = ",".join([
@@ -1119,5 +1120,5 @@ __all__ = [
 
     # MAL
     "get_mal_info",
-    "MAL_CLIENT_ID"
+    "get_mal_client_id"
 ]

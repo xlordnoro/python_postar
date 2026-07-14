@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from helper import *
+from helper import get_mal_client_id
 
 # Translation helpers
 def tr(text):
@@ -537,7 +537,7 @@ class MalSearchWorker(QThread):
             # OFFICIAL MAL API MODE
             # ---------------------------
             headers = {
-                "X-MAL-CLIENT-ID": MAL_CLIENT_ID
+                "X-MAL-CLIENT-ID": get_mal_client_id()
             }
 
             params = {
@@ -591,7 +591,7 @@ class MalSearchByIdWorker(QThread):
             # OFFICIAL MAL API MODE
             # ---------------------------
             headers = {
-                "X-MAL-CLIENT-ID": MAL_CLIENT_ID
+                "X-MAL-CLIENT-ID": get_mal_client_id()
             }
 
             params = {
