@@ -424,7 +424,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 # Build HTML block (modified to use single s2If and add href to donations)
 # Also integrated encoding table generation before cover images.
 # -----------------------------
-def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False, api="jikan"):
+def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False):
     out_lines = []
 
     # single s2If opens once for all show content
