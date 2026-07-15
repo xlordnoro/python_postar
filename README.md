@@ -31,6 +31,11 @@ NOTE: You can also run pip install -r requirements.txt if you're running the com
 
 If you happen to get a message about updating pip after installing the needed dependencies, please feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
 
+# MAL Client ID
+To grab information from MAL for each series, you need to have a valid client_ID from a MAL account you control. Just fill in the required information marked with red asterisks and select hobbyist since it's not being used in a professional setting for our use case.
+
+For the app redirection URL and homepage URL, just put http://localhost since it doesn't need to be a valid url for the client_ID to function properly inside postar.
+
 # Args breakdown
 **The script needs -p -a -d -m -c and if one or more is missing it will produce an error.**
 
@@ -47,7 +52,6 @@ If you happen to get a message about updating pip after installing the needed de
 - -o allows you to change the filename of the txt file that is going to be generated.
 - -v shows the version of the script. Older versions had it marked in the file itself.
 - -crc enables the CRC32 hash column in tables for posts. By default, it's disabled since it's included in the filenames.
-- -api allows users to change the API endpoint to the official MAL instead of Jikan, which is used by default. It requires a MAL client ID to make requests to their API, whereas Jikan doesn't require anything.
 - -configure allows the user to re-configure their settings for postar, or they can edit the .postar_settings.json file directly.
 - -kage adds a Discord widget and modifies how the donation images are placed at the bottom of posts. Also removes the buttons hiding the episodes table.
 - -u manually force an update check.
