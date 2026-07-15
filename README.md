@@ -4,6 +4,13 @@ A modern version of postar written in Python
 
 ![mbwZck5_xl](https://github.com/user-attachments/assets/c73fd906-e66d-4844-8c78-9673fde9636c)
 
+# MAL Client ID
+**To grab information from MAL for each series, you need to have a valid client_ID from a MAL account you control. Just fill in the required information marked with red asterisks and select hobbyist since it's not being used in a professional setting for our use case.**
+
+**For the app redirection URL and homepage URL, just put http://localhost since it doesn't need to be a valid url for the client_ID to function properly inside postar.**
+
+<img width="1054" height="750" alt="mal_client_id_setup" src="https://github.com/user-attachments/assets/901ec494-6bbc-4298-9e79-973eed8f0a3e" />
+
 # Portable Installation/Easy Way (Recommended for Beginners)
 Since **v0.42.1** of the project, I've started releasing portable versions of postar for all OS's (Mac OS, Linux, and Windows). This includes everything needed to run the program into one complete package without the need to install Python on your system. Another benefit of the portable install is that it won't interfere with any existing versions of Python already installed on the system. 
 
@@ -30,11 +37,6 @@ NOTE: You can also run pip install -r requirements.txt if you're running the com
 **pip install requests pymediainfo PyQt6 PyQt6-WebEngine packaging**
 
 If you happen to get a message about updating pip after installing the needed dependencies, please feel free to update that while the terminal window is still active. However, it's not required for postar to function properly.
-
-# MAL Client ID
-To grab information from MAL for each series, you need to have a valid client_ID from a MAL account you control. Just fill in the required information marked with red asterisks and select hobbyist since it's not being used in a professional setting for our use case.
-
-For the app redirection URL and homepage URL, just put http://localhost since it doesn't need to be a valid url for the client_ID to function properly inside postar.
 
 # Args breakdown
 **The script needs -p -a -d -m -c and if one or more is missing it will produce an error.**
