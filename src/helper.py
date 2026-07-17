@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.54"
+VERSION = "0.54.1"
 
 KB = 1024
 MB = KB * 1024
@@ -648,17 +648,17 @@ def find_episode_number(filename: str):
     search_str = filename_clean[last_dash_index + 1:] if last_dash_index != -1 else filename_clean
 
     # Search for first number (episode) with optional v1/v2
-    match = re.search(r'(\d{1,3})(v\d)?', search_str)
+    match = re.search(r'(\d{1,4})(v\d)?', search_str)
     if match:
         val = int(match.group(1))
-        if val not in ignore_numbers and val < 1000:
+        if val not in ignore_numbers and val < 10000:
             return val
 
     # Fallback: last valid number in the whole filename
-    matches = re.findall(r'(\d{1,3})(v\d)?', filename_clean)
+    matches = re.findall(r'(\d{1,4})(v\d)?', filename_clean)
     for number_str, _ in reversed(matches):
         val = int(number_str)
-        if val not in ignore_numbers and val < 1000:
+        if val not in ignore_numbers and val < 10000:
             return val
 
     return None
@@ -695,7 +695,7 @@ def extract_crc_from_filename(fname: str) -> str | None:
 # ----------------------------
 def extract_version_suffix(name: str):
     # Matches 01v2, 05v3, 12v10 etc.
-    m = re.search(r'(\d{1,3})(v\d{1,3})', name, re.IGNORECASE)
+    m = re.search(r'(\d{1,4})(v\d{1,4})', name, re.IGNORECASE)
     return m.group(2).lower() if m else ""
 
 # -----------------------------

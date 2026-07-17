@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.54"
-RELEASE_NAME = "Wolfgang"
+VERSION = "0.54.1"
+RELEASE_NAME = "Wolfgang_Ctarnidd"
 
 # -----------------------------
 # MAL retrieval
