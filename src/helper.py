@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.54.1"
+VERSION = "0.54.2"
 
 KB = 1024
 MB = KB * 1024
@@ -510,9 +510,10 @@ def check_for_github_update(force=False):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
             # ---- self delete ----
-            updater = Path(sys.argv[0]).resolve()
+            cleanup_cmd = f'ping 127.0.0.1 -n 3 >nul & rmdir /s /q "{temp_dir}"'
+
             subprocess.Popen(
-                ["cmd", "/c", f"ping 127.0.0.1 -n 3 >nul & rmdir /s /q \"{temp_dir}\""],
+                ["cmd", "/c", cleanup_cmd],
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
         ''')
