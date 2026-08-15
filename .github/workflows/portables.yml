@@ -11,7 +11,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
     timeout-minutes: 120
-
     steps:
       - uses: actions/checkout@v4
 
@@ -25,17 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo packaging
 
-          python -c "import PyQt6; print('PyQt6:', PyQt6.__version__)"
-          python -c "import PyQt6.QtWebEngineCore as w; print('QtWebEngineCore:', w.__file__)"
-          python -c "import PyQt6.QtWebEngineWidgets as w; print('QtWebEngineWidgets:', w.__file__)"
-          python -c "import importlib.metadata; print('PyQt6-WebEngine:', importlib.metadata.version('PyQt6-WebEngine'))"
-          python -c "import importlib.metadata; print('PyQt6-WebEngine-Qt6:', importlib.metadata.version('PyQt6-WebEngine-Qt6'))"
+          python -c "import PyQt6; print(PyQt6.__path__[0])"
+          python -c "import PyQt6.QtWebEngineCore as w; print(w.__file__)"
+          python -c "import PyQt6.QtWebEngineWidgets as w; print(w.__file__)"
           python -m pip show PyQt6-WebEngine
 
       # -------------------------------
       # Build Windows EXEs
       # -------------------------------
-
       - name: Build Python script EXE
         shell: pwsh
         run: |
@@ -46,7 +42,7 @@ jobs:
         shell: pwsh
         run: |
           cd src
-          pyinstaller --clean python_postar_gui.spec
+          pyinstaller --clean --onefile --add-data "../css;css" --add-data "../translations/*.qm;translations" --add-data "../qt_translations;qt_translations" --add-data "../themes;themes" --icon=../icon.ico gui.pyw -n python_postar_gui
 
       - name: Build Updater GUI EXE
         shell: pwsh
@@ -57,24 +53,19 @@ jobs:
       # -------------------------------
       # Prepare portable folder
       # -------------------------------
-
       - name: Prepare portable folder
         shell: pwsh
         run: |
           $STAGE = "src\dist\python_postar_portable"
-
           New-Item -ItemType Directory -Force -Path "$STAGE\scripts"
           New-Item -ItemType Directory -Force -Path "$STAGE\css"
           New-Item -ItemType Directory -Force -Path "$STAGE\translations"
           New-Item -ItemType Directory -Force -Path "$STAGE\qt_translations"
           New-Item -ItemType Directory -Force -Path "$STAGE\themes"
-          New-Item -ItemType Directory -Force -Path "$STAGE\webengine"
-
           Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
           Copy-Item src\dist\python_postar_gui.exe "$STAGE\"
           Copy-Item src\dist\updater.exe "$STAGE\"
           Copy-Item icon.ico "$STAGE\"
-
           Copy-Item -Recurse guides "$STAGE\"
           Copy-Item -Recurse css\* "$STAGE\css\"
           Copy-Item -Recurse translations\* "$STAGE\translations\"
@@ -82,99 +73,13 @@ jobs:
           Copy-Item -Recurse themes\* "$STAGE\themes\"
           Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
 
-      # -------------------------------
-      # Extract external Qt WebEngine
-      # -------------------------------
-
-      - name: Prepare WebEngine runtime
-        shell: pwsh
-        run: |
-          $STAGE = "src\dist\python_postar_portable\webengine"
-
-          New-Item -ItemType Directory -Force -Path "$STAGE\resources"
-          New-Item -ItemType Directory -Force -Path "$STAGE\qtwebengine_locales"
-
-          $PYQT6 = python -c "import PyQt6; print(PyQt6.__path__[0])"
-          $QT6 = Join-Path $PYQT6 "Qt6"
-
-          Write-Host "PyQt6: $PYQT6"
-          Write-Host "Qt6:   $QT6"
-
-          $FILES = @(
-              "Qt6WebEngine.dll",
-              "Qt6WebEngineCore.dll",
-              "Qt6WebEngineWidgets.dll",
-              "QtWebEngineProcess.exe",
-              "icudtl.dat",
-              "v8_context_snapshot.bin"
-          )
-
-          foreach ($FILE in $FILES) {
-              $SOURCE = Join-Path "$QT6\bin" $FILE
-
-              if (Test-Path $SOURCE) {
-                  Copy-Item $SOURCE "$STAGE\" -Force
-                  Write-Host "Copied: $FILE"
-              }
-              else {
-                  Write-Host "WARNING: Missing $SOURCE"
-              }
-          }
-
-          $RESOURCE_FILES = @(
-              "qtwebengine_resources.pak",
-              "qtwebengine_resources_100p.pak",
-              "qtwebengine_resources_200p.pak",
-              "qtwebengine_devtools_resources.pak"
-          )
-
-          foreach ($FILE in $RESOURCE_FILES) {
-              $SOURCE = Join-Path "$QT6\resources" $FILE
-
-              if (Test-Path $SOURCE) {
-                  Copy-Item $SOURCE "$STAGE\resources\" -Force
-                  Write-Host "Copied resource: $FILE"
-              }
-              else {
-                  Write-Host "WARNING: Missing resource $SOURCE"
-              }
-          }
-
-          $LOCALES = Join-Path "$QT6\translations\qtwebengine_locales"
-
-          if (Test-Path $LOCALES) {
-              Copy-Item "$LOCALES\*" "$STAGE\qtwebengine_locales\" -Recurse -Force
-              Write-Host "Copied WebEngine locales."
-          }
-          else {
-              Write-Host "WARNING: Missing WebEngine locales: $LOCALES"
-          }
-
-          Write-Host ""
-          Write-Host "===== External WebEngine Runtime ====="
-          Get-ChildItem "$STAGE" -Recurse |
-              Select-Object FullName, Length
-
-      # -------------------------------
-      # Package portable ZIP
-      # -------------------------------
-
       - name: Package portable ZIP
         shell: pwsh
         run: |
           $DIST_FOLDER = "src\dist\python_postar_portable"
           $ZIP_NAME = "python_postar_windows_${env:GITHUB_REF_NAME}_portable.zip"
-
-          Compress-Archive `
-            -Path "$DIST_FOLDER\*" `
-            -DestinationPath $ZIP_NAME `
-            -Force
-
+          Compress-Archive -Path "$DIST_FOLDER\*" -DestinationPath $ZIP_NAME -Force
           Write-Host "Created $ZIP_NAME"
-
-      # -------------------------------
-      # Upload release asset
-      # -------------------------------
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
