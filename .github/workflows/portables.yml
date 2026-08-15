@@ -126,6 +126,33 @@ jobs:
           }
 
           # --------------------------------
+          # Qt libraries required by WebEngine
+          # --------------------------------
+
+          $QT_DLLS = @(
+              "Qt6Core.dll",
+              "Qt6Gui.dll",
+              "Qt6Network.dll",
+              "Qt6Qml.dll",
+              "Qt6QmlModels.dll",
+              "Qt6Quick.dll",
+              "Qt6Positioning.dll",
+              "Qt6WebChannel.dll"
+          )
+
+          foreach ($FILE in $QT_DLLS) {
+              $SOURCE = Join-Path "$QT6\bin" $FILE
+
+              if (Test-Path $SOURCE) {
+                  Copy-Item $SOURCE "$STAGE\" -Force
+                  Write-Host "Copied Qt dependency: $FILE"
+              }
+              else {
+                  Write-Error "Missing required Qt dependency: $SOURCE"
+              }
+          }
+
+          # --------------------------------
           # Chromium / WebEngine resources
           # --------------------------------
 
