@@ -91,12 +91,10 @@ jobs:
         run: |
           $STAGE = "src\dist\python_postar_portable\webengine"
 
-          # Runtime directories
           New-Item -ItemType Directory -Force -Path "$STAGE"
           New-Item -ItemType Directory -Force -Path "$STAGE\resources"
           New-Item -ItemType Directory -Force -Path "$STAGE\qtwebengine_locales"
 
-          # Locate PyQt6 / Qt6
           $PYQT6 = python -c "import PyQt6; print(PyQt6.__path__[0])"
           $QT6 = Join-Path $PYQT6 "Qt6"
 
@@ -104,52 +102,41 @@ jobs:
           Write-Host "Qt6:   $QT6"
 
           # --------------------------------
-          # WebEngine DLLs / process
+          # Copy all Qt6 DLLs
           # --------------------------------
 
-          $FILES = @(
-              "Qt6WebEngineCore.dll",
-              "Qt6WebEngineWidgets.dll",
-              "QtWebEngineProcess.exe"
-          )
+          $QT_BIN = Join-Path $QT6 "bin"
 
-          foreach ($FILE in $FILES) {
-              $SOURCE = Join-Path "$QT6\bin" $FILE
+          if (-not (Test-Path $QT_BIN)) {
+              Write-Error "Qt6 bin directory not found: $QT_BIN"
+              exit 1
+          }
 
-              if (Test-Path $SOURCE) {
-                  Copy-Item $SOURCE "$STAGE\" -Force
-                  Write-Host "Copied: $FILE"
-              }
-              else {
-                  Write-Error "Missing required WebEngine file: $SOURCE"
-              }
+          $QT_DLLS = Get-ChildItem "$QT_BIN\Qt6*.dll" -File
+
+          if ($QT_DLLS.Count -eq 0) {
+              Write-Error "No Qt6 DLLs found in: $QT_BIN"
+              exit 1
+          }
+
+          foreach ($DLL in $QT_DLLS) {
+              Copy-Item $DLL.FullName "$STAGE\" -Force
+              Write-Host "Copied Qt library: $($DLL.Name)"
           }
 
           # --------------------------------
-          # Qt libraries required by WebEngine
+          # QtWebEngineProcess.exe
           # --------------------------------
 
-          $QT_DLLS = @(
-              "Qt6Core.dll",
-              "Qt6Gui.dll",
-              "Qt6Network.dll",
-              "Qt6Qml.dll",
-              "Qt6QmlModels.dll",
-              "Qt6Quick.dll",
-              "Qt6Positioning.dll",
-              "Qt6WebChannel.dll"
-          )
+          $PROCESS = Join-Path $QT_BIN "QtWebEngineProcess.exe"
 
-          foreach ($FILE in $QT_DLLS) {
-              $SOURCE = Join-Path "$QT6\bin" $FILE
-
-              if (Test-Path $SOURCE) {
-                  Copy-Item $SOURCE "$STAGE\" -Force
-                  Write-Host "Copied Qt dependency: $FILE"
-              }
-              else {
-                  Write-Error "Missing required Qt dependency: $SOURCE"
-              }
+          if (Test-Path $PROCESS) {
+              Copy-Item $PROCESS "$STAGE\" -Force
+              Write-Host "Copied: QtWebEngineProcess.exe"
+          }
+          else {
+              Write-Error "Missing QtWebEngineProcess.exe: $PROCESS"
+              exit 1
           }
 
           # --------------------------------
@@ -189,6 +176,7 @@ jobs:
           }
           else {
               Write-Error "Missing WebEngine locales directory: $LOCALES"
+              exit 1
           }
 
           # --------------------------------
