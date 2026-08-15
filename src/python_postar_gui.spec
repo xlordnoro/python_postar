@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
 block_cipher = None
 
 a = Analysis(
@@ -20,22 +22,19 @@ a = Analysis(
     noarchive=False,
 )
 
+
 # ------------------------------------------------------------
-# Remove Qt WebEngine runtime from the onefile executable.
+# Remove WebEngine runtime from the onefile executable.
 #
-# The Python bindings remain inside python_postar_gui.exe.
-# The large Chromium/Qt WebEngine runtime is supplied from:
-#
-#     <portable folder>\webengine\
-#
-# This dramatically reduces the size of the GUI executable.
+# PyQt6-WebEngine's Python bindings remain available, but the
+# large Chromium runtime is supplied externally.
 # ------------------------------------------------------------
 
-WEBENGINE_FILES = {
-    "qt6webenginecore.dll",
-    "qt6webengine.dll",
-    "qt6webenginewidgets.dll",
-    "qtwebengineprocess.exe",
+WEBENGINE_NAMES = {
+    "Qt6WebEngineCore.dll",
+    "Qt6WebEngine.dll",
+    "Qt6WebEngineWidgets.dll",
+    "QtWebEngineProcess.exe",
     "icudtl.dat",
     "v8_context_snapshot.bin",
     "qtwebengine_resources.pak",
@@ -44,45 +43,46 @@ WEBENGINE_FILES = {
     "qtwebengine_devtools_resources.pak",
 }
 
+
 def is_webengine_file(entry):
     source, destination, typecode = entry
 
-    source_name = Path(source).name.lower()
-    destination = str(destination).replace("\\", "/").lower()
+    filename = Path(source).name.lower()
 
-    # Explicit WebEngine runtime files
-    if source_name in WEBENGINE_FILES:
+    if filename in {name.lower() for name in WEBENGINE_NAMES}:
         return True
 
-    # WebEngine locale directory
-    if "qtwebengine_locales/" in destination:
+    normalized = str(destination).replace("\\", "/").lower()
+
+    if "qtwebengine_locales/" in normalized:
         return True
 
-    # WebEngine resources
-    if source_name.startswith("qtwebengine_"):
-        return True
+    if normalized.startswith("resources/"):
+        if "qtwebengine" in filename:
+            return True
 
     return False
 
-# Remove WebEngine binaries
+
 a.binaries = [
     entry
     for entry in a.binaries
     if not is_webengine_file(entry)
 ]
 
-# Remove WebEngine data/resources
 a.datas = [
     entry
     for entry in a.datas
     if not is_webengine_file(entry)
 ]
 
+
 pyz = PYZ(
     a.pure,
     a.zipped_data,
     cipher=block_cipher,
 )
+
 
 exe = EXE(
     pyz,
