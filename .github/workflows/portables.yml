@@ -24,10 +24,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller PyQt6 PyQt6-WebEngine requests pymediainfo packaging
 
-          python -c "import PyQt6; print(PyQt6.__path__[0])"
-          python -c "import PyQt6.QtWebEngineCore as w; print(w.__file__)"
-          python -c "import PyQt6.QtWebEngineWidgets as w; print(w.__file__)"
-
       # -------------------------------
       # Build Windows EXEs
       # -------------------------------
