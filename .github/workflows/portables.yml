@@ -86,24 +86,50 @@ jobs:
       # Extract external Qt WebEngine
       # -------------------------------
 
-      - name: Diagnose WebEngine runtime
+      - name: Prepare WebEngine runtime
         shell: pwsh
         run: |
+          $STAGE = "src\dist\python_postar_portable\webengine"
+
+          # Runtime directories
+          New-Item -ItemType Directory -Force -Path "$STAGE"
+          New-Item -ItemType Directory -Force -Path "$STAGE\resources"
+          New-Item -ItemType Directory -Force -Path "$STAGE\qtwebengine_locales"
+
+          # Locate PyQt6 / Qt6
           $PYQT6 = python -c "import PyQt6; print(PyQt6.__path__[0])"
           $QT6 = Join-Path $PYQT6 "Qt6"
 
-          Write-Host "=========================================="
-          Write-Host "PyQt6 WebEngine Runtime Discovery"
-          Write-Host "=========================================="
           Write-Host "PyQt6: $PYQT6"
           Write-Host "Qt6:   $QT6"
-          Write-Host ""
 
-          $TARGETS = @(
-              "Qt6WebEngine.dll",
+          # --------------------------------
+          # WebEngine DLLs / process
+          # --------------------------------
+
+          $FILES = @(
               "Qt6WebEngineCore.dll",
               "Qt6WebEngineWidgets.dll",
-              "QtWebEngineProcess.exe",
+              "QtWebEngineProcess.exe"
+          )
+
+          foreach ($FILE in $FILES) {
+              $SOURCE = Join-Path "$QT6\bin" $FILE
+
+              if (Test-Path $SOURCE) {
+                  Copy-Item $SOURCE "$STAGE\" -Force
+                  Write-Host "Copied: $FILE"
+              }
+              else {
+                  Write-Error "Missing required WebEngine file: $SOURCE"
+              }
+          }
+
+          # --------------------------------
+          # Chromium / WebEngine resources
+          # --------------------------------
+
+          $RESOURCE_FILES = @(
               "icudtl.dat",
               "v8_context_snapshot.bin",
               "qtwebengine_resources.pak",
@@ -112,30 +138,43 @@ jobs:
               "qtwebengine_devtools_resources.pak"
           )
 
-          foreach ($TARGET in $TARGETS) {
-              Write-Host ""
-              Write-Host "Searching for: $TARGET"
+          foreach ($FILE in $RESOURCE_FILES) {
+              $SOURCE = Join-Path "$QT6\resources" $FILE
 
-              $FOUND = Get-ChildItem $QT6 -Recurse -File -Filter $TARGET -ErrorAction SilentlyContinue
-
-              if ($FOUND) {
-                  foreach ($FILE in $FOUND) {
-                      Write-Host "  FOUND: $($FILE.FullName)"
-                      Write-Host "  SIZE:  $($FILE.Length) bytes"
-                  }
+              if (Test-Path $SOURCE) {
+                  Copy-Item $SOURCE "$STAGE\resources\" -Force
+                  Write-Host "Copied resource: $FILE"
               }
               else {
-                  Write-Host "  NOT FOUND"
+                  Write-Error "Missing required WebEngine resource: $SOURCE"
               }
           }
 
+          # --------------------------------
+          # WebEngine locale files
+          # --------------------------------
+
+          $LOCALES = Join-Path "$QT6\translations" "qtwebengine_locales"
+
+          if (Test-Path $LOCALES) {
+              Copy-Item "$LOCALES\*" "$STAGE\qtwebengine_locales\" -Recurse -Force
+              Write-Host "Copied WebEngine locales."
+          }
+          else {
+              Write-Error "Missing WebEngine locales directory: $LOCALES"
+          }
+
+          # --------------------------------
+          # Show resulting runtime
+          # --------------------------------
+
           Write-Host ""
           Write-Host "=========================================="
-          Write-Host "Qt6 directory structure"
+          Write-Host "External WebEngine Runtime"
           Write-Host "=========================================="
 
-          Get-ChildItem $QT6 -Directory |
-              Select-Object FullName
+          Get-ChildItem "$STAGE" -Recurse -File |
+              Select-Object FullName, Length
 
       # -------------------------------
       # Package portable ZIP
