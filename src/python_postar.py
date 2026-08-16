@@ -2,12 +2,10 @@
 """
 python_postar.py
 
-v0.53:
-- Added a new argument --api/-api which allows users to change the API endpoint from Jikan to the official MAL API. This requires adding a client ID tied to your MAL account.
-- If you're not familiar with API's or don't care about using the official MAL API, then you can continue to use Jikan which is still the default for retrieving info for anime.
-- Add a dropdown menu which allows users to change the API endpoint in the GUI.
-- If Jikan returns certain error codes i.e 429, 500, 502, 503, 504, it will try to fallback on the MAL API as a failsafe.
-- While Jikan has only had one connectivity issue recently and it was resolved within a few hours, I'd like to avoid issues whenever possible to ensure a smooth experience for everyone.
+v0.55:
+- Fixed a live preview bug for portable builds which wasn't working as expected in previous releases.
+- I significantly reduced the GUI.exe size to reduce load times during cold boots or restarts.
+- All of the GUI dependencies are now stored inside the new gui_internal folder to ensure the GUI loads the webdriver correctly.
 
 """
 

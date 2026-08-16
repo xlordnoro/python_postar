@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.54.2"
-RELEASE_NAME = "Wolfgang_Ctarnidd_v2"
+VERSION = "0.55"
+RELEASE_NAME = "Roxy"
 
 # -----------------------------
 # MAL retrieval
@@ -1226,6 +1226,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Roxy v0.55"): "themes/roxy.jpg",
             self.tr("Wolfgang v0.54"): "themes/wolfgang.jpg",
             self.tr("Scathach-Skadi v0.53"): "themes/scathach_skadi.jpg",
             self.tr("Saber v0.52"): "themes/saber.jpg",
