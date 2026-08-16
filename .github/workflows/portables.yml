@@ -58,7 +58,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$STAGE\qt_translations"
           New-Item -ItemType Directory -Force -Path "$STAGE\themes"
           Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
-          Copy-Item src\dist\python_postar_gui.exe "$STAGE\"
+          Copy-Item -Recurse src\dist\python_postar_gui\* "$STAGE\"
           Copy-Item src\dist\updater.exe "$STAGE\"
           Copy-Item icon.ico "$STAGE\"
           Copy-Item -Recurse guides "$STAGE\"
