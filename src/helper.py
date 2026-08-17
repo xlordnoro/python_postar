@@ -501,21 +501,23 @@ def check_for_github_update(force=False):
             )
 
             # ---- cleanup ----
-            for _ in range(10):
+            print("[Updater] Cleaning up temporary update directory...")
+            
+            for attempt in range(10):
                 try:
-                    shutil.rmtree(temp_dir)
+                    if temp_dir.exists():
+                        shutil.rmtree(temp_dir)
+            
+                    print("[Updater] Temporary directory removed.")
                     break
-                except Exception:
-                    time.sleep(0.5)
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-            # ---- self delete ----
-            cleanup_cmd = f'ping 127.0.0.1 -n 3 >nul & rmdir /s /q "{temp_dir}"'
-
-            subprocess.Popen(
-                ["cmd", "/c", cleanup_cmd],
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
+            
+                except Exception as e:
+                    print(
+                        f"[Updater] Cleanup attempt {{attempt + 1}}/10 failed: {{e}}"
+                    )
+                    time.sleep(1)
+            
+            print("[Updater] Updater finished.")
         ''')
 
         # Write updater script
