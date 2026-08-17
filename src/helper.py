@@ -417,7 +417,12 @@ def check_for_github_update(force=False):
         base_dir_str = str(base_dir)
     
         # Preserve the exact arguments used to launch the application.
-        original_args = subprocess.list2cmdline(ORIGINAL_ARGV[1:])
+        restart_args = [
+            arg for arg in ORIGINAL_ARGV[1:]
+            if arg.lower() not in ("-u", "--update")
+        ]
+        
+        original_args = subprocess.list2cmdline(restart_args)
     
         def bat_escape(value):
             return (
