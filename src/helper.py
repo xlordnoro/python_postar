@@ -439,28 +439,21 @@ def check_for_github_update(force=False):
         bat_text = f"""@echo off
     setlocal EnableExtensions DisableDelayedExpansion
     
+    REM ============================================================
+    REM Configuration
+    REM ============================================================
+    
     set "TEMP_DIR={temp_dir_bat}"
     set "BASE_DIR={base_dir_bat}"
     set "EXE_NAME={exe_name_bat}"
+    set "BACKUP_DIR=%BASE_DIR%\\backup"
     set "SOURCE_ROOT=%TEMP_DIR%"
-    set "LOG_FILE=%BASE_DIR%\\update.log"
-    
-    echo [Updater] Starting updater...
-    echo [Updater] TEMP_DIR=%TEMP_DIR%
-    echo [Updater] BASE_DIR=%BASE_DIR%
-    echo [Updater] EXE_NAME=%EXE_NAME%
-    
-    > "%LOG_FILE%" echo [Updater] Starting updater...
-    >>"%LOG_FILE%" echo [Updater] TEMP_DIR=%TEMP_DIR%
-    >>"%LOG_FILE%" echo [Updater] BASE_DIR=%BASE_DIR%
-    >>"%LOG_FILE%" echo [Updater] EXE_NAME=%EXE_NAME%
     
     REM ============================================================
-    REM Wait for the main application to completely exit
+    REM Wait for the main application to exit
     REM ============================================================
     
-    echo [Updater] Waiting for application to exit...
-    >>"%LOG_FILE%" echo [Updater] Waiting for application to exit...
+    echo [Updater] Waiting for {exe_name} to exit...
     
     timeout /t 2 /nobreak >NUL
     
@@ -469,13 +462,10 @@ def check_for_github_update(force=False):
     REM ============================================================
     
     if not exist "%TEMP_DIR%" (
-        echo [Updater] ERROR: Temporary update directory does not exist.
-        >>"%LOG_FILE%" echo [Updater] ERROR: Temporary update directory does not exist.
+        echo [Updater] ERROR: Update directory does not exist:
+        echo [Updater] %TEMP_DIR%
         goto FAILED
     )
-    
-    echo [Updater] Temporary directory found.
-    >>"%LOG_FILE%" echo [Updater] Temporary directory found.
     
     REM ============================================================
     REM Detect extraction root
@@ -489,80 +479,71 @@ def check_for_github_update(force=False):
         set "ONLY_ENTRY=%%A"
     )
     
-    echo [Updater] Entry count: %ENTRY_COUNT%
-    >>"%LOG_FILE%" echo [Updater] Entry count: %ENTRY_COUNT%
-    
     if "%ENTRY_COUNT%"=="1" (
         if exist "%TEMP_DIR%\\%ONLY_ENTRY%\\NUL" (
             set "SOURCE_ROOT=%TEMP_DIR%\\%ONLY_ENTRY%"
         )
     )
     
-    echo [Updater] SOURCE_ROOT=%SOURCE_ROOT%
-    >>"%LOG_FILE%" echo [Updater] SOURCE_ROOT=%SOURCE_ROOT%
+    echo [Updater] Copying files from:
+    echo [Updater] "%SOURCE_ROOT%"
+    
+    REM ============================================================
+    REM Verify source root
+    REM ============================================================
     
     if not exist "%SOURCE_ROOT%" (
-        echo [Updater] ERROR: Source directory does not exist.
-        >>"%LOG_FILE%" echo [Updater] ERROR: Source directory does not exist.
+        echo [Updater] ERROR: Source root does not exist.
         goto FAILED
     )
     
     REM ============================================================
-    REM Show update contents
+    REM Create backup directory
     REM ============================================================
     
-    echo [Updater] Update contents:
-    >>"%LOG_FILE%" echo [Updater] Update contents:
+    if not exist "%BACKUP_DIR%" (
+        mkdir "%BACKUP_DIR%"
+    )
     
-    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do (
-        echo     %%A
-        >>"%LOG_FILE%" echo     %%A
+    if errorlevel 1 (
+        echo [Updater] ERROR: Could not create backup directory.
+        goto FAILED
     )
     
     REM ============================================================
-    REM BACKUP EXISTING FILES
+    REM BACKUP EXE FIRST
     REM ============================================================
-    
-    echo [Updater] Creating backups...
-    >>"%LOG_FILE%" echo [Updater] Creating backups...
-    
-    REM ---- EXE ----
     
     if exist "%BASE_DIR%\\%EXE_NAME%" (
     
         echo [Updater] Backing up %EXE_NAME%...
-        >>"%LOG_FILE%" echo [Updater] Backing up %EXE_NAME%...
     
-        copy /Y "%BASE_DIR%\\%EXE_NAME%" "%BASE_DIR%\\%EXE_NAME%.backup" >NUL
+        copy /Y ^
+            "%BASE_DIR%\\%EXE_NAME%" ^
+            "%BACKUP_DIR%\\%EXE_NAME%" >NUL
     
         if errorlevel 1 (
             echo [Updater] ERROR: Failed to backup %EXE_NAME%.
-            >>"%LOG_FILE%" echo [Updater] ERROR: Failed to backup %EXE_NAME%.
             goto FAILED
         )
     
-        echo [Updater] Backup created: %EXE_NAME%.backup
-        >>"%LOG_FILE%" echo [Updater] Backup created: %EXE_NAME%.backup
+        echo [Updater] Backup created:
+        echo [Updater] "%BACKUP_DIR%\\%EXE_NAME%"
     )
     
     REM ============================================================
-    REM COPY UPDATE
+    REM UPDATE TOP-LEVEL ITEMS
     REM ============================================================
     
-    echo [Updater] Copying updated files...
-    >>"%LOG_FILE%" echo [Updater] Copying updated files...
+    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do call :UPDATE_ITEM "%%A"
     
-    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do call :COPY_ITEM "%%A"
-    
-    echo [Updater] Update files copied.
-    >>"%LOG_FILE%" echo [Updater] Update files copied.
+    echo [Updater] All update files processed.
     
     REM ============================================================
-    REM RELAUNCH
+    REM Relaunch application
     REM ============================================================
     
     echo [Updater] Relaunching application...
-    >>"%LOG_FILE%" echo [Updater] Relaunching application...
     
     set "POSTAR_APP_DIR=%BASE_DIR%"
     
@@ -570,29 +551,25 @@ def check_for_github_update(force=False):
     
     if errorlevel 1 (
         echo [Updater] ERROR: Failed to relaunch application.
-        >>"%LOG_FILE%" echo [Updater] ERROR: Failed to relaunch application.
         goto FAILED
     )
     
     echo [Updater] Application relaunched.
-    >>"%LOG_FILE%" echo [Updater] Application relaunched.
     
     REM ============================================================
-    REM CLEANUP
+    REM Cleanup
     REM ============================================================
     
-    echo [Updater] Cleaning temporary directory...
-    >>"%LOG_FILE%" echo [Updater] Cleaning temporary directory...
+    echo [Updater] Cleaning temporary update directory...
     
     set /a CLEANUP_ATTEMPT=0
     
-    :CLEANUP_LOOP
+    :CLEANUP
     
     set /a CLEANUP_ATTEMPT+=1
     
     if not exist "%TEMP_DIR%" (
         echo [Updater] Temporary directory removed.
-        >>"%LOG_FILE%" echo [Updater] Temporary directory removed.
         goto FINISHED
     )
     
@@ -600,64 +577,101 @@ def check_for_github_update(force=False):
     
     if not exist "%TEMP_DIR%" (
         echo [Updater] Temporary directory removed.
-        >>"%LOG_FILE%" echo [Updater] Temporary directory removed.
         goto FINISHED
     )
     
     if %CLEANUP_ATTEMPT% GEQ 10 (
-        echo [Updater] WARNING: Failed to remove temporary directory.
-        >>"%LOG_FILE%" echo [Updater] WARNING: Failed to remove temporary directory.
+        echo [Updater] WARNING: Could not remove temporary directory.
         goto FINISHED
     )
     
-    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT% failed.
-    >>"%LOG_FILE%" echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT% failed.
-    
     timeout /t 1 /nobreak >NUL
-    goto CLEANUP_LOOP
+    goto CLEANUP
     
     REM ============================================================
-    REM COPY ITEM
+    REM Update one top-level item
     REM ============================================================
     
-    :COPY_ITEM
+    :UPDATE_ITEM
     
     set "ITEM=%~1"
     
-    REM ---- Don't copy the updater itself ----
+    REM ------------------------------------------------------------
+    REM Never copy the updater itself
+    REM ------------------------------------------------------------
     
     if /I "%ITEM%"=="update_portable.bat" (
         echo [Updater] Skipping update_portable.bat
-        >>"%LOG_FILE%" echo [Updater] Skipping update_portable.bat
         exit /B 0
     )
     
-    REM ---- Backup existing file ----
+    REM ------------------------------------------------------------
+    REM Never copy the backup directory
+    REM ------------------------------------------------------------
     
-    if exist "%BASE_DIR%\\%ITEM%" (
-        if not exist "%BASE_DIR%\\%ITEM%\\NUL" (
+    if /I "%ITEM%"=="backup" (
+        echo [Updater] Skipping backup directory
+        exit /B 0
+    )
     
-            echo [Updater] Backing up: %ITEM%
-            >>"%LOG_FILE%" echo [Updater] Backing up: %ITEM%
+    REM ------------------------------------------------------------
+    REM Existing top-level FILE
+    REM
+    REM This matches the original Python behavior:
+    REM
+    REM     elif item.is_file():
+    REM         backup_path(dest)
+    REM ------------------------------------------------------------
     
-            copy /Y "%BASE_DIR%\\%ITEM%" "%BASE_DIR%\\%ITEM%.backup" >NUL
+    if exist "%SOURCE_ROOT%\\%ITEM%" (
+        if not exist "%SOURCE_ROOT%\\%ITEM%\\NUL" (
+    
+            if exist "%BASE_DIR%\\%ITEM%" (
+    
+                echo [Updater] Backing up %ITEM%...
+    
+                copy /Y ^
+                    "%BASE_DIR%\\%ITEM%" ^
+                    "%BACKUP_DIR%\\%ITEM%" >NUL
+    
+                if errorlevel 1 (
+                    echo [Updater] WARNING: Backup failed for %ITEM%
+                ) else (
+                    echo [Updater] Backup created:
+                    echo [Updater] "%BACKUP_DIR%\\%ITEM%"
+                )
+            )
+    
+            echo [Updater] Copying file: %ITEM%
+    
+            copy /Y ^
+                "%SOURCE_ROOT%\\%ITEM%" ^
+                "%BASE_DIR%\\%ITEM%" >NUL
     
             if errorlevel 1 (
-                echo [Updater] WARNING: Backup failed: %ITEM%
-                >>"%LOG_FILE%" echo [Updater] WARNING: Backup failed: %ITEM%
+                echo [Updater] ERROR: Copy failed for %ITEM%
             ) else (
-                echo [Updater] Backup created: %ITEM%.backup
-                >>"%LOG_FILE%" echo [Updater] Backup created: %ITEM%.backup
+                echo [Updater] File copied: %ITEM%
             )
+    
+            exit /B 0
         )
     )
     
-    REM ---- Directory ----
+    REM ------------------------------------------------------------
+    REM Existing DIRECTORY
+    REM
+    REM Matches the original Python behavior:
+    REM
+    REM     if item.is_dir():
+    REM         shutil.copytree(item, dest, dirs_exist_ok=True)
+    REM
+    REM No backup is created for the directory itself.
+    REM ------------------------------------------------------------
     
     if exist "%SOURCE_ROOT%\\%ITEM%\\NUL" (
     
         echo [Updater] Copying directory: %ITEM%
-        >>"%LOG_FILE%" echo [Updater] Copying directory: %ITEM%
     
         robocopy ^
             "%SOURCE_ROOT%\\%ITEM%" ^
@@ -673,36 +687,23 @@ def check_for_github_update(force=False):
             /NJS ^
             /NP >NUL
     
-        if errorlevel 8 (
-            echo [Updater] ERROR: Directory copy failed: %ITEM%
-            >>"%LOG_FILE%" echo [Updater] ERROR: Directory copy failed: %ITEM%
+        set "ROBOCOPY_RESULT=%ERRORLEVEL%"
+    
+        if %ROBOCOPY_RESULT% GEQ 8 (
+            echo [Updater] ERROR: Directory copy failed for %ITEM%
         ) else (
             echo [Updater] Directory copied: %ITEM%
-            >>"%LOG_FILE%" echo [Updater] Directory copied: %ITEM%
         )
     
         exit /B 0
     )
     
-    REM ---- File ----
-    
-    echo [Updater] Copying file: %ITEM%
-    >>"%LOG_FILE%" echo [Updater] Copying file: %ITEM%
-    
-    copy /Y "%SOURCE_ROOT%\\%ITEM%" "%BASE_DIR%\\%ITEM%" >NUL
-    
-    if errorlevel 1 (
-        echo [Updater] ERROR: File copy failed: %ITEM%
-        >>"%LOG_FILE%" echo [Updater] ERROR: File copy failed: %ITEM%
-    ) else (
-        echo [Updater] File copied: %ITEM%
-        >>"%LOG_FILE%" echo [Updater] File copied: %ITEM%
-    )
+    echo [Updater] WARNING: Could not determine type of %ITEM%
     
     exit /B 0
     
     REM ============================================================
-    REM FAILED
+    REM Failed
     REM ============================================================
     
     :FAILED
@@ -711,27 +712,20 @@ def check_for_github_update(force=False):
     echo [Updater] ==========================================
     echo [Updater] UPDATE FAILED
     echo [Updater] ==========================================
-    echo [Updater] See:
-    echo [Updater] %LOG_FILE%
     echo.
     
-    >>"%LOG_FILE%" echo [Updater] ==========================================
-    >>"%LOG_FILE%" echo [Updater] UPDATE FAILED
-    >>"%LOG_FILE%" echo [Updater] ==========================================
-    
-    REM Leave temporary directory intact for debugging.
     pause
     
+    endlocal
     exit /B 1
     
     REM ============================================================
-    REM FINISHED
+    REM Finished
     REM ============================================================
     
     :FINISHED
     
     echo [Updater] Updater finished successfully.
-    >>"%LOG_FILE%" echo [Updater] Updater finished successfully.
     
     endlocal
     exit /B 0
@@ -742,12 +736,13 @@ def check_for_github_update(force=False):
             f.flush()
             os.fsync(f.fileno())
     
-        # IMPORTANT:
-        # Do NOT hide the updater while debugging.
         subprocess.Popen(
             ["cmd", "/c", str(updater_bat)],
             cwd=str(base_dir),
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            creationflags=(
+                subprocess.CREATE_NEW_PROCESS_GROUP
+                | subprocess.CREATE_NO_WINDOW
+            ),
         )
     
         sys.exit(0)
