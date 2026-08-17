@@ -409,16 +409,16 @@ def check_for_github_update(force=False):
     # ---- Portable EXE handling ----
     if is_portable():
         print("[Update] Portable updater launched. Exiting current program...")
-
+    
         updater_bat = base_dir / "update_portable.bat"
+    
         exe_name = Path(sys.executable).name
         temp_dir_str = str(temp_dir)
         base_dir_str = str(base_dir)
-
-        # Build the original command-line arguments as a Windows command line.
+    
+        # Preserve the exact arguments used to launch the application.
         original_args = subprocess.list2cmdline(ORIGINAL_ARGV[1:])
-
-        # Escape characters that are special inside a batch file.
+    
         def bat_escape(value):
             return (
                 value
@@ -430,193 +430,326 @@ def check_for_github_update(force=False):
                 .replace("(", "^(")
                 .replace(")", "^)")
             )
-
+    
         exe_name_bat = bat_escape(exe_name)
         temp_dir_bat = bat_escape(temp_dir_str)
         base_dir_bat = bat_escape(base_dir_str)
         original_args_bat = bat_escape(original_args)
-
+    
         bat_text = f"""@echo off
     setlocal EnableExtensions DisableDelayedExpansion
-
-    echo [Updater] Waiting for {exe_name} to exit...
-
-    REM ============================================================
-    REM Wait for the main application to exit
-    REM ============================================================
-
-    :WAIT_FOR_APP
-    tasklist /FI "IMAGENAME eq {exe_name}" 2>NUL | find /I "{exe_name}" >NUL
-
-    if not errorlevel 1 (
-        timeout /t 1 /nobreak >NUL
-        goto WAIT_FOR_APP
-    )
-
-    REM ============================================================
-    REM Paths
-    REM ============================================================
-
+    
     set "TEMP_DIR={temp_dir_bat}"
     set "BASE_DIR={base_dir_bat}"
     set "EXE_NAME={exe_name_bat}"
     set "SOURCE_ROOT=%TEMP_DIR%"
-
+    set "LOG_FILE=%BASE_DIR%\\update.log"
+    
+    echo [Updater] Starting updater...
+    echo [Updater] TEMP_DIR=%TEMP_DIR%
+    echo [Updater] BASE_DIR=%BASE_DIR%
+    echo [Updater] EXE_NAME=%EXE_NAME%
+    
+    > "%LOG_FILE%" echo [Updater] Starting updater...
+    >>"%LOG_FILE%" echo [Updater] TEMP_DIR=%TEMP_DIR%
+    >>"%LOG_FILE%" echo [Updater] BASE_DIR=%BASE_DIR%
+    >>"%LOG_FILE%" echo [Updater] EXE_NAME=%EXE_NAME%
+    
     REM ============================================================
-    REM Detect correct extraction root
+    REM Wait for the main application to completely exit
     REM ============================================================
-
+    
+    echo [Updater] Waiting for application to exit...
+    >>"%LOG_FILE%" echo [Updater] Waiting for application to exit...
+    
+    timeout /t 2 /nobreak >NUL
+    
+    REM ============================================================
+    REM Verify temporary update directory
+    REM ============================================================
+    
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] ERROR: Temporary update directory does not exist.
+        >>"%LOG_FILE%" echo [Updater] ERROR: Temporary update directory does not exist.
+        goto FAILED
+    )
+    
+    echo [Updater] Temporary directory found.
+    >>"%LOG_FILE%" echo [Updater] Temporary directory found.
+    
+    REM ============================================================
+    REM Detect extraction root
+    REM ============================================================
+    
     set "ENTRY_COUNT=0"
     set "ONLY_ENTRY="
-
+    
     for /f "delims=" %%A in ('dir /b /a "%TEMP_DIR%" 2^>nul') do (
         set /a ENTRY_COUNT+=1
         set "ONLY_ENTRY=%%A"
     )
-
+    
+    echo [Updater] Entry count: %ENTRY_COUNT%
+    >>"%LOG_FILE%" echo [Updater] Entry count: %ENTRY_COUNT%
+    
     if "%ENTRY_COUNT%"=="1" (
         if exist "%TEMP_DIR%\\%ONLY_ENTRY%\\NUL" (
             set "SOURCE_ROOT=%TEMP_DIR%\\%ONLY_ENTRY%"
         )
     )
-
-    echo [Updater] Copying files from "%SOURCE_ROOT%"
-
-    REM ============================================================
-    REM Backup helper
-    REM ============================================================
-
-    REM Backup EXE first
-    if exist "%BASE_DIR%\\%EXE_NAME%" (
-        copy /Y "%BASE_DIR%\\%EXE_NAME%" "%BASE_DIR%\\%EXE_NAME%.backup" >NUL
-
-        if errorlevel 1 (
-            echo [Updater] Backup failed for "%BASE_DIR%\\%EXE_NAME%"
-        ) else (
-            echo [Updater] Backup created: "%BASE_DIR%\\%EXE_NAME%.backup"
-        )
+    
+    echo [Updater] SOURCE_ROOT=%SOURCE_ROOT%
+    >>"%LOG_FILE%" echo [Updater] SOURCE_ROOT=%SOURCE_ROOT%
+    
+    if not exist "%SOURCE_ROOT%" (
+        echo [Updater] ERROR: Source directory does not exist.
+        >>"%LOG_FILE%" echo [Updater] ERROR: Source directory does not exist.
+        goto FAILED
     )
-
+    
     REM ============================================================
-    REM Copy updated files
+    REM Show update contents
     REM ============================================================
-
+    
+    echo [Updater] Update contents:
+    >>"%LOG_FILE%" echo [Updater] Update contents:
+    
     for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do (
-
-        if /I "%%A"=="%EXE_NAME%" (
-            echo [Updater] Skipping backup for "%BASE_DIR%\\%%A" (already done)
-        ) else (
-            if exist "%BASE_DIR%\\%%A" (
-                if not exist "%BASE_DIR%\\%%A\\NUL" (
-                    copy /Y "%BASE_DIR%\\%%A" "%BASE_DIR%\\%%A.backup" >NUL
-
-                    if errorlevel 1 (
-                        echo [Updater] Backup failed for "%BASE_DIR%\\%%A"
-                    ) else (
-                        echo [Updater] Backup created: "%BASE_DIR%\\%%A.backup"
-                    )
-                )
-            )
-        )
-
-        REM --------------------------------------------------------
-        REM Copy file or directory
-        REM --------------------------------------------------------
-
-        if exist "%SOURCE_ROOT%\\%%A\\NUL" (
-            echo [Updater] Copying directory: %%A
-
-            robocopy ^
-                "%SOURCE_ROOT%\\%%A" ^
-                "%BASE_DIR%\\%%A" ^
-                /E ^
-                /COPY:DAT ^
-                /DCOPY:DAT ^
-                /R:2 ^
-                /W:1 ^
-                /NFL ^
-                /NDL ^
-                /NJH ^
-                /NJS ^
-                /NP >NUL
-
-            if errorlevel 8 (
-                echo [Updater] Copy failed: %%A
-            )
-        ) else (
-            echo [Updater] Copying file: %%A
-
-            copy /Y "%SOURCE_ROOT%\\%%A" "%BASE_DIR%\\%%A" >NUL
-
-            if errorlevel 1 (
-                echo [Updater] Copy failed: %%A
-            )
-        )
+        echo     %%A
+        >>"%LOG_FILE%" echo     %%A
     )
-
+    
     REM ============================================================
-    REM Relaunch application
+    REM BACKUP EXISTING FILES
     REM ============================================================
-
+    
+    echo [Updater] Creating backups...
+    >>"%LOG_FILE%" echo [Updater] Creating backups...
+    
+    REM ---- EXE ----
+    
+    if exist "%BASE_DIR%\\%EXE_NAME%" (
+    
+        echo [Updater] Backing up %EXE_NAME%...
+        >>"%LOG_FILE%" echo [Updater] Backing up %EXE_NAME%...
+    
+        copy /Y "%BASE_DIR%\\%EXE_NAME%" "%BASE_DIR%\\%EXE_NAME%.backup" >NUL
+    
+        if errorlevel 1 (
+            echo [Updater] ERROR: Failed to backup %EXE_NAME%.
+            >>"%LOG_FILE%" echo [Updater] ERROR: Failed to backup %EXE_NAME%.
+            goto FAILED
+        )
+    
+        echo [Updater] Backup created: %EXE_NAME%.backup
+        >>"%LOG_FILE%" echo [Updater] Backup created: %EXE_NAME%.backup
+    )
+    
+    REM ============================================================
+    REM COPY UPDATE
+    REM ============================================================
+    
+    echo [Updater] Copying updated files...
+    >>"%LOG_FILE%" echo [Updater] Copying updated files...
+    
+    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do call :COPY_ITEM "%%A"
+    
+    echo [Updater] Update files copied.
+    >>"%LOG_FILE%" echo [Updater] Update files copied.
+    
+    REM ============================================================
+    REM RELAUNCH
+    REM ============================================================
+    
     echo [Updater] Relaunching application...
-
+    >>"%LOG_FILE%" echo [Updater] Relaunching application...
+    
     set "POSTAR_APP_DIR=%BASE_DIR%"
-
+    
     start "" /D "%BASE_DIR%" "%BASE_DIR%\\%EXE_NAME%" {original_args_bat}
-
+    
+    if errorlevel 1 (
+        echo [Updater] ERROR: Failed to relaunch application.
+        >>"%LOG_FILE%" echo [Updater] ERROR: Failed to relaunch application.
+        goto FAILED
+    )
+    
+    echo [Updater] Application relaunched.
+    >>"%LOG_FILE%" echo [Updater] Application relaunched.
+    
     REM ============================================================
-    REM Cleanup
+    REM CLEANUP
     REM ============================================================
-
-    echo [Updater] Cleaning up temporary update directory...
-
+    
+    echo [Updater] Cleaning temporary directory...
+    >>"%LOG_FILE%" echo [Updater] Cleaning temporary directory...
+    
     set /a CLEANUP_ATTEMPT=0
-
-    :CLEANUP
+    
+    :CLEANUP_LOOP
+    
     set /a CLEANUP_ATTEMPT+=1
-
+    
     if not exist "%TEMP_DIR%" (
         echo [Updater] Temporary directory removed.
+        >>"%LOG_FILE%" echo [Updater] Temporary directory removed.
         goto FINISHED
     )
-
+    
     rmdir /S /Q "%TEMP_DIR%" >NUL 2>&1
-
+    
     if not exist "%TEMP_DIR%" (
         echo [Updater] Temporary directory removed.
+        >>"%LOG_FILE%" echo [Updater] Temporary directory removed.
         goto FINISHED
     )
-
+    
     if %CLEANUP_ATTEMPT% GEQ 10 (
-        echo [Updater] Cleanup failed after 10 attempts.
+        echo [Updater] WARNING: Failed to remove temporary directory.
+        >>"%LOG_FILE%" echo [Updater] WARNING: Failed to remove temporary directory.
         goto FINISHED
     )
-
-    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT%/10 failed.
+    
+    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT% failed.
+    >>"%LOG_FILE%" echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT% failed.
+    
     timeout /t 1 /nobreak >NUL
-    goto CLEANUP
-
+    goto CLEANUP_LOOP
+    
+    REM ============================================================
+    REM COPY ITEM
+    REM ============================================================
+    
+    :COPY_ITEM
+    
+    set "ITEM=%~1"
+    
+    REM ---- Don't copy the updater itself ----
+    
+    if /I "%ITEM%"=="update_portable.bat" (
+        echo [Updater] Skipping update_portable.bat
+        >>"%LOG_FILE%" echo [Updater] Skipping update_portable.bat
+        exit /B 0
+    )
+    
+    REM ---- Backup existing file ----
+    
+    if exist "%BASE_DIR%\\%ITEM%" (
+        if not exist "%BASE_DIR%\\%ITEM%\\NUL" (
+    
+            echo [Updater] Backing up: %ITEM%
+            >>"%LOG_FILE%" echo [Updater] Backing up: %ITEM%
+    
+            copy /Y "%BASE_DIR%\\%ITEM%" "%BASE_DIR%\\%ITEM%.backup" >NUL
+    
+            if errorlevel 1 (
+                echo [Updater] WARNING: Backup failed: %ITEM%
+                >>"%LOG_FILE%" echo [Updater] WARNING: Backup failed: %ITEM%
+            ) else (
+                echo [Updater] Backup created: %ITEM%.backup
+                >>"%LOG_FILE%" echo [Updater] Backup created: %ITEM%.backup
+            )
+        )
+    )
+    
+    REM ---- Directory ----
+    
+    if exist "%SOURCE_ROOT%\\%ITEM%\\NUL" (
+    
+        echo [Updater] Copying directory: %ITEM%
+        >>"%LOG_FILE%" echo [Updater] Copying directory: %ITEM%
+    
+        robocopy ^
+            "%SOURCE_ROOT%\\%ITEM%" ^
+            "%BASE_DIR%\\%ITEM%" ^
+            /E ^
+            /COPY:DAT ^
+            /DCOPY:DAT ^
+            /R:2 ^
+            /W:1 ^
+            /NFL ^
+            /NDL ^
+            /NJH ^
+            /NJS ^
+            /NP >NUL
+    
+        if errorlevel 8 (
+            echo [Updater] ERROR: Directory copy failed: %ITEM%
+            >>"%LOG_FILE%" echo [Updater] ERROR: Directory copy failed: %ITEM%
+        ) else (
+            echo [Updater] Directory copied: %ITEM%
+            >>"%LOG_FILE%" echo [Updater] Directory copied: %ITEM%
+        )
+    
+        exit /B 0
+    )
+    
+    REM ---- File ----
+    
+    echo [Updater] Copying file: %ITEM%
+    >>"%LOG_FILE%" echo [Updater] Copying file: %ITEM%
+    
+    copy /Y "%SOURCE_ROOT%\\%ITEM%" "%BASE_DIR%\\%ITEM%" >NUL
+    
+    if errorlevel 1 (
+        echo [Updater] ERROR: File copy failed: %ITEM%
+        >>"%LOG_FILE%" echo [Updater] ERROR: File copy failed: %ITEM%
+    ) else (
+        echo [Updater] File copied: %ITEM%
+        >>"%LOG_FILE%" echo [Updater] File copied: %ITEM%
+    )
+    
+    exit /B 0
+    
+    REM ============================================================
+    REM FAILED
+    REM ============================================================
+    
+    :FAILED
+    
+    echo.
+    echo [Updater] ==========================================
+    echo [Updater] UPDATE FAILED
+    echo [Updater] ==========================================
+    echo [Updater] See:
+    echo [Updater] %LOG_FILE%
+    echo.
+    
+    >>"%LOG_FILE%" echo [Updater] ==========================================
+    >>"%LOG_FILE%" echo [Updater] UPDATE FAILED
+    >>"%LOG_FILE%" echo [Updater] ==========================================
+    
+    REM Leave temporary directory intact for debugging.
+    pause
+    
+    exit /B 1
+    
+    REM ============================================================
+    REM FINISHED
+    REM ============================================================
+    
     :FINISHED
-    echo [Updater] Updater finished.
-
+    
+    echo [Updater] Updater finished successfully.
+    >>"%LOG_FILE%" echo [Updater] Updater finished successfully.
+    
     endlocal
     exit /B 0
     """
-
-        # Write updater batch file
+    
         with open(updater_bat, "w", encoding="utf-8", newline="\r\n") as f:
             f.write(bat_text)
             f.flush()
             os.fsync(f.fileno())
-
-        # Launch updater through cmd.exe.
+    
+        # IMPORTANT:
+        # Do NOT hide the updater while debugging.
         subprocess.Popen(
             ["cmd", "/c", str(updater_bat)],
             cwd=str(base_dir),
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.CREATE_NO_WINDOW,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
         )
-
+    
         sys.exit(0)
 
     # ---- Source (.py) handling ----
