@@ -410,127 +410,211 @@ def check_for_github_update(force=False):
     if is_portable():
         print("[Update] Portable updater launched. Exiting current program...")
 
-        updater_py = base_dir / "update_portable.py"
-        python_exe = Path(sys.executable).name
+        updater_bat = base_dir / "update_portable.bat"
+        exe_name = Path(sys.executable).name
         temp_dir_str = str(temp_dir)
         base_dir_str = str(base_dir)
-        original_args = ORIGINAL_ARGV[1:]
 
-        py_text = textwrap.dedent(f'''
-            import os
-            import sys
-            import time
-            import shutil
-            import subprocess
-            from pathlib import Path
+        # Build the original command-line arguments as a Windows command line.
+        original_args = subprocess.list2cmdline(ORIGINAL_ARGV[1:])
 
-            python_exe = "{python_exe}"
-            temp_dir = Path(r"{temp_dir_str}")
-            base_dir = Path(r"{base_dir_str}")
-            original_args = {original_args}
-
-            print(f"[Updater] Waiting for {{python_exe}} to exit...")
-
-            # ---- wait for main EXE to exit ----
-            while True:
-                try:
-                    result = subprocess.run(
-                        ["tasklist"],
-                        capture_output=True,
-                        text=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
-                    )
-                    if python_exe.lower() not in result.stdout.lower():
-                        break
-                except Exception:
-                    break
-                time.sleep(1)
-
-            # ---- detect correct extraction root ----
-            entries = list(temp_dir.iterdir())
-            if len(entries) == 1 and entries[0].is_dir():
-                source_root = entries[0]
-            else:
-                source_root = temp_dir
-
-            print(f"[Updater] Copying files from {{source_root}}")
-
-            # ---- helper: backup files ----
-            def backup_path(p: Path):
-                if p.exists():
-                    backup = p.with_suffix(p.suffix + ".backup")
-                    try:
-                        shutil.copy2(p, backup)
-                        print(f"[Updater] Backup created: {{backup}}")
-                    except Exception as e:
-                        print(f"[Updater] Backup failed for {{p}}: {{e}}")
-
-            # ---- BACKUP EXE FIRST ----
-            exe_path = base_dir / python_exe
-            backup_path(exe_path)
-
-            # ---- copy updated files ----
-            for item in source_root.iterdir():
-                dest = base_dir / item.name
-                try:
-                    # Skip EXE (already backed up)
-                    if dest.name.lower() == python_exe.lower():
-                        print(f"[Updater] Skipping backup for {{dest}} (already done)")
-                    elif item.is_file():
-                        backup_path(dest)
-
-                    # ---- COPY ----
-                    if item.is_dir():
-                        shutil.copytree(item, dest, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(item, dest)
-
-                except Exception as e:
-                    print("[Updater] Copy failed:", e)
-
-            # ---- relaunch app ----
-            print("[Updater] Relaunching application...")
-            env = os.environ.copy()
-            env["POSTAR_APP_DIR"] = str(base_dir)
-
-            subprocess.Popen(
-                [str(base_dir / python_exe), *original_args],
-                cwd=str(base_dir),
-                env=env,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+        # Escape characters that are special inside a batch file.
+        def bat_escape(value):
+            return (
+                value
+                .replace("^", "^^")
+                .replace("&", "^&")
+                .replace("|", "^|")
+                .replace("<", "^<")
+                .replace(">", "^>")
+                .replace("(", "^(")
+                .replace(")", "^)")
             )
 
-            # ---- cleanup ----
-            print("[Updater] Cleaning up temporary update directory...")
-            
-            for attempt in range(10):
-                try:
-                    if temp_dir.exists():
-                        shutil.rmtree(temp_dir)
-            
-                    print("[Updater] Temporary directory removed.")
-                    break
-            
-                except Exception as e:
-                    print(
-                        f"[Updater] Cleanup attempt {{attempt + 1}}/10 failed: {{e}}"
-                    )
-                    time.sleep(1)
-            
-            print("[Updater] Updater finished.")
-        ''')
+        exe_name_bat = bat_escape(exe_name)
+        temp_dir_bat = bat_escape(temp_dir_str)
+        base_dir_bat = bat_escape(base_dir_str)
+        original_args_bat = bat_escape(original_args)
 
-        # Write updater script
-        with open(updater_py, "w", encoding="utf-8") as f:
-            f.write(py_text)
+        bat_text = f"""@echo off
+    setlocal EnableExtensions DisableDelayedExpansion
+
+    echo [Updater] Waiting for {exe_name} to exit...
+
+    REM ============================================================
+    REM Wait for the main application to exit
+    REM ============================================================
+
+    :WAIT_FOR_APP
+    tasklist /FI "IMAGENAME eq {exe_name}" 2>NUL | find /I "{exe_name}" >NUL
+
+    if not errorlevel 1 (
+        timeout /t 1 /nobreak >NUL
+        goto WAIT_FOR_APP
+    )
+
+    REM ============================================================
+    REM Paths
+    REM ============================================================
+
+    set "TEMP_DIR={temp_dir_bat}"
+    set "BASE_DIR={base_dir_bat}"
+    set "EXE_NAME={exe_name_bat}"
+    set "SOURCE_ROOT=%TEMP_DIR%"
+
+    REM ============================================================
+    REM Detect correct extraction root
+    REM ============================================================
+
+    set "ENTRY_COUNT=0"
+    set "ONLY_ENTRY="
+
+    for /f "delims=" %%A in ('dir /b /a "%TEMP_DIR%" 2^>nul') do (
+        set /a ENTRY_COUNT+=1
+        set "ONLY_ENTRY=%%A"
+    )
+
+    if "%ENTRY_COUNT%"=="1" (
+        if exist "%TEMP_DIR%\\%ONLY_ENTRY%\\NUL" (
+            set "SOURCE_ROOT=%TEMP_DIR%\\%ONLY_ENTRY%"
+        )
+    )
+
+    echo [Updater] Copying files from "%SOURCE_ROOT%"
+
+    REM ============================================================
+    REM Backup helper
+    REM ============================================================
+
+    REM Backup EXE first
+    if exist "%BASE_DIR%\\%EXE_NAME%" (
+        copy /Y "%BASE_DIR%\\%EXE_NAME%" "%BASE_DIR%\\%EXE_NAME%.backup" >NUL
+
+        if errorlevel 1 (
+            echo [Updater] Backup failed for "%BASE_DIR%\\%EXE_NAME%"
+        ) else (
+            echo [Updater] Backup created: "%BASE_DIR%\\%EXE_NAME%.backup"
+        )
+    )
+
+    REM ============================================================
+    REM Copy updated files
+    REM ============================================================
+
+    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do (
+
+        if /I "%%A"=="%EXE_NAME%" (
+            echo [Updater] Skipping backup for "%BASE_DIR%\\%%A" (already done)
+        ) else (
+            if exist "%BASE_DIR%\\%%A" (
+                if not exist "%BASE_DIR%\\%%A\\NUL" (
+                    copy /Y "%BASE_DIR%\\%%A" "%BASE_DIR%\\%%A.backup" >NUL
+
+                    if errorlevel 1 (
+                        echo [Updater] Backup failed for "%BASE_DIR%\\%%A"
+                    ) else (
+                        echo [Updater] Backup created: "%BASE_DIR%\\%%A.backup"
+                    )
+                )
+            )
+        )
+
+        REM --------------------------------------------------------
+        REM Copy file or directory
+        REM --------------------------------------------------------
+
+        if exist "%SOURCE_ROOT%\\%%A\\NUL" (
+            echo [Updater] Copying directory: %%A
+
+            robocopy ^
+                "%SOURCE_ROOT%\\%%A" ^
+                "%BASE_DIR%\\%%A" ^
+                /E ^
+                /COPY:DAT ^
+                /DCOPY:DAT ^
+                /R:2 ^
+                /W:1 ^
+                /NFL ^
+                /NDL ^
+                /NJH ^
+                /NJS ^
+                /NP >NUL
+
+            if errorlevel 8 (
+                echo [Updater] Copy failed: %%A
+            )
+        ) else (
+            echo [Updater] Copying file: %%A
+
+            copy /Y "%SOURCE_ROOT%\\%%A" "%BASE_DIR%\\%%A" >NUL
+
+            if errorlevel 1 (
+                echo [Updater] Copy failed: %%A
+            )
+        )
+    )
+
+    REM ============================================================
+    REM Relaunch application
+    REM ============================================================
+
+    echo [Updater] Relaunching application...
+
+    set "POSTAR_APP_DIR=%BASE_DIR%"
+
+    start "" /D "%BASE_DIR%" "%BASE_DIR%\\%EXE_NAME%" {original_args_bat}
+
+    REM ============================================================
+    REM Cleanup
+    REM ============================================================
+
+    echo [Updater] Cleaning up temporary update directory...
+
+    set /a CLEANUP_ATTEMPT=0
+
+    :CLEANUP
+    set /a CLEANUP_ATTEMPT+=1
+
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] Temporary directory removed.
+        goto FINISHED
+    )
+
+    rmdir /S /Q "%TEMP_DIR%" >NUL 2>&1
+
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] Temporary directory removed.
+        goto FINISHED
+    )
+
+    if %CLEANUP_ATTEMPT% GEQ 10 (
+        echo [Updater] Cleanup failed after 10 attempts.
+        goto FINISHED
+    )
+
+    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT%/10 failed.
+    timeout /t 1 /nobreak >NUL
+    goto CLEANUP
+
+    :FINISHED
+    echo [Updater] Updater finished.
+
+    endlocal
+    exit /B 0
+    """
+
+        # Write updater batch file
+        with open(updater_bat, "w", encoding="utf-8", newline="\r\n") as f:
+            f.write(bat_text)
             f.flush()
             os.fsync(f.fileno())
 
-        # Launch updater via cmd so python resolves correctly
+        # Launch updater through cmd.exe.
         subprocess.Popen(
-            ["cmd", "/c", "python", str(updater_py)],
+            ["cmd", "/c", str(updater_bat)],
             cwd=str(base_dir),
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.CREATE_NO_WINDOW,
         )
 
         sys.exit(0)
