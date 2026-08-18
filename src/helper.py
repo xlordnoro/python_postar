@@ -417,14 +417,15 @@ def check_for_github_update(force=False):
         base_dir_str = str(base_dir)
     
         # ------------------------------------------------------------
-        # Preserve original arguments, but remove update flags.
+        # Preserve the original command-line arguments, except for
+        # the update flag.
         #
         # This prevents:
         #
         #     python_postar.exe -u
         #
-        # from being used to relaunch the updated application and
-        # starting another update check.
+        # from causing another update check after the application
+        # has been updated and relaunched.
         # ------------------------------------------------------------
     
         restart_args = [
@@ -457,7 +458,7 @@ def check_for_github_update(force=False):
         original_args_bat = bat_escape(original_args)
     
         # ------------------------------------------------------------
-        # Generate updater BAT
+        # Generate portable updater
         # ------------------------------------------------------------
     
         bat_text = f"""@echo off
@@ -474,8 +475,10 @@ def check_for_github_update(force=False):
     set "SOURCE_ROOT=%TEMP_DIR%"
     
     echo [Updater] Starting portable updater...
-    echo [Updater] Temporary directory: "%TEMP_DIR%"
-    echo [Updater] Base directory: "%BASE_DIR%"
+    echo [Updater] Temporary directory:
+    echo [Updater] "%TEMP_DIR%"
+    echo [Updater] Base directory:
+    echo [Updater] "%BASE_DIR%"
     
     REM ============================================================
     REM Wait for the main application to exit
@@ -505,7 +508,11 @@ def check_for_github_update(force=False):
     )
     
     REM ============================================================
-    REM Detect extraction root
+    REM Detect correct extraction root
+    REM
+    REM If the ZIP extracted into a single directory, use that
+    REM directory as the source root.
+    REM Otherwise use TEMP_DIR directly.
     REM ============================================================
     
     set "ENTRY_COUNT=0"
@@ -547,32 +554,29 @@ def check_for_github_update(force=False):
     echo [Updater] "%BACKUP_DIR%"
     
     REM ============================================================
-    REM BACKUP THE MAIN EXE FIRST
+    REM PROCESS TOP-LEVEL FILES ONLY
+    REM
+    REM /a-d means:
+    REM     Files only
+    REM
+    REM Directories are completely excluded from this loop.
     REM ============================================================
     
-    if exist "%BASE_DIR%\\%EXE_NAME%" (
-    
-        echo [Updater] Backing up %EXE_NAME%...
-    
-        copy /Y ^
-            "%BASE_DIR%\\%EXE_NAME%" ^
-            "%BACKUP_DIR%\\%EXE_NAME%" >NUL
-    
-        if errorlevel 1 (
-            echo [Updater] ERROR: Failed to backup %EXE_NAME%.
-            goto FAILED
-        )
-    
-        echo [Updater] Backup created:
-        echo [Updater] "%BACKUP_DIR%\\%EXE_NAME%"
+    for /f "delims=" %%A in ('dir /b /a-d "%SOURCE_ROOT%" 2^>nul') do (
+        call :UPDATE_FILE "%%A"
     )
     
     REM ============================================================
-    REM Process every top-level item in the update
+    REM PROCESS TOP-LEVEL DIRECTORIES ONLY
+    REM
+    REM /ad means:
+    REM     Directories only
+    REM
+    REM Directories are copied/merged but NEVER backed up.
     REM ============================================================
     
-    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do (
-        call :UPDATE_ITEM "%%A"
+    for /f "delims=" %%A in ('dir /b /ad "%SOURCE_ROOT%" 2^>nul') do (
+        call :UPDATE_DIRECTORY "%%A"
     )
     
     echo [Updater] All update files processed.
@@ -628,16 +632,17 @@ def check_for_github_update(force=False):
     timeout /t 1 /nobreak >NUL
     goto CLEANUP
     
+    
     REM ============================================================
-    REM UPDATE ONE TOP-LEVEL ITEM
+    REM UPDATE TOP-LEVEL FILE
     REM ============================================================
     
-    :UPDATE_ITEM
+    :UPDATE_FILE
     
     set "ITEM=%~1"
     
     REM ------------------------------------------------------------
-    REM Skip updater itself
+    REM Never update the updater itself.
     REM ------------------------------------------------------------
     
     if /I "%ITEM%"=="update_portable.bat" (
@@ -646,92 +651,22 @@ def check_for_github_update(force=False):
     )
     
     REM ------------------------------------------------------------
-    REM Skip backup directory
-    REM ------------------------------------------------------------
-    
-    if /I "%ITEM%"=="backup" (
-        echo [Updater] Skipping backup directory
-        exit /B 0
-    )
-    
-    REM ------------------------------------------------------------
-    REM Determine whether ITEM is a directory.
+    REM Only EXE files are backed up.
     REM
-    REM We explicitly query DIR /AD instead of relying on the
-    REM unreliable "path\\NUL" directory test.
-    REM ------------------------------------------------------------
-    
-    set "IS_DIRECTORY=0"
-    
-    for /f "delims=" %%D in ('dir /ad /b "%SOURCE_ROOT%\\%ITEM%" 2^>nul') do (
-        set "IS_DIRECTORY=1"
-    )
-    
-    REM ------------------------------------------------------------
-    REM DIRECTORY
+    REM Everything else is simply copied:
     REM
-    REM Directories are NOT backed up.
-    REM This matches:
-    REM
-    REM     if item.is_dir():
-    REM         shutil.copytree(..., dirs_exist_ok=True)
-    REM ------------------------------------------------------------
-    
-    if "!IS_DIRECTORY!"=="1" (
-    
-        echo [Updater] Copying directory: %ITEM%
-    
-        robocopy ^
-            "%SOURCE_ROOT%\\%ITEM%" ^
-            "%BASE_DIR%\\%ITEM%" ^
-            /E ^
-            /COPY:DAT ^
-            /DCOPY:DAT ^
-            /R:2 ^
-            /W:1 ^
-            /NFL ^
-            /NDL ^
-            /NJH ^
-            /NJS ^
-            /NP >NUL
-    
-        set "ROBOCOPY_RESULT=!ERRORLEVEL!"
-    
-        if !ROBOCOPY_RESULT! GEQ 8 (
-            echo [Updater] ERROR: Directory copy failed for %ITEM%
-        ) else (
-            echo [Updater] Directory copied: %ITEM%
-        )
-    
-        exit /B 0
-    )
-    
-    REM ------------------------------------------------------------
-    REM FILE
-    REM
-    REM Every top-level file from the update is backed up if an
-    REM existing file with the same name exists in BASE_DIR.
-    REM
-    REM This includes:
-    REM
-    REM     .exe
     REM     .dll
     REM     .json
-    REM     .py
     REM     .txt
+    REM     .py
     REM     etc.
-    REM
-    REM This is the equivalent of:
-    REM
-    REM     elif item.is_file():
-    REM         backup_path(dest)
     REM ------------------------------------------------------------
     
-    if exist "%SOURCE_ROOT%\\%ITEM%" (
+    if /I "%~x1"==".exe" (
     
         if exist "%BASE_DIR%\\%ITEM%" (
     
-            echo [Updater] Backing up %ITEM%...
+            echo [Updater] Backing up EXE: %ITEM%
     
             copy /Y ^
                 "%BASE_DIR%\\%ITEM%" ^
@@ -744,25 +679,83 @@ def check_for_github_update(force=False):
                 echo [Updater] "%BACKUP_DIR%\\%ITEM%"
             )
         )
+    )
     
-        echo [Updater] Copying file: %ITEM%
+    REM ------------------------------------------------------------
+    REM Copy the file
+    REM ------------------------------------------------------------
     
-        copy /Y ^
-            "%SOURCE_ROOT%\\%ITEM%" ^
-            "%BASE_DIR%\\%ITEM%" >NUL
+    echo [Updater] Copying file: %ITEM%
     
-        if errorlevel 1 (
-            echo [Updater] ERROR: Copy failed for %ITEM%
-        ) else (
-            echo [Updater] File copied: %ITEM%
-        )
+    copy /Y ^
+        "%SOURCE_ROOT%\\%ITEM%" ^
+        "%BASE_DIR%\\%ITEM%" >NUL
     
+    if errorlevel 1 (
+        echo [Updater] ERROR: Copy failed for %ITEM%
+    ) else (
+        echo [Updater] File copied: %ITEM%
+    )
+    
+    exit /B 0
+    
+    
+    REM ============================================================
+    REM UPDATE TOP-LEVEL DIRECTORY
+    REM ============================================================
+    
+    :UPDATE_DIRECTORY
+    
+    set "ITEM=%~1"
+    
+    REM ------------------------------------------------------------
+    REM Never copy the backup directory.
+    REM ------------------------------------------------------------
+    
+    if /I "%ITEM%"=="backup" (
+        echo [Updater] Skipping backup directory
         exit /B 0
     )
     
-    echo [Updater] WARNING: Could not determine type of %ITEM%
+    REM ------------------------------------------------------------
+    REM Copy/merge directory.
+    REM
+    REM No backup is created for directories.
+    REM This matches the original Python updater:
+    REM
+    REM     shutil.copytree(
+    REM         item,
+    REM         dest,
+    REM         dirs_exist_ok=True
+    REM     )
+    REM ------------------------------------------------------------
+    
+    echo [Updater] Copying directory: %ITEM%
+    
+    robocopy ^
+        "%SOURCE_ROOT%\\%ITEM%" ^
+        "%BASE_DIR%\\%ITEM%" ^
+        /E ^
+        /COPY:DAT ^
+        /DCOPY:DAT ^
+        /R:2 ^
+        /W:1 ^
+        /NFL ^
+        /NDL ^
+        /NJH ^
+        /NJS ^
+        /NP >NUL
+    
+    set "ROBOCOPY_RESULT=!ERRORLEVEL!"
+    
+    if !ROBOCOPY_RESULT! GEQ 8 (
+        echo [Updater] ERROR: Directory copy failed for %ITEM%
+    ) else (
+        echo [Updater] Directory copied: %ITEM%
+    )
     
     exit /B 0
+    
     
     REM ============================================================
     REM FAILED
@@ -780,6 +773,7 @@ def check_for_github_update(force=False):
     
     endlocal
     exit /B 1
+    
     
     REM ============================================================
     REM FINISHED
