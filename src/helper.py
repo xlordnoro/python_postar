@@ -416,13 +416,23 @@ def check_for_github_update(force=False):
         temp_dir_str = str(temp_dir)
         base_dir_str = str(base_dir)
     
-        # Preserve the exact arguments used to launch the application.
+        # ------------------------------------------------------------
+        # Preserve the original command-line arguments, but remove
+        # the update flag so the relaunched application does not
+        # immediately perform another update check.
+        # ------------------------------------------------------------
+    
         restart_args = [
-            arg for arg in ORIGINAL_ARGV[1:]
+            arg
+            for arg in ORIGINAL_ARGV[1:]
             if arg.lower() not in ("-u", "--update")
         ]
-        
+    
         original_args = subprocess.list2cmdline(restart_args)
+    
+        # ------------------------------------------------------------
+        # Escape characters that are special inside a batch file.
+        # ------------------------------------------------------------
     
         def bat_escape(value):
             return (
@@ -440,6 +450,10 @@ def check_for_github_update(force=False):
         temp_dir_bat = bat_escape(temp_dir_str)
         base_dir_bat = bat_escape(base_dir_str)
         original_args_bat = bat_escape(original_args)
+    
+        # ------------------------------------------------------------
+        # Generate portable updater
+        # ------------------------------------------------------------
     
         bat_text = f"""@echo off
     setlocal EnableExtensions DisableDelayedExpansion
@@ -473,7 +487,7 @@ def check_for_github_update(force=False):
     )
     
     REM ============================================================
-    REM Detect extraction root
+    REM Detect correct extraction root
     REM ============================================================
     
     set "ENTRY_COUNT=0"
@@ -514,6 +528,9 @@ def check_for_github_update(force=False):
         echo [Updater] ERROR: Could not create backup directory.
         goto FAILED
     )
+    
+    echo [Updater] Backup directory:
+    echo [Updater] "%BACKUP_DIR%"
     
     REM ============================================================
     REM BACKUP EXE FIRST
@@ -590,11 +607,13 @@ def check_for_github_update(force=False):
         goto FINISHED
     )
     
+    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT%/10 failed.
+    
     timeout /t 1 /nobreak >NUL
     goto CLEANUP
     
     REM ============================================================
-    REM Update one top-level item
+    REM UPDATE ONE TOP-LEVEL ITEM
     REM ============================================================
     
     :UPDATE_ITEM
@@ -620,61 +639,17 @@ def check_for_github_update(force=False):
     )
     
     REM ------------------------------------------------------------
-    REM Existing top-level FILE
+    REM DIRECTORY
     REM
-    REM This matches the original Python behavior:
+    REM IMPORTANT:
+    REM Check for directories FIRST.
     REM
-    REM     elif item.is_file():
-    REM         backup_path(dest)
+    REM The previous version checked for a generic existing path
+    REM before checking for a directory, which caused directories
+    REM to be incorrectly treated as files.
     REM ------------------------------------------------------------
     
-    if exist "%SOURCE_ROOT%\\%ITEM%" (
-        if not exist "%SOURCE_ROOT%\\%ITEM%\\NUL" (
-    
-            if exist "%BASE_DIR%\\%ITEM%" (
-    
-                echo [Updater] Backing up %ITEM%...
-    
-                copy /Y ^
-                    "%BASE_DIR%\\%ITEM%" ^
-                    "%BACKUP_DIR%\\%ITEM%" >NUL
-    
-                if errorlevel 1 (
-                    echo [Updater] WARNING: Backup failed for %ITEM%
-                ) else (
-                    echo [Updater] Backup created:
-                    echo [Updater] "%BACKUP_DIR%\\%ITEM%"
-                )
-            )
-    
-            echo [Updater] Copying file: %ITEM%
-    
-            copy /Y ^
-                "%SOURCE_ROOT%\\%ITEM%" ^
-                "%BASE_DIR%\\%ITEM%" >NUL
-    
-            if errorlevel 1 (
-                echo [Updater] ERROR: Copy failed for %ITEM%
-            ) else (
-                echo [Updater] File copied: %ITEM%
-            )
-    
-            exit /B 0
-        )
-    )
-    
-    REM ------------------------------------------------------------
-    REM Existing DIRECTORY
-    REM
-    REM Matches the original Python behavior:
-    REM
-    REM     if item.is_dir():
-    REM         shutil.copytree(item, dest, dirs_exist_ok=True)
-    REM
-    REM No backup is created for the directory itself.
-    REM ------------------------------------------------------------
-    
-    if exist "%SOURCE_ROOT%\\%ITEM%\\NUL" (
+    if exist "%SOURCE_ROOT%\\%ITEM%\\*" (
     
         echo [Updater] Copying directory: %ITEM%
     
@@ -703,12 +678,57 @@ def check_for_github_update(force=False):
         exit /B 0
     )
     
+    REM ------------------------------------------------------------
+    REM FILE
+    REM
+    REM Only top-level files are backed up.
+    REM This matches the original Python updater:
+    REM
+    REM     elif item.is_file():
+    REM         backup_path(dest)
+    REM
+    REM Directories are NOT backed up.
+    REM ------------------------------------------------------------
+    
+    if exist "%SOURCE_ROOT%\\%ITEM%" (
+    
+        if exist "%BASE_DIR%\\%ITEM%" (
+    
+            echo [Updater] Backing up %ITEM%...
+    
+            copy /Y ^
+                "%BASE_DIR%\\%ITEM%" ^
+                "%BACKUP_DIR%\\%ITEM%" >NUL
+    
+            if errorlevel 1 (
+                echo [Updater] WARNING: Backup failed for %ITEM%
+            ) else (
+                echo [Updater] Backup created:
+                echo [Updater] "%BACKUP_DIR%\\%ITEM%"
+            )
+        )
+    
+        echo [Updater] Copying file: %ITEM%
+    
+        copy /Y ^
+            "%SOURCE_ROOT%\\%ITEM%" ^
+            "%BASE_DIR%\\%ITEM%" >NUL
+    
+        if errorlevel 1 (
+            echo [Updater] ERROR: Copy failed for %ITEM%
+        ) else (
+            echo [Updater] File copied: %ITEM%
+        )
+    
+        exit /B 0
+    )
+    
     echo [Updater] WARNING: Could not determine type of %ITEM%
     
     exit /B 0
     
     REM ============================================================
-    REM Failed
+    REM FAILED
     REM ============================================================
     
     :FAILED
@@ -725,7 +745,7 @@ def check_for_github_update(force=False):
     exit /B 1
     
     REM ============================================================
-    REM Finished
+    REM FINISHED
     REM ============================================================
     
     :FINISHED
@@ -736,10 +756,23 @@ def check_for_github_update(force=False):
     exit /B 0
     """
     
-        with open(updater_bat, "w", encoding="utf-8", newline="\r\n") as f:
+        # ------------------------------------------------------------
+        # Write updater batch file
+        # ------------------------------------------------------------
+    
+        with open(
+            updater_bat,
+            "w",
+            encoding="utf-8",
+            newline="\r\n",
+        ) as f:
             f.write(bat_text)
             f.flush()
             os.fsync(f.fileno())
+    
+        # ------------------------------------------------------------
+        # Launch updater through cmd.exe
+        # ------------------------------------------------------------
     
         subprocess.Popen(
             ["cmd", "/c", str(updater_bat)],
