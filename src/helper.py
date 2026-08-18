@@ -417,9 +417,14 @@ def check_for_github_update(force=False):
         base_dir_str = str(base_dir)
     
         # ------------------------------------------------------------
-        # Preserve the original command-line arguments, but remove
-        # the update flag so the relaunched application does not
-        # immediately perform another update check.
+        # Preserve original arguments, but remove update flags.
+        #
+        # This prevents:
+        #
+        #     python_postar.exe -u
+        #
+        # from being used to relaunch the updated application and
+        # starting another update check.
         # ------------------------------------------------------------
     
         restart_args = [
@@ -452,11 +457,11 @@ def check_for_github_update(force=False):
         original_args_bat = bat_escape(original_args)
     
         # ------------------------------------------------------------
-        # Generate portable updater
+        # Generate updater BAT
         # ------------------------------------------------------------
     
         bat_text = f"""@echo off
-    setlocal EnableExtensions DisableDelayedExpansion
+    setlocal EnableExtensions EnableDelayedExpansion
     
     REM ============================================================
     REM Configuration
@@ -468,13 +473,26 @@ def check_for_github_update(force=False):
     set "BACKUP_DIR=%BASE_DIR%\\backup"
     set "SOURCE_ROOT=%TEMP_DIR%"
     
+    echo [Updater] Starting portable updater...
+    echo [Updater] Temporary directory: "%TEMP_DIR%"
+    echo [Updater] Base directory: "%BASE_DIR%"
+    
     REM ============================================================
     REM Wait for the main application to exit
     REM ============================================================
     
-    echo [Updater] Waiting for {exe_name} to exit...
+    echo [Updater] Waiting for %EXE_NAME% to exit...
     
-    timeout /t 2 /nobreak >NUL
+    :WAIT_FOR_APP
+    
+    tasklist /FI "IMAGENAME eq %EXE_NAME%" 2>NUL | find /I "%EXE_NAME%" >NUL
+    
+    if not errorlevel 1 (
+        timeout /t 1 /nobreak >NUL
+        goto WAIT_FOR_APP
+    )
+    
+    echo [Updater] Application has exited.
     
     REM ============================================================
     REM Verify temporary update directory
@@ -482,12 +500,12 @@ def check_for_github_update(force=False):
     
     if not exist "%TEMP_DIR%" (
         echo [Updater] ERROR: Update directory does not exist:
-        echo [Updater] %TEMP_DIR%
+        echo [Updater] "%TEMP_DIR%"
         goto FAILED
     )
     
     REM ============================================================
-    REM Detect correct extraction root
+    REM Detect extraction root
     REM ============================================================
     
     set "ENTRY_COUNT=0"
@@ -498,18 +516,14 @@ def check_for_github_update(force=False):
         set "ONLY_ENTRY=%%A"
     )
     
-    if "%ENTRY_COUNT%"=="1" (
-        if exist "%TEMP_DIR%\\%ONLY_ENTRY%\\NUL" (
-            set "SOURCE_ROOT=%TEMP_DIR%\\%ONLY_ENTRY%"
+    if "!ENTRY_COUNT!"=="1" (
+        if exist "%TEMP_DIR%\\!ONLY_ENTRY!\\NUL" (
+            set "SOURCE_ROOT=%TEMP_DIR%\\!ONLY_ENTRY!"
         )
     )
     
-    echo [Updater] Copying files from:
+    echo [Updater] Source root:
     echo [Updater] "%SOURCE_ROOT%"
-    
-    REM ============================================================
-    REM Verify source root
-    REM ============================================================
     
     if not exist "%SOURCE_ROOT%" (
         echo [Updater] ERROR: Source root does not exist.
@@ -533,7 +547,7 @@ def check_for_github_update(force=False):
     echo [Updater] "%BACKUP_DIR%"
     
     REM ============================================================
-    REM BACKUP EXE FIRST
+    REM BACKUP THE MAIN EXE FIRST
     REM ============================================================
     
     if exist "%BASE_DIR%\\%EXE_NAME%" (
@@ -554,10 +568,12 @@ def check_for_github_update(force=False):
     )
     
     REM ============================================================
-    REM UPDATE TOP-LEVEL ITEMS
+    REM Process every top-level item in the update
     REM ============================================================
     
-    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do call :UPDATE_ITEM "%%A"
+    for /f "delims=" %%A in ('dir /b /a "%SOURCE_ROOT%" 2^>nul') do (
+        call :UPDATE_ITEM "%%A"
+    )
     
     echo [Updater] All update files processed.
     
@@ -602,12 +618,12 @@ def check_for_github_update(force=False):
         goto FINISHED
     )
     
-    if %CLEANUP_ATTEMPT% GEQ 10 (
+    if !CLEANUP_ATTEMPT! GEQ 10 (
         echo [Updater] WARNING: Could not remove temporary directory.
         goto FINISHED
     )
     
-    echo [Updater] Cleanup attempt %CLEANUP_ATTEMPT%/10 failed.
+    echo [Updater] Cleanup attempt !CLEANUP_ATTEMPT!/10 failed.
     
     timeout /t 1 /nobreak >NUL
     goto CLEANUP
@@ -621,7 +637,7 @@ def check_for_github_update(force=False):
     set "ITEM=%~1"
     
     REM ------------------------------------------------------------
-    REM Never copy the updater itself
+    REM Skip updater itself
     REM ------------------------------------------------------------
     
     if /I "%ITEM%"=="update_portable.bat" (
@@ -630,7 +646,7 @@ def check_for_github_update(force=False):
     )
     
     REM ------------------------------------------------------------
-    REM Never copy the backup directory
+    REM Skip backup directory
     REM ------------------------------------------------------------
     
     if /I "%ITEM%"=="backup" (
@@ -639,17 +655,29 @@ def check_for_github_update(force=False):
     )
     
     REM ------------------------------------------------------------
-    REM DIRECTORY
+    REM Determine whether ITEM is a directory.
     REM
-    REM IMPORTANT:
-    REM Check for directories FIRST.
-    REM
-    REM The previous version checked for a generic existing path
-    REM before checking for a directory, which caused directories
-    REM to be incorrectly treated as files.
+    REM We explicitly query DIR /AD instead of relying on the
+    REM unreliable "path\\NUL" directory test.
     REM ------------------------------------------------------------
     
-    if exist "%SOURCE_ROOT%\\%ITEM%\\*" (
+    set "IS_DIRECTORY=0"
+    
+    for /f "delims=" %%D in ('dir /ad /b "%SOURCE_ROOT%\\%ITEM%" 2^>nul') do (
+        set "IS_DIRECTORY=1"
+    )
+    
+    REM ------------------------------------------------------------
+    REM DIRECTORY
+    REM
+    REM Directories are NOT backed up.
+    REM This matches:
+    REM
+    REM     if item.is_dir():
+    REM         shutil.copytree(..., dirs_exist_ok=True)
+    REM ------------------------------------------------------------
+    
+    if "!IS_DIRECTORY!"=="1" (
     
         echo [Updater] Copying directory: %ITEM%
     
@@ -667,9 +695,9 @@ def check_for_github_update(force=False):
             /NJS ^
             /NP >NUL
     
-        set "ROBOCOPY_RESULT=%ERRORLEVEL%"
+        set "ROBOCOPY_RESULT=!ERRORLEVEL!"
     
-        if %ROBOCOPY_RESULT% GEQ 8 (
+        if !ROBOCOPY_RESULT! GEQ 8 (
             echo [Updater] ERROR: Directory copy failed for %ITEM%
         ) else (
             echo [Updater] Directory copied: %ITEM%
@@ -681,13 +709,22 @@ def check_for_github_update(force=False):
     REM ------------------------------------------------------------
     REM FILE
     REM
-    REM Only top-level files are backed up.
-    REM This matches the original Python updater:
+    REM Every top-level file from the update is backed up if an
+    REM existing file with the same name exists in BASE_DIR.
+    REM
+    REM This includes:
+    REM
+    REM     .exe
+    REM     .dll
+    REM     .json
+    REM     .py
+    REM     .txt
+    REM     etc.
+    REM
+    REM This is the equivalent of:
     REM
     REM     elif item.is_file():
     REM         backup_path(dest)
-    REM
-    REM Directories are NOT backed up.
     REM ------------------------------------------------------------
     
     if exist "%SOURCE_ROOT%\\%ITEM%" (
@@ -757,7 +794,7 @@ def check_for_github_update(force=False):
     """
     
         # ------------------------------------------------------------
-        # Write updater batch file
+        # Write updater BAT
         # ------------------------------------------------------------
     
         with open(
