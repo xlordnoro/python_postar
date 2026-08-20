@@ -17,16 +17,16 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
 
-      - name: Download and extract portable Python 3.14.6
+      - name: Download and extract portable Python 3.14.7
         run: |
-          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.14.6+20260623-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
+          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.14.7+20260814-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
 
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python.tar.gz -C AppDir/usr
@@ -98,7 +98,7 @@ jobs:
           mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
 
       - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             python_postar_linux/*.AppImage
