@@ -13,12 +13,12 @@ jobs:
     timeout-minutes: 120
   
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
   
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
-          python-version: 3.14.6
+          python-version: 3.14.7
   
       - name: Install dependencies
         run: |
@@ -111,7 +111,7 @@ jobs:
       # UPLOAD DMG
       # ---------------------------------------------------
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: python_postar_macos_x86_64_${{ github.ref_name }}.dmg
 
@@ -120,12 +120,12 @@ jobs:
     timeout-minutes: 120
   
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
   
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
-          python-version: 3.14.6
+          python-version: 3.14.7
   
       - name: Install dependencies
         run: |
@@ -218,6 +218,6 @@ jobs:
       # UPLOAD DMG
       # ---------------------------------------------------
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: python_postar_macos_arm64_${{ github.ref_name }}.dmg
