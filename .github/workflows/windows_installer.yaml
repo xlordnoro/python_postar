@@ -62,7 +62,8 @@ jobs:
           # Copy _internal folder and all Python files for portable EXE
           Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
 
-          # Copy GUI and updater EXEs
+          # Copy GUI EXE and its gui_internal folder
+          Copy-Item -Recurse src\dist\python_postar_gui\* "$STAGE\"
           Copy-Item src\dist\updater.exe "$STAGE\"
 
           # Copy resources and guides
