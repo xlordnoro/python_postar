@@ -63,7 +63,6 @@ jobs:
           Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
 
           # Copy GUI and updater EXEs
-          Copy-Item src\dist\python_postar_gui.exe "$STAGE\"
           Copy-Item src\dist\updater.exe "$STAGE\"
 
           # Copy resources and guides
