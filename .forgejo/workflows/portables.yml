@@ -12,6 +12,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Show workspace
+        shell: powershell
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+
+          Write-Host ""
+          Write-Host "Workspace environment variables:"
+          Get-ChildItem Env:FORGEJO* | Format-Table -AutoSize
+
+          Write-Host ""
+          Write-Host "Repository root:"
+          Get-ChildItem
+
+          Write-Host ""
+          Write-Host "src directory:"
+          Get-ChildItem .\src
+
+          Write-Host ""
+          Write-Host "Python:"
+          python --version
+          Get-Command python
+
+          Write-Host ""
+          Write-Host "PyInstaller:"
+          pyinstaller --version
+          Get-Command pyinstaller
+
       # -------------------------------
       # Build Windows EXEs
       # -------------------------------
