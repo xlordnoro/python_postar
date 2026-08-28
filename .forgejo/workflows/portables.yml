@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-pyinstaller
+    runs-on: windows-latest
     timeout-minutes: 120
 
     steps:
