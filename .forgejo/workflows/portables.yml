@@ -1,7 +1,8 @@
 name: Build Portable Python App
 
 on:
-  workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build-windows:
@@ -11,34 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Show workspace
-        shell: powershell
-        run: |
-          Write-Host "Current directory:"
-          Get-Location
-
-          Write-Host ""
-          Write-Host "Workspace environment variables:"
-          Get-ChildItem Env:FORGEJO* | Format-Table -AutoSize
-
-          Write-Host ""
-          Write-Host "Repository root:"
-          Get-ChildItem
-
-          Write-Host ""
-          Write-Host "src directory:"
-          Get-ChildItem .\src
-
-          Write-Host ""
-          Write-Host "Python:"
-          python --version
-          Get-Command python
-
-          Write-Host ""
-          Write-Host "PyInstaller:"
-          pyinstaller --version
-          Get-Command pyinstaller
 
       # -------------------------------
       # Build Windows EXEs
@@ -126,7 +99,11 @@ jobs:
 
           Write-Host "Created $ZIP_NAME"
 
-      - name: Create release
+      # -------------------------------
+      # Upload to existing Forgejo release
+      # -------------------------------
+
+      - name: Upload release asset
         shell: powershell
         env:
           FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -139,34 +116,29 @@ jobs:
           $headers = @{
             "Authorization" = "token $env:FORGEJO_TOKEN"
             "Accept" = "application/json"
-            "Content-Type" = "application/json"
           }
 
           # -------------------------------
-          # Create Forgejo release
+          # Find existing release by tag
           # -------------------------------
 
-          $releaseBody = @{
-            tag_name = $env:RELEASE_TAG
-            name = $env:RELEASE_TAG
-            body = "Windows portable build"
-          } | ConvertTo-Json
-
-          Write-Host "Creating Forgejo release $env:RELEASE_TAG..."
+          Write-Host "Looking up Forgejo release: $env:RELEASE_TAG"
 
           $release = Invoke-RestMethod `
-            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases" `
-            -Method Post `
-            -Headers $headers `
-            -Body $releaseBody
+            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/tags/$env:RELEASE_TAG" `
+            -Method Get `
+            -Headers $headers
 
-          Write-Host "Created release ID: $($release.id)"
+          Write-Host "Found release ID: $($release.id)"
+          Write-Host "Release: $($release.name)"
 
           # -------------------------------
           # Find ZIP
           # -------------------------------
 
-          $zip = Get-ChildItem -Path "." -Filter "python_postar_windows_*.zip" |
+          $zip = Get-ChildItem `
+            -Path "." `
+            -Filter "python_postar_windows_*.zip" |
             Select-Object -First 1
 
           if (-not $zip) {
@@ -176,10 +148,12 @@ jobs:
           Write-Host "Uploading: $($zip.FullName)"
 
           # -------------------------------
-          # Upload ZIP to release
+          # Upload ZIP
           # -------------------------------
 
-          $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$([uri]::EscapeDataString($zip.Name))"
+          $encodedName = [uri]::EscapeDataString($zip.Name)
+
+          $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$encodedName"
 
           $uploadHeaders = @{
             "Authorization" = "token $env:FORGEJO_TOKEN"
@@ -193,4 +167,6 @@ jobs:
             -ContentType "application/zip" `
             -InFile $zip.FullName
 
+          Write-Host ""
           Write-Host "Successfully uploaded $($zip.Name)"
+          Write-Host "Release: $env:RELEASE_TAG"
