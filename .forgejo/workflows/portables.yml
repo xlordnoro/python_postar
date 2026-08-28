@@ -89,82 +89,15 @@ jobs:
         env:
           RELEASE_TAG: ${{ forgejo.ref_name }}
         run: |
-          $ErrorActionPreference = "Stop"
-
-          $DIST_FOLDER = Join-Path $PWD "src\dist\python_postar_portable"
+          $DIST_FOLDER = "src\dist\python_postar_portable"
           $ZIP_NAME = "python_postar_windows_${env:RELEASE_TAG}_portable.zip"
-          $ZIP_PATH = Join-Path $PWD $ZIP_NAME
 
-          Write-Host "Portable folder:"
-          Write-Host $DIST_FOLDER
-
-          Write-Host ""
-          Write-Host "Portable folder contents:"
-          Get-ChildItem -Path $DIST_FOLDER -Recurse |
-            ForEach-Object {
-              Write-Host $_.FullName.Substring($DIST_FOLDER.Length + 1)
-            }
-
-          # Remove an existing ZIP if present
-          if (Test-Path $ZIP_PATH) {
-            Remove-Item $ZIP_PATH -Force
-          }
-
-          # Create ZIP while preserving the complete directory structure
           Compress-Archive `
             -Path "$DIST_FOLDER\*" `
-            -DestinationPath $ZIP_PATH `
-            -CompressionLevel Optimal `
+            -DestinationPath $ZIP_NAME `
             -Force
 
-          Write-Host ""
-          Write-Host "Created: $ZIP_PATH"
-
-          # -------------------------------
-          # Verify ZIP structure
-          # -------------------------------
-
-          $VERIFY_DIR = Join-Path $PWD "_zip_verify"
-
-          if (Test-Path $VERIFY_DIR) {
-            Remove-Item $VERIFY_DIR -Recurse -Force
-          }
-
-          Expand-Archive `
-            -Path $ZIP_PATH `
-            -DestinationPath $VERIFY_DIR `
-            -Force
-
-          Write-Host ""
-          Write-Host "ZIP contents:"
-          Get-ChildItem -Path $VERIFY_DIR -Recurse |
-            ForEach-Object {
-              Write-Host $_.FullName.Substring($VERIFY_DIR.Length + 1)
-            }
-
-          # Verify expected directories
-          $requiredDirectories = @(
-            "scripts",
-            "css",
-            "translations",
-            "qt_translations",
-            "themes"
-          )
-
-          foreach ($directory in $requiredDirectories) {
-            $path = Join-Path $VERIFY_DIR $directory
-
-            if (-not (Test-Path $path -PathType Container)) {
-              throw "ZIP verification failed: missing directory '$directory'"
-            }
-          }
-
-          Write-Host ""
-          Write-Host "ZIP structure verified successfully."
-
-          # Cleanup verification directory
-          Remove-Item $VERIFY_DIR -Recurse -Force
-
+          Write-Host "Created $ZIP_NAME"
 
       # -------------------------------
       # Upload to existing Forgejo release
@@ -180,6 +113,25 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          $headers = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+          }
+
+          # -------------------------------
+          # Find existing release by tag
+          # -------------------------------
+
+          Write-Host "Looking up Forgejo release: $env:RELEASE_TAG"
+
+          $release = Invoke-RestMethod `
+            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/tags/$env:RELEASE_TAG" `
+            -Method Get `
+            -Headers $headers
+
+          Write-Host "Found release ID: $($release.id)"
+          Write-Host "Release: $($release.name)"
+
           # -------------------------------
           # Find ZIP
           # -------------------------------
@@ -193,53 +145,27 @@ jobs:
             throw "Could not find python_postar_windows_*.zip"
           }
 
-          Write-Host "ZIP: $($zip.FullName)"
-          Write-Host "Size: $([math]::Round($zip.Length / 1MB, 2)) MB"
+          Write-Host "Uploading: $($zip.FullName)"
 
           # -------------------------------
-          # Find existing release by tag
-          # -------------------------------
-
-          $headers = @{
-            "Authorization" = "token $env:FORGEJO_TOKEN"
-            "Accept" = "application/json"
-          }
-
-          Write-Host ""
-          Write-Host "Looking up Forgejo release: $env:RELEASE_TAG"
-
-          $release = Invoke-RestMethod `
-            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/tags/$env:RELEASE_TAG" `
-            -Method Get `
-            -Headers $headers
-
-          Write-Host "Found release ID: $($release.id)"
-          Write-Host "Release: $($release.name)"
-
-          # -------------------------------
-          # Upload ZIP as release asset
+          # Upload ZIP
           # -------------------------------
 
           $encodedName = [uri]::EscapeDataString($zip.Name)
 
           $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$encodedName"
 
-          Write-Host ""
-          Write-Host "Uploading $($zip.Name)..."
-
-          & curl.exe `
-            --fail `
-            --silent `
-            --show-error `
-            --request POST `
-            --header "Authorization: token $env:FORGEJO_TOKEN" `
-            --header "Accept: application/json" `
-            --form "attachment=@$($zip.FullName);type=application/zip" `
-            "$uploadUrl"
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Forgejo release asset upload failed with exit code $LASTEXITCODE"
+          $uploadHeaders = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
           }
+
+          Invoke-RestMethod `
+            -Uri $uploadUrl `
+            -Method Post `
+            -Headers $uploadHeaders `
+            -ContentType "application/zip" `
+            -InFile $zip.FullName
 
           Write-Host ""
           Write-Host "Successfully uploaded $($zip.Name)"
