@@ -126,10 +126,13 @@ jobs:
 
           Write-Host "Created $ZIP_NAME"
 
-      - name: Create release
-        uses: actions/create-release@v1
+      - name: Upload release
+        uses: actions/forgejo-release@v2.13.4
         with:
-          name: "${{ forgejo.ref_name }}"
-          tag_name: "${{ forgejo.ref_name }}"
-          files: |
-            python_postar_windows_${{ forgejo.ref_name }}_portable.zip
+          direction: upload
+          url: ${{ forgejo.server_url }}
+          repo: ${{ forgejo.repository }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          tag: ${{ forgejo.ref_name }}
+          release-dir: .
+          release-notes: "Windows portable build"
