@@ -1,0 +1,32 @@
+name: Test Windows Runner
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Windows information
+        shell: powershell
+        run: |
+          Write-Host "=== Windows ==="
+          Get-ComputerInfo |
+            Select-Object WindowsProductName, WindowsVersion, OsArchitecture
+
+          Write-Host ""
+          Write-Host "=== User ==="
+          whoami
+
+      - name: Python
+        shell: powershell
+        run: |
+          python --version
+          where.exe python
+
+      - name: PyInstaller
+        shell: powershell
+        run: |
+          pyinstaller --version
+          where.exe pyinstaller
