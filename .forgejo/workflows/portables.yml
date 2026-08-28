@@ -126,8 +126,10 @@ jobs:
 
           Write-Host "Created $ZIP_NAME"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create release
+        uses: actions/create-release@v1
         with:
-          name: python_postar-windows
-          path: python_postar_windows_*_portable.zip
+          name: "${{ forgejo.ref_name }}"
+          tag_name: "${{ forgejo.ref_name }}"
+          files: |
+            python_postar_windows_${{ forgejo.ref_name }}_portable.zip
