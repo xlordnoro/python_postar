@@ -81,13 +81,41 @@ jobs:
         env:
           RELEASE_TAG: ${{ forgejo.ref_name }}
         run: |
-          $DIST_FOLDER = "src\dist\python_postar_portable"
+          $DIST_FOLDER = (Resolve-Path "src\dist\python_postar_portable").Path
           $ZIP_NAME = "python_postar_windows_${env:RELEASE_TAG}_portable.zip"
 
-          Compress-Archive `
-            -Path "$DIST_FOLDER\*" `
-            -DestinationPath $ZIP_NAME `
-            -Force
+          if (Test-Path $ZIP_NAME) {
+            Remove-Item $ZIP_NAME -Force
+          }
+
+          Add-Type -AssemblyName System.IO.Compression
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $zip = [System.IO.Compression.ZipFile]::Open(
+            $ZIP_NAME,
+            [System.IO.Compression.ZipArchiveMode]::Create
+          )
+
+          try {
+            Get-ChildItem -Path $DIST_FOLDER -Recurse -File | ForEach-Object {
+              $relativePath = $_.FullName.Substring($DIST_FOLDER.Length + 1)
+
+              # ZIP standard uses / regardless of operating system
+              $relativePath = $relativePath.Replace('\', '/')
+
+              Write-Host "Adding: $relativePath"
+
+              [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip,
+                $_.FullName,
+                $relativePath,
+                [System.IO.Compression.CompressionLevel]::Optimal
+              )
+            }
+          }
+          finally {
+            $zip.Dispose()
+          }
 
           Write-Host "Created $ZIP_NAME"
 
