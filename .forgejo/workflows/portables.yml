@@ -47,10 +47,6 @@ jobs:
             updater.py `
             -n updater
 
-      # -------------------------------
-      # Prepare portable folder
-      # -------------------------------
-
       - name: Prepare portable folder
         shell: powershell
         run: |
@@ -63,26 +59,22 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$STAGE\themes"
 
           # CLI
-          Copy-Item -Recurse "src\dist\python_postar\*" "$STAGE\"
+          Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
 
           # GUI
-          Copy-Item -Recurse "src\dist\python_postar_gui\*" "$STAGE\"
+          Copy-Item -Recurse src\dist\python_postar_gui\* "$STAGE\"
 
           # Updater
-          Copy-Item "src\dist\updater.exe" "$STAGE\"
+          Copy-Item src\dist\updater.exe "$STAGE\"
 
           # Other files
-          Copy-Item "icon.ico" "$STAGE\"
-          Copy-Item -Recurse "guides" "$STAGE\"
-          Copy-Item -Recurse "css\*" "$STAGE\css\"
-          Copy-Item -Recurse "translations\*" "$STAGE\translations\"
-          Copy-Item -Recurse "qt_translations\*" "$STAGE\qt_translations\"
-          Copy-Item -Recurse "themes\*" "$STAGE\themes\"
-          Copy-Item "scripts\postar_batch_portable.bat" "$STAGE\scripts\"
-
-      # -------------------------------
-      # Package
-      # -------------------------------
+          Copy-Item icon.ico "$STAGE\"
+          Copy-Item -Recurse guides "$STAGE\"
+          Copy-Item -Recurse css\* "$STAGE\css\"
+          Copy-Item -Recurse translations\* "$STAGE\translations\"
+          Copy-Item -Recurse qt_translations\* "$STAGE\qt_translations\"
+          Copy-Item -Recurse themes\* "$STAGE\themes\"
+          Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
 
       - name: Package portable ZIP
         shell: powershell
