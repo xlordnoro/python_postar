@@ -126,13 +126,71 @@ jobs:
 
           Write-Host "Created $ZIP_NAME"
 
-      - name: Upload release
-        uses: actions/forgejo-release@v2.13.4
-        with:
-          direction: upload
-          url: ${{ forgejo.server_url }}
-          repo: ${{ forgejo.repository }}
-          token: ${{ secrets.RELEASE_TOKEN }}
-          tag: ${{ forgejo.ref_name }}
-          release-dir: .
-          release-notes: "Windows portable build"
+      - name: Create release
+        shell: powershell
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $headers = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+            "Content-Type" = "application/json"
+          }
+
+          # -------------------------------
+          # Create Forgejo release
+          # -------------------------------
+
+          $releaseBody = @{
+            tag_name = $env:RELEASE_TAG
+            name = $env:RELEASE_TAG
+            body = "Windows portable build"
+          } | ConvertTo-Json
+
+          Write-Host "Creating Forgejo release $env:RELEASE_TAG..."
+
+          $release = Invoke-RestMethod `
+            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases" `
+            -Method Post `
+            -Headers $headers `
+            -Body $releaseBody
+
+          Write-Host "Created release ID: $($release.id)"
+
+          # -------------------------------
+          # Find ZIP
+          # -------------------------------
+
+          $zip = Get-ChildItem -Path "." -Filter "python_postar_windows_*.zip" |
+            Select-Object -First 1
+
+          if (-not $zip) {
+            throw "Could not find python_postar_windows_*.zip"
+          }
+
+          Write-Host "Uploading: $($zip.FullName)"
+
+          # -------------------------------
+          # Upload ZIP to release
+          # -------------------------------
+
+          $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$([uri]::EscapeDataString($zip.Name))"
+
+          $uploadHeaders = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+          }
+
+          Invoke-RestMethod `
+            -Uri $uploadUrl `
+            -Method Post `
+            -Headers $uploadHeaders `
+            -ContentType "application/zip" `
+            -InFile $zip.FullName
+
+          Write-Host "Successfully uploaded $($zip.Name)"
