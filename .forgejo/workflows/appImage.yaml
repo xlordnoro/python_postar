@@ -1,0 +1,149 @@
+name: Build Linux AppImage
+
+on:
+  release:
+    types: [published]
+
+jobs:
+
+# =============================
+# x86_64 BUILD
+# =============================
+  build-appimage-x86_64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download and extract portable Python 3.14.7
+        run: |
+          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.14.7+20260814-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
+
+          mkdir -p AppDir/usr
+          tar --strip-components=1 -xzf python.tar.gz -C AppDir/usr
+
+          AppDir/usr/bin/python3 -m ensurepip
+          AppDir/usr/bin/python3 -m pip install --upgrade pip
+          AppDir/usr/bin/python3 -m pip install PyQt6 PyQt6-WebEngine requests pymediainfo packaging
+
+          # Remove metadata that changes every build
+          find AppDir -name "*.dist-info" -type d -exec rm -rf {} +
+          find AppDir -name "*.egg-info" -type d -exec rm -rf {} +
+
+      - name: Prepare AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/fonts/truetype
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          mkdir -p AppDir/usr/app
+
+          cp src/gui.pyw AppDir/usr/app/
+          cp src/helper.py AppDir/usr/app/
+          cp src/python_postar.py AppDir/usr/app/
+
+          cp -r css AppDir/usr/app/
+          cp -r translations AppDir/usr/app/
+          cp -r qt_translations AppDir/usr/app/
+          cp -r themes AppDir/usr/app/
+
+          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc AppDir/usr/share/fonts/truetype/
+
+          cp icon_linux.png AppDir/
+          cp icon.ico AppDir/
+          cp python_postar_gui.desktop AppDir/
+
+          cp AppRun AppDir/
+          chmod +x AppDir/AppRun
+
+      - name: Precompile Python code
+        run: |
+          APPDIR=AppDir
+          PYTHON_BIN=$APPDIR/usr/bin/python3
+
+          export SOURCE_DATE_EPOCH=1700000000
+
+          mkdir -p $APPDIR/__pycache__
+
+          $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
+          $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
+
+      - name: Normalize timestamps for reproducible build
+        run: |
+          find AppDir -exec touch -h -d "@1700000000" {} +
+
+      - name: Download appimagetool
+        run: |
+          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build AppImage
+        run: |
+          ARCH=x86_64
+          UPDATE_INFO="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-$ARCH.AppImage.zsync"
+
+          ./appimagetool-x86_64.AppImage \
+            -u "$UPDATE_INFO" \
+            AppDir python_postar_gui-$ARCH.AppImage
+
+          mkdir -p python_postar_linux
+          mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
+
+      # =============================
+      # Upload to existing Forgejo release
+      # =============================
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          set -e
+
+          echo "Looking up Forgejo release: $RELEASE_TAG"
+
+          RELEASE_JSON=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
+
+          RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r '.id')
+
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "Could not determine Forgejo release ID."
+            exit 1
+          fi
+
+          echo "Found release ID: $RELEASE_ID"
+
+          for FILE in python_postar_linux/*.AppImage python_postar_linux/*.zsync; do
+            if [ ! -f "$FILE" ]; then
+              continue
+            fi
+
+            FILENAME=$(basename "$FILE")
+
+            echo ""
+            echo "Uploading: $FILENAME"
+
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --request POST \
+              --header "Authorization: token $FORGEJO_TOKEN" \
+              --header "Accept: application/json" \
+              --form "attachment=@$FILE" \
+              "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$FILENAME"
+
+            echo "Successfully uploaded: $FILENAME"
+          fi
+
+          echo ""
+          echo "All Linux release assets uploaded successfully."
