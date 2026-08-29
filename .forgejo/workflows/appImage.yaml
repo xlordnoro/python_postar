@@ -145,7 +145,7 @@ jobs:
               "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$FILENAME"
 
             echo "Successfully uploaded: $FILENAME"
-          fi
+          done
 
           echo ""
           echo "All Linux release assets uploaded successfully."
