@@ -124,7 +124,7 @@ jobs:
             --header "Accept: application/json" \
             "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
 
-          RELEASE_ID=$(echo "$RELEASE_JSON" | jq -r '.id')
+          RELEASE_ID=$(python3 -c 'import sys, json; print(json.load(sys.stdin)["id"])' <<< "$RELEASE_JSON")
 
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
             echo "Could not determine Forgejo release ID."
