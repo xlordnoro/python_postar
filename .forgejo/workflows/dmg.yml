@@ -56,13 +56,49 @@ jobs:
       - name: Attach icon to app
         shell: bash
         run: |
+          set -e
+
           APP_PATH="src/dist/python_postar_gui.app"
 
-          cp python_postar_gui.icns "$APP_PATH/Contents/Resources/"
+          cp python_postar_gui.icns \
+            "$APP_PATH/Contents/Resources/"
 
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleIconFile python_postar_gui.icns" \
             "$APP_PATH/Contents/Info.plist"
+
+          # Re-sign the app after modifying its contents.
+          codesign \
+            --force \
+            --deep \
+            --sign - \
+            "$APP_PATH"
+
+          echo "Code signature:"
+          codesign \
+            --verify \
+            --deep \
+            --strict \
+            --verbose=2 \
+            "$APP_PATH"
+
+      - name: Verify macOS application
+        shell: bash
+        run: |
+          set -e
+
+          APP_PATH="src/dist/python_postar_gui.app"
+
+          echo "Checking code signature..."
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          echo ""
+          echo "Checking Gatekeeper assessment..."
+          spctl --assess --type execute --verbose=4 "$APP_PATH" || true
+
+          echo ""
+          echo "Application architecture:"
+          file "$APP_PATH/Contents/MacOS/python_postar_gui"
 
       # ---------------------------------------------------
       # CREATE DMG
