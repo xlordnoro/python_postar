@@ -18,16 +18,31 @@ jobs:
       - name: Build macOS App Bundle
         shell: bash
         run: |
+          set -e
+
           cd src
 
           pyinstaller --clean \
-            --windowed \
             --name python_postar_gui \
+            --contents-directory gui_internal \
+            --collect-all PyQt6-WebEngine \
             --add-data "../css:css" \
             --add-data "../translations/*.qm:translations" \
             --add-data "../qt_translations:qt_translations" \
             --add-data "../themes:themes" \
             gui.pyw
+
+          echo ""
+          echo "=== App bundle structure ==="
+          find "dist/python_postar_gui.app/Contents" -maxdepth 3 -print
+
+          echo ""
+          echo "=== gui_internal size ==="
+          du -sh "dist/python_postar_gui.app/Contents/MacOS/gui_internal"
+
+          echo ""
+          echo "=== Main executable size ==="
+          ls -lh "dist/python_postar_gui.app/Contents/MacOS/python_postar_gui"
 
       # ---------------------------------------------------
       # GENERATE .ICNS FROM icon_linux.png
