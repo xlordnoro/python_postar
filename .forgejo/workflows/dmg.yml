@@ -12,259 +12,244 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-  # ---------------------------------------------------
-  # BUILD .APP
-  # ---------------------------------------------------
-  - name: Build macOS App Bundle
-    shell: bash
-    run: |
-      set -e
+      # ---------------------------------------------------
+      # BUILD .APP
+      # ---------------------------------------------------
+      - name: Build macOS App Bundle
+        shell: bash
+        run: |
+          cd src
 
-      cd src
+          pyinstaller --clean \
+            --windowed \
+            --name python_postar_gui \
+            --add-data "../css:css" \
+            --add-data "../translations/*.qm:translations" \
+            --add-data "../qt_translations:qt_translations" \
+            --add-data "../themes:themes" \
+            gui.pyw
 
-      pyinstaller --clean \
-        --windowed \
-        --name python_postar_gui \
-        --contents-directory gui_internal \
-        --collect-all PyQt6-WebEngine \
-        --add-data "../css:css" \
-        --add-data "../translations/*.qm:translations" \
-        --add-data "../qt_translations:qt_translations" \
-        --add-data "../themes:themes" \
-        gui.pyw
+      # ---------------------------------------------------
+      # GENERATE .ICNS FROM icon_linux.png
+      # ---------------------------------------------------
+      - name: Generate ICNS icon
+        shell: bash
+        run: |
+          mkdir icon.iconset
 
-      echo ""
-      echo "Generated application:"
-      find dist/python_postar_gui.app -maxdepth 3 -type d | sort
+          sips -z 16 16 \
+            icon_linux.png \
+            --out icon.iconset/icon_16x16.png
 
-      echo ""
-      echo "Application contents:"
-      find dist/python_postar_gui.app -maxdepth 2 -type f | sort
+          sips -z 32 32 \
+            icon_linux.png \
+            --out icon.iconset/icon_16x16@2x.png
 
-  # ---------------------------------------------------
-  # GENERATE .ICNS FROM icon_linux.png
-  # ---------------------------------------------------
-  - name: Generate ICNS icon
-    shell: bash
-    run: |
-      set -e
+          sips -z 32 32 \
+            icon_linux.png \
+            --out icon.iconset/icon_32x32.png
 
-      mkdir -p icon.iconset
+          sips -z 64 64 \
+            icon_linux.png \
+            --out icon.iconset/icon_32x32@2x.png
 
-      sips -z 16 16     icon_linux.png --out icon.iconset/icon_16x16.png
-      sips -z 32 32     icon_linux.png --out icon.iconset/icon_16x16@2x.png
-      sips -z 32 32     icon_linux.png --out icon.iconset/icon_32x32.png
-      sips -z 64 64     icon_linux.png --out icon.iconset/icon_32x32@2x.png
-      sips -z 128 128   icon_linux.png --out icon.iconset/icon_128x128.png
-      sips -z 256 256   icon_linux.png --out icon.iconset/icon_128x128@2x.png
-      sips -z 256 256   icon_linux.png --out icon.iconset/icon_256x256.png
-      sips -z 512 512   icon_linux.png --out icon.iconset/icon_256x256@2x.png
-      sips -z 512 512   icon_linux.png --out icon.iconset/icon_512x512.png
-      sips -z 1024 1024 icon_linux.png --out icon.iconset/icon_512x512@2x.png
+          sips -z 128 128 \
+            icon_linux.png \
+            --out icon.iconset/icon_128x128.png
 
-      iconutil -c icns \
-        icon.iconset \
-        -o python_postar_gui.icns
+          sips -z 256 256 \
+            icon_linux.png \
+            --out icon.iconset/icon_128x128@2x.png
 
-  # ---------------------------------------------------
-  # INJECT ICON INTO .APP
-  # ---------------------------------------------------
-  - name: Attach icon to app
-    shell: bash
-    run: |
-      set -e
+          sips -z 256 256 \
+            icon_linux.png \
+            --out icon.iconset/icon_256x256.png
 
-      APP_PATH="src/dist/python_postar_gui.app"
+          sips -z 512 512 \
+            icon_linux.png \
+            --out icon.iconset/icon_256x256@2x.png
 
-      echo "Checking application structure..."
+          sips -z 512 512 \
+            icon_linux.png \
+            --out icon.iconset/icon_512x512.png
 
-      if [ ! -d "$APP_PATH" ]; then
-        echo "ERROR: Application bundle does not exist:"
-        echo "$APP_PATH"
-        exit 1
-      fi
+          sips -z 1024 1024 \
+            icon_linux.png \
+            --out icon.iconset/icon_512x512@2x.png
 
-      # PyInstaller normally creates these directories.
-      # Create Resources explicitly so the icon injection
-      # does not depend on a particular PyInstaller layout.
-      mkdir -p "$APP_PATH/Contents/Resources"
+          iconutil \
+            -c icns \
+            icon.iconset \
+            -o python_postar_gui.icns
 
-      cp python_postar_gui.icns \
-        "$APP_PATH/Contents/Resources/python_postar_gui.icns"
+      # ---------------------------------------------------
+      # INJECT ICON INTO .APP
+      # ---------------------------------------------------
+      - name: Attach icon to app
+        shell: bash
+        run: |
+          set -e
 
-      /usr/libexec/PlistBuddy \
-        -c "Set :CFBundleIconFile python_postar_gui.icns" \
-        "$APP_PATH/Contents/Info.plist"
+          APP_PATH="src/dist/python_postar_gui.app"
 
-      # Re-sign the app after modifying its contents.
-      codesign \
-        --force \
-        --deep \
-        --sign - \
-        "$APP_PATH"
+          cp python_postar_gui.icns \
+            "$APP_PATH/Contents/Resources/"
 
-      echo ""
-      echo "Code signature:"
-      codesign \
-        --verify \
-        --deep \
-        --strict \
-        --verbose=2 \
-        "$APP_PATH"
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleIconFile python_postar_gui.icns" \
+            "$APP_PATH/Contents/Info.plist"
 
-  # ---------------------------------------------------
-  # VERIFY APP STRUCTURE
-  # ---------------------------------------------------
-  - name: Verify macOS application
-    shell: bash
-    run: |
-      set -e
+          # Re-sign the app after modifying its contents.
+          codesign \
+            --force \
+            --deep \
+            --sign - \
+            "$APP_PATH"
 
-      APP_PATH="src/dist/python_postar_gui.app"
+          echo "Code signature:"
 
-      echo "Application bundle:"
-      find "$APP_PATH" -maxdepth 3 -type d | sort
+          codesign \
+            --verify \
+            --deep \
+            --strict \
+            --verbose=2 \
+            "$APP_PATH"
 
-      echo ""
-      echo "Checking gui_internal..."
+      # ---------------------------------------------------
+      # VERIFY MACOS APPLICATION
+      # ---------------------------------------------------
+      - name: Verify macOS application
+        shell: bash
+        run: |
+          set -e
 
-      if [ -d "$APP_PATH/Contents/gui_internal" ]; then
-        echo "gui_internal found at:"
-        echo "$APP_PATH/Contents/gui_internal"
-      elif [ -d "$APP_PATH/Contents/Resources/gui_internal" ]; then
-        echo "gui_internal found at:"
-        echo "$APP_PATH/Contents/Resources/gui_internal"
-      else
-        echo "WARNING: gui_internal directory was not found."
-      fi
+          APP_PATH="src/dist/python_postar_gui.app"
 
-      echo ""
-      echo "Checking code signature..."
-      codesign \
-        --verify \
-        --deep \
-        --strict \
-        --verbose=2 \
-        "$APP_PATH"
+          echo "Checking code signature..."
 
-      echo ""
-      echo "Checking Gatekeeper assessment..."
-      spctl \
-        --assess \
-        --type execute \
-        --verbose=4 \
-        "$APP_PATH" || true
+          codesign \
+            --verify \
+            --deep \
+            --strict \
+            --verbose=2 \
+            "$APP_PATH"
 
-      echo ""
-      echo "Application architecture:"
-      file "$APP_PATH/Contents/MacOS/python_postar_gui"
+          echo ""
 
-  # ---------------------------------------------------
-  # CREATE DMG
-  # ---------------------------------------------------
-  - name: Create DMG
-    shell: bash
-    env:
-      RELEASE_TAG: ${{ forgejo.ref_name }}
-    run: |
-      set -e
+          echo "Checking Gatekeeper assessment..."
 
-      APP_NAME="python_postar_gui.app"
-      DMG_NAME="python_postar_macos_x86_64_${RELEASE_TAG}.dmg"
+          spctl \
+            --assess \
+            --type execute \
+            --verbose=4 \
+            "$APP_PATH" || true
 
-      # Clean leftovers
-      rm -rf dmg_temp
-      rm -f "$DMG_NAME"
+          echo ""
 
-      # Detach any mounted volumes just in case
-      hdiutil detach "/Volumes/Python Postar" 2>/dev/null || true
+          echo "Application architecture:"
 
-      mkdir -p dmg_temp
+          file "$APP_PATH/Contents/MacOS/python_postar_gui"
 
-      # Copy the ENTIRE .app bundle.
-      # This includes gui_internal and all other
-      # PyInstaller-generated contents.
-      cp -R \
-        "src/dist/$APP_NAME" \
-        "dmg_temp/"
+      # ---------------------------------------------------
+      # CREATE DMG
+      # ---------------------------------------------------
+      - name: Create DMG
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          set -e
 
-      # Applications shortcut
-      ln -s /Applications \
-        "dmg_temp/Applications"
+          APP_NAME="python_postar_gui.app"
+          DMG_NAME="python_postar_macos_x86_64_${RELEASE_TAG}.dmg"
 
-      echo ""
-      echo "DMG contents:"
-      find dmg_temp -maxdepth 4 -print | sort
+          # Clean leftovers
+          rm -rf dmg_temp
+          rm -f "$DMG_NAME"
 
-      hdiutil create \
-        -volname "Python Postar" \
-        -srcfolder dmg_temp \
-        -ov \
-        -format UDZO \
-        "$DMG_NAME"
+          # Detach any mounted volumes just in case
+          hdiutil detach \
+            "/Volumes/Python Postar" \
+            2>/dev/null || true
 
-      # Cleanup temp folder
-      rm -rf dmg_temp
+          mkdir dmg_temp
 
-      echo ""
-      echo "Created $DMG_NAME"
+          cp -R \
+            "src/dist/$APP_NAME" \
+            dmg_temp/
 
-  # ---------------------------------------------------
-  # UPLOAD DMG TO EXISTING FORGEJO RELEASE
-  # ---------------------------------------------------
-  - name: Upload Release Asset
-    shell: bash
-    env:
-      FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-      FORGEJO_SERVER: ${{ forgejo.server_url }}
-      FORGEJO_REPOSITORY: ${{ forgejo.repository }}
-      RELEASE_TAG: ${{ forgejo.ref_name }}
-    run: |
-      set -e
+          ln -s \
+            /Applications \
+            dmg_temp/Applications
 
-      echo "Looking up Forgejo release: $RELEASE_TAG"
+          hdiutil create \
+            -volname "Python Postar" \
+            -srcfolder dmg_temp \
+            -ov \
+            -format UDZO \
+            "$DMG_NAME"
 
-      RELEASE_JSON=$(curl \
-        --fail \
-        --silent \
-        --show-error \
-        --header "Authorization: token $FORGEJO_TOKEN" \
-        --header "Accept: application/json" \
-        "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
+          # Cleanup temp folder
+          rm -rf dmg_temp
 
-      RELEASE_ID=$(python3 -c \
-        'import sys, json; print(json.load(sys.stdin)["id"])' \
-        <<< "$RELEASE_JSON")
+          echo "Created $DMG_NAME"
 
-      if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
-        echo "Could not determine Forgejo release ID."
-        exit 1
-      fi
+      # ---------------------------------------------------
+      # UPLOAD DMG TO EXISTING FORGEJO RELEASE
+      # ---------------------------------------------------
+      - name: Upload Release Asset
+        shell: bash
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          set -e
 
-      echo "Found release ID: $RELEASE_ID"
+          echo "Looking up Forgejo release: $RELEASE_TAG"
 
-      DMG_NAME="python_postar_macos_x86_64_${RELEASE_TAG}.dmg"
+          RELEASE_JSON=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
 
-      if [ ! -f "$DMG_NAME" ]; then
-        echo "Could not find $DMG_NAME"
-        exit 1
-      fi
+          RELEASE_ID=$(python3 -c \
+            'import sys, json; print(json.load(sys.stdin)["id"])' \
+            <<< "$RELEASE_JSON")
 
-      echo "Uploading: $DMG_NAME"
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "Could not determine Forgejo release ID."
+            exit 1
+          fi
 
-      ENCODED_NAME=$(python3 -c \
-        "import urllib.parse; print(urllib.parse.quote('''$DMG_NAME'''))")
+          echo "Found release ID: $RELEASE_ID"
 
-      curl \
-        --fail \
-        --silent \
-        --show-error \
-        --request POST \
-        --header "Authorization: token $FORGEJO_TOKEN" \
-        --header "Accept: application/json" \
-        --form "attachment=@$DMG_NAME" \
-        "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$ENCODED_NAME"
+          DMG_NAME="python_postar_macos_x86_64_${RELEASE_TAG}.dmg"
 
-      echo ""
-      echo "Successfully uploaded: $DMG_NAME"
-      echo "Release: $RELEASE_TAG"
+          if [ ! -f "$DMG_NAME" ]; then
+            echo "Could not find $DMG_NAME"
+            exit 1
+          fi
+
+          echo "Uploading: $DMG_NAME"
+
+          ENCODED_NAME=$(python3 -c \
+            "import urllib.parse; print(urllib.parse.quote('''$DMG_NAME'''))")
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --request POST \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            --form "attachment=@$DMG_NAME" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$ENCODED_NAME"
+
+          echo ""
+          echo "Successfully uploaded: $DMG_NAME"
+          echo "Release: $RELEASE_TAG"
