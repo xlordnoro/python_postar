@@ -63,20 +63,27 @@ jobs:
 
           APP_PATH="src/dist/python_postar_gui.app"
 
-          cp python_postar_gui.icns \
-            "$APP_PATH/Contents/Resources/"
+          echo "Creating Resources directory..."
+          mkdir -p "$APP_PATH/Contents/Resources"
 
+          echo "Copying icon..."
+          cp python_postar_gui.icns \
+            "$APP_PATH/Contents/Resources/python_postar_gui.icns"
+
+          echo "Updating Info.plist..."
           /usr/libexec/PlistBuddy \
             -c "Set :CFBundleIconFile python_postar_gui.icns" \
             "$APP_PATH/Contents/Info.plist"
 
-          # Re-sign the app after modifying its contents.
+          echo "Re-signing app..."
+
           codesign \
             --force \
             --deep \
             --sign - \
             "$APP_PATH"
 
+          echo ""
           echo "Code signature:"
           codesign \
             --verify \
