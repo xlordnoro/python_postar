@@ -1,13 +1,13 @@
 name: Build macOS dmg
 
 on:
-release:
-types: [published]
+  release:
+    types: [published]
 
 jobs:
-build-macos-x86_64:
-runs-on: macos-latest
-timeout-minutes: 120
+  build-macos-x86_64:
+    runs-on: macos-latest
+    timeout-minutes: 120
 
 steps:
   - uses: actions/checkout@v7
