@@ -9,8 +9,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 120
 
-steps:
-  - uses: actions/checkout@v7
+    steps:
+      - uses: actions/checkout@v7
 
   # ---------------------------------------------------
   # BUILD .APP
