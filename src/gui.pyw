@@ -312,7 +312,7 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.55"
+VERSION = "0.55.1"
 RELEASE_NAME = "Roxy"
 
 # -----------------------------
@@ -420,6 +420,7 @@ def _parse_mal_data(data: dict) -> dict:
         "short_title": title,
         "full_title": full_title,
         "english_title": title_english,
+        "japanese_title": title_jp,
         "synonyms": synonyms,
         "season_info": season_info,
         "synopsis": synopsis

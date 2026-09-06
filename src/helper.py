@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.55"
+VERSION = "0.55.1"
 
 KB = 1024
 MB = KB * 1024
@@ -918,32 +918,62 @@ def sanitize_display_name_from_folder(folder_name: str) -> str:
 
 def find_episode_number(filename: str):
     """
-    Extract the episode number from the filename.
-    Ignores series numbering, resolution numbers (720/1080), CRC hashes, 
-    release group tags, and properly handles v1/v2 suffixes.
+    Extract the episode number from a filename.
+
+    Supports:
+        01
+        06
+        06.5
+        12.5
+        06v2
+        06.5v2
+
+    Returns the episode number as a string so that formatting such as
+    leading zeroes and decimal values is preserved.
     """
-    ignore_numbers = {720, 1080}
 
-    # Remove all parentheses blocks (CRC, resolution, release group)
-    filename_clean = re.sub(r'\([^\)]*\)', '', filename)
+    ignore_numbers = {"720", "1080"}
 
-    # Focus on part after the last dash
+    # Remove parenthesized sections such as:
+    # (1080p), (Subsplease), (33917D04)
+    filename_clean = re.sub(r'\([^)]*\)', '', filename)
+
+    # Prefer the section after the final dash.
     last_dash_index = filename_clean.rfind('-')
-    search_str = filename_clean[last_dash_index + 1:] if last_dash_index != -1 else filename_clean
 
-    # Search for first number (episode) with optional v1/v2
-    match = re.search(r'(\d{1,4})(v\d)?', search_str)
+    search_str = (
+        filename_clean[last_dash_index + 1:]
+        if last_dash_index != -1
+        else filename_clean
+    )
+
+    # Match:
+    #   06
+    #   06.5
+    #   06v2
+    #   06.5v2
+    match = re.search(
+        r'(?<!\d)(\d{1,4}(?:\.\d+)?)(?:v\d{1,4})?(?!\d)',
+        search_str,
+        re.IGNORECASE
+    )
+
     if match:
-        val = int(match.group(1))
-        if val not in ignore_numbers and val < 10000:
-            return val
+        episode = match.group(1)
 
-    # Fallback: last valid number in the whole filename
-    matches = re.findall(r'(\d{1,4})(v\d)?', filename_clean)
-    for number_str, _ in reversed(matches):
-        val = int(number_str)
-        if val not in ignore_numbers and val < 10000:
-            return val
+        if episode.split(".", 1)[0] not in ignore_numbers:
+            return episode
+
+    # Fallback: search the entire filename
+    matches = re.findall(
+        r'(?<!\d)(\d{1,4}(?:\.\d+)?)(?:v\d{1,4})?(?!\d)',
+        filename_clean,
+        re.IGNORECASE
+    )
+
+    for episode in reversed(matches):
+        if episode.split(".", 1)[0] not in ignore_numbers:
+            return episode
 
     return None
 
@@ -1153,6 +1183,7 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
     is_bd     = "bd" in tag
     has_1080  = "1080" in tag
     has_720   = "720" in tag
+    has_480   = "480" in tag
 
     #print("BT-QUALITY CHECK:", folder_lower, "BD?", is_bd)  # <-- here, inside processing
 
@@ -1164,6 +1195,8 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
         quality_label = "1080p"
     elif has_720:
         quality_label = "720p"
+    elif has_480:
+        quality_label = "480p"
     else:
         quality_label = "Unknown Quality"
 
@@ -1292,6 +1325,7 @@ def _parse_mal_data(data: dict) -> dict:
         "short_title": title,
         "full_title": full_title,
         "english_title": title_english,
+        "japanese_title": title_jp,
         "synonyms": synonyms,
         "season_info": season_info,
         "synopsis": synopsis

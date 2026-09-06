@@ -2,10 +2,11 @@
 """
 python_postar.py
 
-v0.55:
-- Fixed a live preview bug for portable builds which wasn't working as expected in previous releases.
-- I significantly reduced the GUI.exe size to reduce load times during cold boots or restarts.
-- All of the GUI dependencies are now stored inside the new gui_internal folder to ensure the GUI loads the webdriver correctly.
+v0.55.1:
+- Added forgejo workflows as a backup for the future. I still need to finalize the workflow changes for the installer, but that can be done later.
+- Corrected the MAL lookup to correctly grab Japanese titles as a fallback if a series doesn't have a value in the English field.
+- Expanded the regex to handle files with decimals in the episode number. It was ignoring decimals which would result in the html table showing both as the same number e.g 06.5 would show up as 06.
+- Expanded the quality table to include 480p since the former Junior staff are releasing a lot of older content which would've been done in 480p.
 
 """
 
@@ -62,14 +63,14 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
             '</div></div>'
         )
         out_lines.append(f'<div id="{season_id}_season_bd1080pane">')
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, button_title=header_title))
         out_lines.append('</div>')
         out_lines.append(f'<div id="{season_id}_season_bd720pane">')
-        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
+        out_lines.extend(build_quality_table(folder720, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, button_title=header_title))
         out_lines.append('</div>')
     else:
         # Non-BD normal table
-        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled, kage=kage))
+        out_lines.extend(build_quality_table(folder1080, mal_info, heading_color, crc_enabled=crc_enabled, kage=kage, button_title=header_title))
 
     # -------------------------
     # REORDER: Batch table vs Button block
@@ -128,13 +129,13 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 
     # Episode table
-    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage))
+    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, button_title=header_title))
     return "\n".join(out_lines)
 
 # -----------------------------
 # Episode tables
 # -----------------------------
-def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False):
+def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False, button_title=None):
     mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip")]
     episodes = []
     folder_basename = folder_path.name
@@ -259,16 +260,29 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             epnum = None
         else:
             epnum = find_episode_number(fname)
-            if isinstance(epnum, int):
+
+            if epnum is not None:
                 category = "episode"
 
                 # Detect v2/v3/etc
                 ver = extract_version_suffix(fname)
 
-                if ver:
-                    label = f"{epnum:02d}{ver}"
+                # Preserve two-digit episode numbers while keeping decimals.
+                #
+                # 6     -> 06
+                # 06    -> 06
+                # 6.5   -> 06.5
+                # 06.5  -> 06.5
+                # 12.25 -> 12.25
+                if "." in epnum:
+                    whole, decimal = epnum.split(".", 1)
+                    label = f"{whole.zfill(2)}.{decimal}"
                 else:
-                    label = f"{epnum:02d}"
+                    label = epnum.zfill(2)
+
+                if ver:
+                    label += ver
+
             else:
                 category = "extras"
                 label = fname
@@ -312,7 +326,14 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
                 order = {"episode": 0, "special": 1, "ed": 2, "op": 3, "dash": 4, "extras": 5}
                 cat_order = order.get(cat, 999)
                 if cat == "episode":
-                    return (cat_order, item.get("episode", 9999))
+                    episode = item.get("episode")
+
+                    try:
+                        sort_episode = float(episode) if episode is not None else 9999
+                    except (TypeError, ValueError):
+                        sort_episode = 9999
+
+                    return (cat_order, sort_episode)
                 else:
                     return (cat_order, item["filename"].lower())
             return sorted(episodes, key=ep_sort_key)
@@ -325,7 +346,17 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     batch_is_new = mark_new(folder_basename)
     batch_sup = "<sup>New</sup>" if batch_is_new else ""
     torrent_path_for_folder = torrent_url_for_folder(folder_basename)
-    anime_title = mal_info.get("english_title") if mal_info else sanitize_display_name_from_folder(folder_path.name)
+    #print("DEBUG MAL ID:", mal_info.get("mal_id") if mal_info else None)
+    #print("DEBUG ENGLISH:", mal_info.get("english_title") if mal_info else None)
+    #print("DEBUG JAPANESE:", mal_info.get("japanese_title") if mal_info else None)
+    #print("DEBUG FOLDER:", folder_path.name)
+    anime_title = (
+        mal_info.get("english_title")
+        or mal_info.get("japanese_title")
+        or mal_info.get("full_title")
+        or sanitize_display_name_from_folder(folder_path.name)
+    )
+    button_title = button_title or anime_title
 
     out_lines = []
 
@@ -350,6 +381,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
                       and "720" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
         "1080p"    if "1080" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
         "720p"     if "720"  in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "480p"     if "480"  in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
         "Unknown Quality"
     )
     out_lines.append(f'            <td>{quality_label}{batch_sup}</td>')
@@ -369,7 +401,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
             f'type="button" '
             f'onclick="var e=document.getElementById(\'{folder_basename}_hidden\'); '
             f'e.style.display=(e.style.display==\'none\'?\'\':\'none\')">'
-            f'{anime_title}</button>'
+            f'{button_title}</button>'
         )
         out_lines.append('</p>')
         out_lines.append(f'<div id="{folder_basename}_hidden" style="display:none; align:center">')
@@ -434,7 +466,15 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         mal_id = mal_ids[idx] if idx < len(mal_ids) else mal_ids[0]
         heading_color = span_colors[idx % len(span_colors)]
         airing_src = airing_img[idx] if isinstance(airing_img, list) and idx < len(airing_img) else airing_img[0] if isinstance(airing_img, list) else airing_img
-        display_name = sanitize_display_name_from_folder(folder1080.name)
+
+        mal_info = get_mal_info(mal_id)
+
+        display_name = (
+            mal_info.get("english_title")
+            or mal_info.get("japanese_title")
+            or mal_info.get("full_title")
+            or sanitize_display_name_from_folder(folder1080.name)
+        )
 
         # --- Cover image ---
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
