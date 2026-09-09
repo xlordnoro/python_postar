@@ -1,0 +1,301 @@
+name: Build python_postar Release ZIPs v2
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build GUI with PyInstaller
+        shell: powershell
+        run: |
+          cd src
+          pyinstaller --clean --onedir --contents-directory gui_internal --collect-all PyQt6-WebEngine --add-data "../css;css" --add-data "../translations/*.qm;translations" --add-data "../qt_translations;qt_translations" --add-data "../themes;themes" --icon=../icon.ico gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI with PyInstaller
+        shell: powershell
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed --icon=../icon.ico updater.py -n updater
+
+      - name: Prepare release folder
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path python_postar_windows\scripts
+          New-Item -ItemType Directory -Force -Path python_postar_windows\css\
+          New-Item -ItemType Directory -Force -Path python_postar_windows\translations\
+          New-Item -ItemType Directory -Force -Path python_postar_windows\qt_translations\
+          New-Item -ItemType Directory -Force -Path python_postar_windows\themes\
+
+          Copy-Item src\dist\updater.exe python_postar_windows\
+          Copy-Item src\python_postar.py python_postar_windows\
+          Copy-Item src\helper.py python_postar_windows\
+          Copy-Item src\gui.pyw python_postar_windows\
+          Copy-Item src\updater.py python_postar_windows\
+          Copy-Item -Recurse src\dist\python_postar_gui\* python_postar_windows\
+          Copy-Item -Recurse css\* python_postar_windows\css\
+          Copy-Item -Recurse translations\* python_postar_windows\translations\
+          Copy-Item -Recurse qt_translations\* python_postar_windows\qt_translations\
+          Copy-Item -Recurse themes\* python_postar_windows\themes\
+          Copy-Item icon.ico python_postar_windows\
+          Copy-Item requirements.txt python_postar_windows\
+          Copy-Item -Recurse guides python_postar_windows\
+          Copy-Item scripts\postar_batch.bat python_postar_windows\scripts\
+
+      - name: Create ZIP
+        shell: powershell
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          $ZIP_NAME = "python_postar_windows_${env:RELEASE_TAG}.zip"
+
+          Compress-Archive `
+            -Path python_postar_windows\* `
+            -DestinationPath $ZIP_NAME `
+            -Force
+
+          Write-Host "Created $ZIP_NAME"
+
+      - name: Upload ZIP to Forgejo Release
+        shell: powershell
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $headers = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+          }
+
+          Write-Host "Looking up Forgejo release: $env:RELEASE_TAG"
+
+          $release = Invoke-RestMethod `
+            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/tags/$env:RELEASE_TAG" `
+            -Method Get `
+            -Headers $headers
+
+          Write-Host "Found release ID: $($release.id)"
+          Write-Host "Release: $($release.name)"
+
+          $zip = "python_postar_windows_${env:RELEASE_TAG}.zip"
+
+          if (-not (Test-Path $zip)) {
+            throw "ZIP not found: $zip"
+          }
+
+          Write-Host "Uploading: $zip"
+
+          $encodedName = [uri]::EscapeDataString((Split-Path $zip -Leaf))
+
+          $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$encodedName"
+
+          Invoke-RestMethod `
+            -Uri $uploadUrl `
+            -Method Post `
+            -Headers $headers `
+            -ContentType "application/octet-stream" `
+            -InFile $zip
+
+          Write-Host "Successfully uploaded $zip"
+
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onedir --contents-directory gui_internal --collect-all PyQt6-WebEngine --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --add-data "../themes:themes" gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed updater.py -n updater
+
+      - name: Prepare release folder
+        shell: bash
+        run: |
+          mkdir -p python_postar_macos/scripts
+          mkdir -p python_postar_macos/translations
+          mkdir -p python_postar_macos/qt_translations
+          mkdir -p python_postar_macos/themes
+
+          cp -r src/dist/python_postar_gui/* python_postar_macos/
+          cp src/dist/updater python_postar_macos/
+          cp src/python_postar.py python_postar_macos/
+          cp src/helper.py python_postar_macos/
+          cp src/gui.pyw python_postar_macos/
+          cp src/updater.py python_postar_macos/
+          cp -r css python_postar_macos/
+          cp -r translations python_postar_macos/
+          cp -r qt_translations python_postar_macos/
+          cp -r themes python_postar_macos/
+          cp icon_linux.png python_postar_macos/
+          cp requirements.txt python_postar_macos/
+          cp -r guides python_postar_macos/
+          cp scripts/postar_batch_linux.sh python_postar_macos/scripts/
+
+          chmod +x python_postar_macos/scripts/postar_batch_linux.sh
+
+      - name: Create ZIP
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          ZIP_NAME="python_postar_macos_${RELEASE_TAG}.zip"
+
+          zip -r "$ZIP_NAME" python_postar_macos
+
+          echo "Created $ZIP_NAME"
+
+      - name: Upload ZIP to Forgejo Release
+        shell: bash
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          set -e
+
+          ZIP_NAME="python_postar_macos_${RELEASE_TAG}.zip"
+
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "ZIP not found: $ZIP_NAME"
+            exit 1
+          fi
+
+          echo "Looking up Forgejo release: $RELEASE_TAG"
+
+          RELEASE_JSON=$(curl --fail --silent --show-error \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
+
+          RELEASE_ID=$(python3 -c 'import sys, json; print(json.load(sys.stdin)["id"])' <<< "$RELEASE_JSON")
+
+          echo "Found release ID: $RELEASE_ID"
+
+          ENCODED_NAME=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$ZIP_NAME'''))")
+
+          echo "Uploading: $ZIP_NAME"
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            --form "attachment=@$ZIP_NAME" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$ENCODED_NAME"
+
+          echo "Successfully uploaded $ZIP_NAME"
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onedir --contents-directory gui_internal --collect-all PyQt6-WebEngine --add-data "../css:css" --add-data "../translations/*.qm:translations" --add-data "../qt_translations:qt_translations" --add-data "../themes:themes" gui.pyw -n python_postar_gui
+
+      - name: Build Updater GUI with PyInstaller
+        shell: bash
+        run: |
+          cd src
+          pyinstaller --clean --onefile --windowed updater.py -n updater
+
+      - name: Prepare release folder
+        shell: bash
+        run: |
+          mkdir -p python_postar_linux/scripts
+          mkdir -p python_postar_linux/translations
+          mkdir -p python_postar_linux/qt_translations
+          mkdir -p python_postar_linux/themes
+
+          cp -r src/dist/python_postar_gui/* python_postar_linux/
+          cp src/dist/updater python_postar_linux/
+          cp src/python_postar.py python_postar_linux/
+          cp src/helper.py python_postar_linux/
+          cp src/gui.pyw python_postar_linux/
+          cp src/updater.py python_postar_linux/
+          cp -r css python_postar_linux/
+          cp -r translations python_postar_linux/
+          cp -r qt_translations python_postar_linux/
+          cp -r themes python_postar_linux/
+          cp icon_linux.png python_postar_linux/
+          cp requirements.txt python_postar_linux/
+          cp -r guides python_postar_linux/
+          cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
+
+          chmod +x python_postar_linux/scripts/postar_batch_linux.sh
+
+      - name: Create ZIP
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          ZIP_NAME="python_postar_linux_${RELEASE_TAG}.zip"
+
+          zip -r "$ZIP_NAME" python_postar_linux
+
+          echo "Created $ZIP_NAME"
+
+      - name: Upload ZIP to Forgejo Release
+        shell: bash
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          set -e
+
+          ZIP_NAME="python_postar_linux_${RELEASE_TAG}.zip"
+
+          if [ ! -f "$ZIP_NAME" ]; then
+            echo "ZIP not found: $ZIP_NAME"
+            exit 1
+          fi
+
+          echo "Looking up Forgejo release: $RELEASE_TAG"
+
+          RELEASE_JSON=$(curl --fail --silent --show-error \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/tags/$RELEASE_TAG")
+
+          RELEASE_ID=$(python3 -c 'import sys, json; print(json.load(sys.stdin)["id"])' <<< "$RELEASE_JSON")
+
+          echo "Found release ID: $RELEASE_ID"
+
+          ENCODED_NAME=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$ZIP_NAME'''))")
+
+          echo "Uploading: $ZIP_NAME"
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: token $FORGEJO_TOKEN" \
+            --header "Accept: application/json" \
+            --form "attachment=@$ZIP_NAME" \
+            "$FORGEJO_SERVER/api/v1/repos/$FORGEJO_REPOSITORY/releases/$RELEASE_ID/assets?name=$ENCODED_NAME"
+
+          echo "Successfully uploaded $ZIP_NAME"
