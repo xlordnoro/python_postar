@@ -1,0 +1,175 @@
+name: Build Windows Installer (NSIS with Full Portable Python)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # -------------------------------
+      # Build Windows EXEs
+      # -------------------------------
+      - name: Build Python script EXE (onedir)
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
+
+      - name: Build GUI EXE
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onedir `
+            --contents-directory gui_internal `
+            --collect-all PyQt6-WebEngine `
+            --add-data "../css;css" `
+            --add-data "../translations/*.qm;translations" `
+            --add-data "../qt_translations;qt_translations" `
+            --add-data "../themes;themes" `
+            --icon=../icon.ico `
+            gui.pyw `
+            -n python_postar_gui
+
+      - name: Build Updater EXE
+        shell: pwsh
+        run: |
+          cd src
+          pyinstaller --clean --onefile `
+            --icon=../icon.ico `
+            updater.py `
+            -n updater
+
+      # -------------------------------
+      # Prepare NSIS installer folder
+      # -------------------------------
+      - name: Prepare NSIS installer folder
+        shell: pwsh
+        run: |
+          $STAGE = "python_postar_windows"
+
+          New-Item -ItemType Directory -Force -Path "$STAGE\scripts"
+          New-Item -ItemType Directory -Force -Path "$STAGE\css"
+          New-Item -ItemType Directory -Force -Path "$STAGE\translations"
+          New-Item -ItemType Directory -Force -Path "$STAGE\qt_translations"
+          New-Item -ItemType Directory -Force -Path "$STAGE\themes"
+
+          # CLI
+          Copy-Item -Recurse src\dist\python_postar\* "$STAGE\"
+
+          # GUI and gui_internal
+          Copy-Item -Recurse src\dist\python_postar_gui\* "$STAGE\"
+
+          # Updater
+          Copy-Item src\dist\updater.exe "$STAGE\"
+
+          # Resources and guides
+          Copy-Item icon.ico "$STAGE\"
+          Copy-Item -Recurse guides "$STAGE\"
+          Copy-Item -Recurse css\* "$STAGE\css\"
+          Copy-Item -Recurse translations\* "$STAGE\translations\"
+          Copy-Item -Recurse qt_translations\* "$STAGE\qt_translations\"
+          Copy-Item -Recurse themes\* "$STAGE\themes\"
+          Copy-Item scripts\postar_batch_portable.bat "$STAGE\scripts\"
+
+      # -------------------------------
+      # Build NSIS Installer
+      # -------------------------------
+      - name: Build NSIS Installer
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" `
+            /DVERSION=$env:RELEASE_TAG `
+            installer/postar_installer.nsi
+
+      # -------------------------------
+      # Verify installer
+      # -------------------------------
+      - name: Verify installer
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          $INSTALLER = "installer\python_postar_setup_${env:RELEASE_TAG}.exe"
+
+          if (-not (Test-Path $INSTALLER)) {
+            throw "Installer not found: $INSTALLER"
+          }
+
+          Get-Item $INSTALLER
+
+      # -------------------------------
+      # Upload installer to existing
+      # Forgejo release
+      # -------------------------------
+      - name: Upload Installer to Forgejo Release
+        shell: pwsh
+        env:
+          FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          FORGEJO_SERVER: ${{ forgejo.server_url }}
+          FORGEJO_REPOSITORY: ${{ forgejo.repository }}
+          RELEASE_TAG: ${{ forgejo.ref_name }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $headers = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+          }
+
+          # -------------------------------
+          # Find existing release
+          # -------------------------------
+          Write-Host "Looking up Forgejo release: $env:RELEASE_TAG"
+
+          $release = Invoke-RestMethod `
+            -Uri "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/tags/$env:RELEASE_TAG" `
+            -Method Get `
+            -Headers $headers
+
+          Write-Host "Found release ID: $($release.id)"
+          Write-Host "Release: $($release.name)"
+
+          # -------------------------------
+          # Find installer
+          # -------------------------------
+          $installer = Get-ChildItem `
+            -Path "installer" `
+            -Filter "python_postar_setup_*.exe" |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            throw "Could not find python_postar_setup_*.exe"
+          }
+
+          Write-Host "Uploading: $($installer.FullName)"
+
+          # -------------------------------
+          # Upload installer
+          # -------------------------------
+          $encodedName = [uri]::EscapeDataString($installer.Name)
+
+          $uploadUrl = "$env:FORGEJO_SERVER/api/v1/repos/$env:FORGEJO_REPOSITORY/releases/$($release.id)/assets?name=$encodedName"
+
+          $uploadHeaders = @{
+            "Authorization" = "token $env:FORGEJO_TOKEN"
+            "Accept" = "application/json"
+          }
+
+          Invoke-RestMethod `
+            -Uri $uploadUrl `
+            -Method Post `
+            -Headers $uploadHeaders `
+            -ContentType "application/octet-stream" `
+            -InFile $installer.FullName
+
+          Write-Host ""
+          Write-Host "Successfully uploaded $($installer.Name)"
+          Write-Host "Release: $env:RELEASE_TAG"
