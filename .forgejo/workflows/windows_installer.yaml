@@ -16,13 +16,13 @@ jobs:
       # Build Windows EXEs
       # -------------------------------
       - name: Build Python script EXE (onedir)
-        shell: pwsh
+        shell: powershell
         run: |
           cd src
           pyinstaller --clean --onedir --icon=../icon.ico python_postar.py
 
       - name: Build GUI EXE
-        shell: pwsh
+        shell: powershell
         run: |
           cd src
           pyinstaller --clean --onedir `
@@ -37,7 +37,7 @@ jobs:
             -n python_postar_gui
 
       - name: Build Updater EXE
-        shell: pwsh
+        shell: powershell
         run: |
           cd src
           pyinstaller --clean --onefile `
@@ -49,7 +49,7 @@ jobs:
       # Prepare NSIS installer folder
       # -------------------------------
       - name: Prepare NSIS installer folder
-        shell: pwsh
+        shell: powershell
         run: |
           $STAGE = "python_postar_windows"
 
@@ -81,7 +81,7 @@ jobs:
       # Build NSIS Installer
       # -------------------------------
       - name: Build NSIS Installer
-        shell: pwsh
+        shell: powershell
         env:
           RELEASE_TAG: ${{ forgejo.ref_name }}
         run: |
@@ -93,7 +93,7 @@ jobs:
       # Verify installer
       # -------------------------------
       - name: Verify installer
-        shell: pwsh
+        shell: powershell
         env:
           RELEASE_TAG: ${{ forgejo.ref_name }}
         run: |
@@ -110,7 +110,7 @@ jobs:
       # Forgejo release
       # -------------------------------
       - name: Upload Installer to Forgejo Release
-        shell: pwsh
+        shell: powershell
         env:
           FORGEJO_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           FORGEJO_SERVER: ${{ forgejo.server_url }}
