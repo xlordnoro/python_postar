@@ -2,11 +2,8 @@
 """
 python_postar.py
 
-v0.55.1:
-- Added forgejo workflows as a backup for the future. I still need to finalize the workflow changes for the installer, but that can be done later.
-- Corrected the MAL lookup to correctly grab Japanese titles as a fallback if a series doesn't have a value in the English field.
-- Expanded the regex to handle files with decimals in the episode number. It was ignoring decimals which would result in the html table showing both as the same number e.g 06.5 would show up as 06.
-- Expanded the quality table to include 480p since the former Junior staff are releasing a lot of older content which would've been done in 480p.
+v0.55.2:
+- For the millionth time this year, I've resolved another portable updater bug. I'm really hoping this is it...
 
 """
 

@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.55.1"
-RELEASE_NAME = "Roxy"
+VERSION = "0.55.2"
+RELEASE_NAME = "Roxy v3"
 
 # -----------------------------
 # MAL retrieval
