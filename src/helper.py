@@ -806,12 +806,8 @@ def check_for_github_update(force=False):
         # ------------------------------------------------------------
     
         subprocess.Popen(
-            ["cmd", "/c", str(updater_bat)],
+            ["cmd", "/k", str(updater_bat)],
             cwd=str(base_dir),
-            creationflags=(
-                subprocess.CREATE_NEW_PROCESS_GROUP
-                | subprocess.CREATE_NO_WINDOW
-            ),
         )
     
         sys.exit(0)
