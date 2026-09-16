@@ -312,8 +312,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.55.2"
-RELEASE_NAME = "Roxy v3"
+VERSION = "0.6"
+RELEASE_NAME = "Holo"
 
 # -----------------------------
 # MAL retrieval
@@ -1201,7 +1201,6 @@ class PostarGUI(QMainWindow):
         # Job Queue Menu
         self.queue_window = JobQueueWindow(self)
         self.live_preview = LivePreviewWindow(self)
-        # self.live_preview.load_wordpress("https://hi10anime.com/archives/107629/")
         queue_menu = menubar.addMenu(self.tr("Job Queue"))
 
         open_queue_action = queue_menu.addAction(self.tr("Jobs"))
@@ -1227,6 +1226,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Holo v0.6"): "themes/holo.jpg",
             self.tr("Roxy v0.55"): "themes/roxy.jpg",
             self.tr("Wolfgang v0.54"): "themes/wolfgang.jpg",
             self.tr("Scathach-Skadi v0.53"): "themes/scathach_skadi.jpg",
