@@ -2,9 +2,8 @@
 """
 python_postar.py
 
-v0.6:
-- Expanded the formats postar accepts for generating links. It now includes .aac and .opus for audio commentary tracks that weren't included in the original release.
-
+v0.60.1:
+- Fixed a bug in the search function of the GUI where it wasn't keeping the entries separate and would search for everything in the bar. Entries are now separated as expected.
 """
 
 # --- Imports and constants ---
