@@ -7,6 +7,7 @@ import time
 import subprocess
 import threading
 import shutil
+import re
 from packaging import version
 from functools import partial
 from pathlib import Path
@@ -312,8 +313,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.55.2"
-RELEASE_NAME = "Roxy v3"
+VERSION = "0.60.1"
+RELEASE_NAME = "Holo v2"
 
 # -----------------------------
 # MAL retrieval
@@ -1201,7 +1202,6 @@ class PostarGUI(QMainWindow):
         # Job Queue Menu
         self.queue_window = JobQueueWindow(self)
         self.live_preview = LivePreviewWindow(self)
-        # self.live_preview.load_wordpress("https://hi10anime.com/archives/107629/")
         queue_menu = menubar.addMenu(self.tr("Job Queue"))
 
         open_queue_action = queue_menu.addAction(self.tr("Jobs"))
@@ -1227,6 +1227,7 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
+            self.tr("Holo v0.6"): "themes/holo.jpg",
             self.tr("Roxy v0.55"): "themes/roxy.jpg",
             self.tr("Wolfgang v0.54"): "themes/wolfgang.jpg",
             self.tr("Scathach-Skadi v0.53"): "themes/scathach_skadi.jpg",
@@ -2116,6 +2117,7 @@ class PostarGUI(QMainWindow):
     # ---------------------------
     def search_mal_id(self):
         query = self.mal_input.text().strip()
+
         if not query:
             QMessageBox.warning(
                 self,
@@ -2127,10 +2129,27 @@ class PostarGUI(QMainWindow):
         self.mal_search_btn.setEnabled(False)
         self.mal_search_btn.setText(self.tr("Searching..."))
 
-        if query.isdigit():
-            self.mal_worker = MalSearchByIdWorker(query)
+        # -----------------------------------------
+        # Handle comma-separated MAL IDs + new title
+        # -----------------------------------------
+        #
+        # Examples:
+        #   "61192"                    -> look up MAL ID 61192
+        #   "isekai maou"              -> search for "isekai maou"
+        #   "61192, isekai maou"       -> search for "isekai maou"
+        #   "61192, 12345, isekai maou" -> search for "isekai maou"
+        #
+        parts = [part.strip() for part in query.split(",") if part.strip()]
+
+        # Search only the last comma-separated entry.
+        search_part = parts[-1] if parts else ""
+
+        if search_part.isdigit():
+            # Last entry is an ID, so look it up directly.
+            self.mal_worker = MalSearchByIdWorker(search_part)
         else:
-            self.mal_worker = MalSearchWorker(query)
+            # Last entry is a title, so search only that title.
+            self.mal_worker = MalSearchWorker(search_part)
 
         self.mal_worker.finished.connect(self.on_mal_search_finished)
         self.mal_worker.error.connect(self.on_mal_search_error)

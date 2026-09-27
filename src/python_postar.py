@@ -2,9 +2,8 @@
 """
 python_postar.py
 
-v0.55.2:
-- For the millionth time this year, I've resolved another portable updater bug. I'm really hoping this is it...
-
+v0.60.1:
+- Fixed a bug in the search function of the GUI where it wasn't keeping the entries separate and would search for everything in the bar. Entries are now separated as expected.
 """
 
 # --- Imports and constants ---
@@ -133,7 +132,7 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
 # Episode tables
 # -----------------------------
 def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False, button_title=None):
-    mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip")]
+    mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip", ".aac", ".opus")]
     episodes = []
     folder_basename = folder_path.name
 
