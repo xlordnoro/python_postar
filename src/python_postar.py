@@ -2,8 +2,10 @@
 """
 python_postar.py
 
-v0.60.1:
-- Fixed a bug in the search function of the GUI where it wasn't keeping the entries separate and would search for everything in the bar. Entries are now separated as expected.
+v0.70:
+- Added a blacklist function to block folder and filenames with forbidden characters outright. The script version will skip over releases that contain
+invalid characters.
+- While the GUI will refuse to process anything when blacklisted characters are detected. I might tweak that in a later update, but this is good enough for now.
 """
 
 # --- Imports and constants ---
@@ -781,10 +783,42 @@ def main():
 
     def expand_paths(paths):
         folders = []
+
         for p in paths:
             root = Path(p)
             if root.is_dir():
-                folders.extend(discover_media_folders(root))
+                discovered_folders = discover_media_folders(root)
+
+                for folder in discovered_folders:
+                    # Check the media folder's name
+                    if is_b2_name_blacklisted(folder.name):
+                        bad_chars = get_b2_blacklisted_chars(folder.name)
+                        print(
+                            f"[B2 Blacklist] Skipping folder: {folder.name} "
+                            f"(forbidden characters: {', '.join(bad_chars)})"
+                        )
+                        continue
+
+                    # Check filenames inside the media folder
+                    blacklisted_files = [
+                        file
+                        for file in folder.rglob("*")
+                        if file.is_file()
+                        and is_b2_name_blacklisted(file.name)
+                    ]
+
+                    if blacklisted_files:
+                        for file in blacklisted_files:
+                            bad_chars = get_b2_blacklisted_chars(file.name)
+                            print(
+                                f"[B2 Blacklist] Skipping folder: {folder.name} "
+                                f"because filename '{file.name}' contains "
+                                f"forbidden characters: {', '.join(bad_chars)}"
+                            )
+                        continue
+
+                    folders.append(folder)
+
         return folders
 
     folders_1080 = expand_paths(args.p1080) if args.p1080 else []

@@ -22,6 +22,15 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer, QUrl, QCoreApplication, QTranslator, QLocale, QLibraryInfo, QSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
+# B2 Blacklist functions
+B2_BLACKLISTED_CHARS = set("[],&+")
+
+def get_b2_blacklisted_chars(name: str) -> list[str]:
+    return sorted(set(name) & B2_BLACKLISTED_CHARS)
+
+def is_b2_name_blacklisted(name: str) -> bool:
+    return bool(get_b2_blacklisted_chars(name))
+
 # Translation helpers
 def tr(text):
     return QCoreApplication.translate("PostarGUI", text)
@@ -299,6 +308,51 @@ def migrate_old_settings_gui():
     ))
     done.exec()
 
+def find_b2_blacklisted_paths(paths):
+    """
+    Find media folders and filenames containing B2-blacklisted characters.
+
+    Returns a list of dictionaries containing the offending path,
+    its name, and the forbidden characters.
+    """
+    offending = []
+    seen = set()
+
+    def check_path(path, path_type):
+        if is_b2_name_blacklisted(path.name):
+            key = str(path)
+
+            if key not in seen:
+                seen.add(key)
+                offending.append({
+                    "path": str(path),
+                    "name": path.name,
+                    "type": path_type,
+                    "characters": get_b2_blacklisted_chars(path.name),
+                })
+
+    for raw_path in paths:
+        root = Path(raw_path).expanduser()
+
+        if not root.is_dir():
+            continue
+
+        # Check the supplied folder itself.
+        check_path(root, "Folder")
+
+        # Check every descendant folder and file recursively.
+        try:
+            for path in root.rglob("*"):
+                check_path(
+                    path,
+                    "Folder" if path.is_dir() else "File"
+                )
+        except OSError:
+            # Continue checking other paths if a directory cannot be read.
+            continue
+
+    return offending
+
 # ---------------------------
 # File constants
 # ---------------------------
@@ -313,8 +367,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.60.1"
-RELEASE_NAME = "Holo v2"
+VERSION = "0.70"
+RELEASE_NAME = "Raphtalia"
 
 # -----------------------------
 # MAL retrieval
@@ -1227,7 +1281,8 @@ class PostarGUI(QMainWindow):
 
         # Define your themes as relative paths
         themes = {
-            self.tr("Holo v0.6"): "themes/holo.jpg",
+            self.tr("Raphtalia v0.70"): "themes/raphtalia.jpg",
+            self.tr("Holo v0.60"): "themes/holo.jpg",
             self.tr("Roxy v0.55"): "themes/roxy.jpg",
             self.tr("Wolfgang v0.54"): "themes/wolfgang.jpg",
             self.tr("Scathach-Skadi v0.53"): "themes/scathach_skadi.jpg",
@@ -1807,10 +1862,74 @@ class PostarGUI(QMainWindow):
 
         return args_list, out_path
 
+    # B2 blacklist functions
+    def show_b2_blacklist_dialog(self, offending):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("B2 Blacklist Warning"))
+        dialog.setWindowIcon(QIcon("icon.ico"))
+        dialog.resize(750, 450)
+
+        layout = QVBoxLayout(dialog)
+
+        heading = QLabel(
+            self.tr(
+                "The following folders or files contain characters "
+                "that are not allowed by the B2 blacklist."
+            )
+        )
+        heading.setWordWrap(True)
+        layout.addWidget(heading)
+
+        output = QTextEdit()
+        output.setReadOnly(True)
+
+        lines = []
+        for item in offending:
+            chars = ", ".join(item["characters"])
+            lines.append(
+                f'{item["type"]}: {item["path"]}\n'
+                f'  {self.tr("Forbidden characters")}: {chars}\n'
+            )
+
+        output.setPlainText("\n".join(lines))
+        layout.addWidget(output)
+
+        close_btn = QPushButton(self.tr("Close"))
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+
+        dialog.exec()
+
+    def validate_b2_blacklist(self):
+        input_keys = (
+            "bd_1080p_folders",
+            "bd_720p_folders",
+            "non_bd_folders",
+        )
+
+        paths = []
+        for key in input_keys:
+            paths.extend(
+                part.strip()
+                for part in self.inputs[key].text().split(",")
+                if part.strip()
+            )
+
+        offending = find_b2_blacklisted_paths(paths)
+
+        if offending:
+            self.show_b2_blacklist_dialog(offending)
+            return False
+
+        return True
+
     # ---------------------------
     # Queue & Worker Logic (Fixed)
     # ---------------------------
     def add_job_to_queue(self):
+        if not self.validate_b2_blacklist():
+            return
+
         args, out_path = self.build_args_list()
         job_name = str(out_path.name)
         self.job_queue.append((args, out_path))
@@ -1825,6 +1944,8 @@ class PostarGUI(QMainWindow):
             return
         if self.worker:
             return  # Already running
+        if not self.validate_b2_blacklist():
+            return
         self.current_job_index = 0
         self.run_next_job()
 
@@ -2070,6 +2191,9 @@ class PostarGUI(QMainWindow):
     # Single job generation
     # ---------------------------
     def generate_html(self):
+        if not self.validate_b2_blacklist():
+            return
+
         args_list, out_path = self.build_args_list()
         self.current_output_file = out_path
         self.current_html_file = out_path

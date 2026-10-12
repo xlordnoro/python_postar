@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.60.1"
+VERSION = "0.70"
 
 KB = 1024
 MB = KB * 1024
@@ -902,6 +902,22 @@ def mark_new(folder_basename, episode_label=None, filename=None):
 
     return False
 
+
+# -----------------------------
+# B2 Blacklist
+# -----------------------------
+B2_BLACKLISTED_CHARS = set("[],&+")
+
+
+def get_b2_blacklisted_chars(name: str) -> list[str]:
+    """Return forbidden characters found in a folder or filename."""
+    return sorted(set(name) & B2_BLACKLISTED_CHARS)
+
+
+def is_b2_name_blacklisted(name: str) -> bool:
+    """Return True if a folder or filename contains forbidden characters."""
+    return bool(get_b2_blacklisted_chars(name))
+
 # -----------------------------
 # Helpers
 # -----------------------------
@@ -1434,5 +1450,10 @@ __all__ = [
 
     # MAL
     "get_mal_info",
-    "get_mal_client_id"
+    "get_mal_client_id",
+
+    # Special Character Blacklist
+    "B2_BLACKLISTED_CHARS",
+    "get_b2_blacklisted_chars",
+    "is_b2_name_blacklisted",
 ]
