@@ -605,7 +605,6 @@ DEFAULT_UI_STATE = {
     "cmd_preview": True,
     "process_output": True,
     "html_preview": True,
-    "options_visible": True,
 }
 
 def load_ui_state():
@@ -1330,10 +1329,9 @@ class PostarGUI(QMainWindow):
         # Define languages and shortcuts
         langs = {
             "en": ("English", "Ctrl+1"),
-            "ja": ("日本語", "Ctrl+2"),
+            #"ja": ("日本語", "Ctrl+2"),
             #"fr": ("Français", "Ctrl+2"),
             #"es": ("Español", "Ctrl+3"),
-            #"ja": ("日本語", "Ctrl+4"),
         }
 
         self.lang_actions = {}
@@ -1354,6 +1352,45 @@ class PostarGUI(QMainWindow):
 
         if current_lang in self.lang_actions:
             self.lang_actions[current_lang].setChecked(True)
+
+        # ---------------------------
+        # Options Submenu
+        # ---------------------------
+        self.options_menu = menubar.addMenu(self.tr("Options"))
+
+        # Stable keys → translatable labels
+        CHECKBOX_DEFS = [
+            ("enable_bd", self.tr("Enable BD toggle")),
+            ("seasonal", self.tr("Seasonal / Airing style")),
+            ("crc", self.tr("Include CRC32 column")),
+            ("kage", self.tr("Kage Layout")),
+            ("dark", self.tr("Dark Mode")),
+            ("disable_auto_update", self.tr("Disable auto-update (-du)")),
+            ("configure", self.tr("Re-run setup (-configure)")),
+        ]
+
+        self.checkboxes = {}
+
+        for key, label in CHECKBOX_DEFS:
+            action = self.options_menu.addAction(label)
+            action.setCheckable(True)
+
+            # Optional: restore saved state if available
+            # action.setChecked(self.ui_state.get(key, False))
+
+            self.checkboxes[key] = action
+
+            # Backwards compatibility attributes
+            setattr(self, f"{key}_checkbox", action)
+
+        # ---- Legacy attribute aliases (for existing code) ----
+        self.bd_checkbox = self.enable_bd_checkbox
+        self.seasonal_checkbox = self.seasonal_checkbox
+        self.crc_checkbox = self.crc_checkbox
+        self.kage_checkbox = self.kage_checkbox
+        self.dark_checkbox = self.dark_checkbox
+        self.disable_auto_update_checkbox = self.disable_auto_update_checkbox
+        self.configure_checkbox = self.configure_checkbox
 
         # ---- Help / Update menu ----
         update_action = menubar.addAction(self.tr("Check for Updates"))
@@ -1420,66 +1457,6 @@ class PostarGUI(QMainWindow):
                 widget.setFixedWidth(input_width)
                 self.inputs[key] = widget
 
-        # ---------------------------
-        # Options / Checkboxes Section
-        # ---------------------------
-        self.options_container = QWidget()
-        self.options_container.setObjectName("optionsPanel")
-        options_layout = QVBoxLayout(self.options_container)
-        options_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Stable keys → translatable labels
-        CHECKBOX_DEFS = [
-            ("enable_bd", self.tr("Enable BD toggle")),
-            ("seasonal", self.tr("Seasonal / Airing style")),
-            ("crc", self.tr("Include CRC32 column")),
-            ("kage", self.tr("Kage Layout")),
-            ("dark", self.tr("Dark Mode")),
-            ("disable_auto_update", self.tr("Disable auto-update (-du)")),
-            ("configure", self.tr("Re-run setup (-configure)")),
-        ]
-
-        self.checkboxes = {}
-
-        for key, label in CHECKBOX_DEFS:
-            cb = QCheckBox(label)
-            cb.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            options_layout.addWidget(cb)
-            self.checkboxes[key] = cb
-
-            # ---- Backwards compatibility attributes ----
-            setattr(self, f"{key}_checkbox", cb)
-
-        # ---- Legacy attribute aliases (for existing code) ----
-        self.bd_checkbox = self.enable_bd_checkbox
-        self.seasonal_checkbox = self.seasonal_checkbox
-        self.crc_checkbox = self.crc_checkbox
-        self.kage_checkbox = self.kage_checkbox
-        self.dark_checkbox = self.dark_checkbox
-        self.disable_auto_update_checkbox = self.disable_auto_update_checkbox
-        self.configure_checkbox = self.configure_checkbox
-    
-        # Toggle button row
-        options_toggle_row = QHBoxLayout()
-        options_label = QLabel(self.tr("Options"))
-        self.options_toggle_btn = QPushButton(self.tr("Hide"))
-        self.options_toggle_btn.setMaximumWidth(60)
-        options_toggle_row.addWidget(options_label)
-        options_toggle_row.addStretch()
-        options_toggle_row.addWidget(self.options_toggle_btn)
-
-        self.layout.addLayout(options_toggle_row)
-        self.layout.addWidget(self.options_container)
-
-        self.options_toggle_btn.clicked.connect(
-            lambda: self.toggle_widget(self.options_container, self.options_toggle_btn, state_key="options_visible")
-        )
-
-        self.ui_state.setdefault("options_visible", True)
-        visible = self.ui_state["options_visible"]
-        self.options_container.setVisible(visible)
-        self.options_toggle_btn.setText(self.tr("Hide") if visible else self.tr("Show"))
-
         # Checks github version & release title
         QTimer.singleShot(200, self.fetch_release_metadata)
 
@@ -1533,15 +1510,24 @@ class PostarGUI(QMainWindow):
                     }
                 """)
 
-        # Connect to checkbox after it exists
-        self.dark_checkbox.stateChanged.connect(apply_menu_colors)
 
-        # Initial apply (in case dark mode is already checked)
+        # Restore saved dark mode state
+        self.dark_checkbox.setChecked(
+            self.postar_settings.get("DARK_MODE", False)
+        )
+
+        # Connect signals after restoring the initial state
+        self.dark_checkbox.toggled.connect(apply_menu_colors)
+        self.dark_checkbox.toggled.connect(self.toggle_dark)
+
+        # Initial apply using the saved state
         apply_menu_colors()
-        self.dark_checkbox.stateChanged.connect(self.toggle_dark)
-        self.dark_checkbox.setChecked(self.postar_settings.get("DARK_MODE", False))
         self.toggle_dark()
-        self.configure_checkbox.stateChanged.connect(self.open_reconfigure_dialog)
+
+        # Configure option
+        self.configure_checkbox.triggered.connect(
+            self.open_reconfigure_dialog
+        )
 
         # Output file
         input_width = 900
@@ -2474,7 +2460,6 @@ class PostarGUI(QMainWindow):
             ("cmd_preview", self.cmd_preview, self.cmd_toggle_btn),
             ("process_output", self.process_output, self.output_toggle_btn),
             ("html_preview", self.html_preview, self.html_toggle_btn),
-            ("options_visible", self.options_container, self.options_toggle_btn),
         ]:
             visible = self.ui_state.get(key, True)
             widget.setVisible(visible)
