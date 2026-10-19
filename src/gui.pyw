@@ -12,7 +12,7 @@ from packaging import version
 from functools import partial
 from pathlib import Path
 from datetime import datetime
-from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette
+from PyQt6.QtGui import QIcon, QColor, QPixmap, QPalette, QAction, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QTextEdit, QCheckBox, QComboBox, QProgressBar, 
@@ -367,8 +367,8 @@ APP_AUTHOR = "XLordnoro"
 APP_WEBSITE = "https://github.com/xlordnoro/python_postar/releases"
 REPO_OWNER = "xlordnoro"
 REPO_NAME = "python_postar"
-VERSION = "0.70"
-RELEASE_NAME = "Raphtalia"
+VERSION = "0.71"
+RELEASE_NAME = "Raphtalia v2"
 
 # -----------------------------
 # MAL retrieval
@@ -1358,22 +1358,24 @@ class PostarGUI(QMainWindow):
         # ---------------------------
         self.options_menu = menubar.addMenu(self.tr("Options"))
 
-        # Stable keys → translatable labels
+        # Stable keys → translatable labels + hotkeys
         CHECKBOX_DEFS = [
-            ("enable_bd", self.tr("Enable BD toggle")),
-            ("seasonal", self.tr("Seasonal / Airing style")),
-            ("crc", self.tr("Include CRC32 column")),
-            ("kage", self.tr("Kage Layout")),
-            ("dark", self.tr("Dark Mode")),
-            ("disable_auto_update", self.tr("Disable auto-update (-du)")),
-            ("configure", self.tr("Re-run setup (-configure)")),
+            ("enable_bd", self.tr("Enable BD toggle"), "Ctrl+Shift+B"),
+            ("enable_dvd", self.tr("Enable DVD toggle"), "Ctrl+Shift+D"),
+            ("seasonal", self.tr("Seasonal / Airing style"), "Ctrl+Shift+A"),
+            ("crc", self.tr("Include CRC32 column"), "Ctrl+Shift+C"),
+            ("kage", self.tr("Kage Layout"), "Ctrl+Shift+K"),
+            ("dark", self.tr("Dark Mode"), "Ctrl+Shift+M"),
+            ("disable_auto_update", self.tr("Disable auto-update (-du)"), "Ctrl+Shift+U"),
+            ("configure", self.tr("Re-run setup (-configure)"), "Ctrl+Shift+R"),
         ]
 
         self.checkboxes = {}
 
-        for key, label in CHECKBOX_DEFS:
+        for key, label, shortcut in CHECKBOX_DEFS:
             action = self.options_menu.addAction(label)
             action.setCheckable(True)
+            action.setShortcut(QKeySequence(shortcut))
 
             # Optional: restore saved state if available
             # action.setChecked(self.ui_state.get(key, False))
@@ -1383,8 +1385,21 @@ class PostarGUI(QMainWindow):
             # Backwards compatibility attributes
             setattr(self, f"{key}_checkbox", action)
 
+        # ---- Clear Fields action ----
+        self.options_menu.addSeparator()
+
+        clear_action = QAction(self.tr("Clear Fields"), self)
+        clear_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        clear_action.setStatusTip(
+            self.tr("Clear all fields except the selected profile")
+        )
+        clear_action.triggered.connect(self.clear_fields)
+
+        self.options_menu.addAction(clear_action)
+
         # ---- Legacy attribute aliases (for existing code) ----
         self.bd_checkbox = self.enable_bd_checkbox
+        self.dvd_checkbox = self.enable_dvd_checkbox
         self.seasonal_checkbox = self.seasonal_checkbox
         self.crc_checkbox = self.crc_checkbox
         self.kage_checkbox = self.kage_checkbox
@@ -1727,12 +1742,21 @@ class PostarGUI(QMainWindow):
             "<tr><td><b>F6</b></td><td>" + self.tr("Live Preview") + "</td></tr>"
             "<tr><td><b>F11</b></td><td>" + self.tr("Show Keyboard Shortcuts") + "</td></tr>"
             "<tr><td><b>F12</b></td><td>" + self.tr("Check for Updates") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+B</b></td><td>" + self.tr("Enable BD toggle") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+D</b></td><td>" + self.tr("Enable DVD toggle") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+A</b></td><td>" + self.tr("Seasonal / Airing style") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+C</b></td><td>" + self.tr("Include CRC32 column") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+K</b></td><td>" + self.tr("Kage Layout") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+M</b></td><td>" + self.tr("Dark Mode") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+U</b></td><td>" + self.tr("Disable auto-update (-du)") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+R</b></td><td>" + self.tr("Re-run setup (-configure)") + "</td></tr>"
+            "<tr><td><b>Ctrl+Shift+L</b></td><td>" + self.tr("Clear Fields") + "</td></tr>"
             "</table>"
 
             "<h3>" + self.tr("Language") + "</h3>"
             "<table cellspacing='6'>"
             "<tr><td><b>Ctrl + 1</b></td><td>" + self.tr("English") + "</td></tr>"
-            "<tr><td><b>Ctrl + 2</b></td><td>" + self.tr("日本語") + "</td></tr>"
+            #"<tr><td><b>Ctrl + 2</b></td><td>" + self.tr("日本語") + "</td></tr>"
             "</table>"
         )
 
@@ -1836,6 +1860,7 @@ class PostarGUI(QMainWindow):
         add_flag("-bi", bd_images)
 
         if self.bd_checkbox.isChecked(): args_list.append("-b")
+        if self.dvd_checkbox.isChecked(): args_list.append("-dvd")
         if self.seasonal_checkbox.isChecked(): args_list.append("-s")
         if self.crc_checkbox.isChecked(): args_list.append("-crc")
         if self.kage_checkbox.isChecked(): args_list.append("-kage")
@@ -2587,6 +2612,7 @@ class PostarGUI(QMainWindow):
             },
             "checks": {
                 "bd": self.bd_checkbox.isChecked(),
+                "dvd": self.dvd_checkbox.isChecked(),
                 "seasonal": self.seasonal_checkbox.isChecked(),
                 "crc": self.crc_checkbox.isChecked(),
                 "kage": self.kage_checkbox.isChecked(),
@@ -2632,6 +2658,7 @@ class PostarGUI(QMainWindow):
         checks = state.get("checks", {})
 
         self.bd_checkbox.setChecked(checks.get("bd", False))
+        self.dvd_checkbox.setChecked(checks.get("dvd", False))
         self.seasonal_checkbox.setChecked(checks.get("seasonal", False))
         self.crc_checkbox.setChecked(checks.get("crc", False))
         self.kage_checkbox.setChecked(checks.get("kage", False))
@@ -2666,6 +2693,39 @@ class PostarGUI(QMainWindow):
             version=VERSION,
             release_title=RELEASE_NAME
         ).exec()
+
+    def clear_fields(self):
+        """Clear all input and output fields while preserving the profile."""
+        reply = QMessageBox.question(
+            self,
+            self.tr("Clear Fields"),
+            self.tr("Are you sure you want to clear all fields?"),
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        # Clear all registered input fields
+        for widget in self.inputs.values():
+            widget.clear()
+
+        # Reset output filename, if present
+        if hasattr(self, "output_file"):
+            self.output_file.setText("output.txt")
+
+        # Clear output and preview widgets, if present
+        for name in ("cmd_preview", "process_output", "html_preview"):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.clear()
+
+        self.statusBar().showMessage(
+            self.tr("All fields cleared"),
+            3000,
+        )
 
 # ---------------------------
 # App Entry

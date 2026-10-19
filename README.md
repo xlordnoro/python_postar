@@ -49,6 +49,7 @@ If you happen to get a message about updating pip after installing the needed de
 - e.g. https://myanimelist.net/anime/42310/Cyberpunk__Edgerunners the id is: 42310
 - -c is for the span color on the table headers for the title of the series/season.
 - -b is used to tell the script that it's a bd post vs a non-BD post
+- -dvd is used to tell the script that it's a dvd post and it functions just like a non-BD post
 - -bi is for the resolution button images, which function in pairs 1080p 720p, 1080p 720p, etc. The order does matter!
 - -s is used to tell the script that it's a seasonal airings post and to sort the entries by series instead of the episode number first (Pcool airings)
 - -o allows you to change the filename of the txt file that is going to be generated.

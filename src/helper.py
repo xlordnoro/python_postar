@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.70"
+VERSION = "0.71"
 
 KB = 1024
 MB = KB * 1024
@@ -1193,20 +1193,37 @@ def build_encoding_table(folder_path: Path, display_name: str, heading_color: st
     tag = tag.lower()
 
     is_bd     = "bd" in tag
+    is_dvd    = "dvd" in tag
+    has_sr_1080  = "sr_1080" in tag
     has_1080  = "1080" in tag
+    has_810   = "810" in tag
     has_720   = "720" in tag
+    has_576   = "576" in tag
+    has_540   = "540" in tag
     has_480   = "480" in tag
 
-    #print("BT-QUALITY CHECK:", folder_lower, "BD?", is_bd)  # <-- here, inside processing
+    #print("BT-QUALITY CHECK:", folder_lower, "BD?", is_bd, "DVD?", is_dvd)
 
     if is_bd and has_1080:
         quality_label = "BD 1080p"
     elif is_bd and has_720:
         quality_label = "BD 720p"
+    elif is_dvd and has_576:
+        quality_label = "DVD 576p"
+    elif is_dvd and has_480:
+        quality_label = "DVD 480p"
+    elif has_sr_1080:
+        quality_label = "SR 1080p"
     elif has_1080:
         quality_label = "1080p"
+    elif has_810:
+        quality_label = "810p"
     elif has_720:
         quality_label = "720p"
+    elif has_576:
+        quality_label = "576p"
+    elif has_540:
+        quality_label = "540p"
     elif has_480:
         quality_label = "480p"
     else:

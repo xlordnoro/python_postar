@@ -2,10 +2,11 @@
 """
 python_postar.py
 
-v0.70:
-- Added a blacklist function to block folder and filenames with forbidden characters outright. The script version will skip over releases that contain
-invalid characters.
-- While the GUI will refuse to process anything when blacklisted characters are detected. I might tweak that in a later update, but this is good enough for now.
+v0.71:
+- Expanded the resolution formats to include more odd resolutions like 540p, 576p, 810p, and SR 1080p.
+- I added a DVD toggle argument which is used to denote it's a DVD release. Otherwise, the DVD tag is omitted in the resolution fields.
+- Gave all the options hotkeys, added them to the keyboard shortcuts menu, and I've removed the Japanese language from use since I've disabled it for now.
+- Added a clear fields button to quickly remove everything for faster post building/yellowflash is lazy (his exact words not mine xD)
 """
 
 # --- Imports and constants ---
@@ -106,7 +107,7 @@ def build_season_block(folder1080: Path, folder720: Path, heading_color: str, se
 # -----------------------------
 # Non-BD block with MAL synopsis
 # -----------------------------
-def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False):
+def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_airing=False, crc_enabled=False, kage=False, dvd=False):
     out_lines = []
     mal_info = get_mal_info(mal_id)
     header_title = mal_info.get("english_title") or mal_info["full_title"]
@@ -127,13 +128,13 @@ def build_nonbd_block(folder_path: Path, heading_color: str, mal_id: str, is_air
     out_lines.append(f'<tbody><tr><td>{mal_info["synopsis"]}<!--more--></td></tr></tbody></table>')
 
     # Episode table
-    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, button_title=header_title))
+    out_lines.extend(build_quality_table(folder_path, mal_info, heading_color, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, button_title=header_title, dvd=dvd))
     return "\n".join(out_lines)
 
 # -----------------------------
 # Episode tables
 # -----------------------------
-def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False, button_title=None):
+def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000", is_airing=False, crc_enabled=False, kage=False, button_title=None, dvd=False):
     mkv_files = [p for p in folder_path.iterdir() if p.is_file() and p.suffix.lower() in (".mkv", ".rar", ".zip", ".aac", ".opus")]
     episodes = []
     folder_basename = folder_path.name
@@ -372,14 +373,23 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
     out_lines.append('            <th>Fc.lc</th>')
     out_lines.append('        </tr>')
     out_lines.append('        <tr>')
+    folder_quality = (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None, ""])[1].lower()
     quality_label = (
-        "BD 1080p" if "bd" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() 
-                      and "1080" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
-        "BD 720p"  if "bd" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() 
-                      and "720" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
-        "1080p"    if "1080" in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
-        "720p"     if "720"  in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
-        "480p"     if "480"  in (re.search(r'[\(\[](.*?)[\)\]]$', folder_basename.lower()) or [None,""])[1].lower() else
+        "DVD 1080p" if dvd and "1080" in folder_quality else
+        "DVD 810p"  if dvd and "810" in folder_quality else
+        "DVD 720p"  if dvd and "720" in folder_quality else
+        "DVD 576p"  if dvd and "576" in folder_quality else
+        "DVD 540p"  if dvd and "540" in folder_quality else
+        "DVD 480p"  if dvd and "480" in folder_quality else
+        "BD 1080p"  if "bd" in folder_quality and "1080" in folder_quality else
+        "BD 720p"   if "bd" in folder_quality and "720" in folder_quality else
+        "SR 1080p"  if "sr_1080" in folder_quality else
+        "1080p"     if "1080" in folder_quality else
+        "810p"      if "810" in folder_quality else
+        "720p"      if "720" in folder_quality else
+        "576p"      if "576" in folder_quality else
+        "540p"      if "540" in folder_quality else
+        "480p"      if "480" in folder_quality else
         "Unknown Quality"
     )
     out_lines.append(f'            <td>{quality_label}{batch_sup}</td>')
@@ -452,7 +462,7 @@ def build_quality_table(folder_path: Path, mal_info=None, heading_color="#000000
 # Build HTML block (modified to use single s2If and add href to donations)
 # Also integrated encoding table generation before cover images.
 # -----------------------------
-def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False):
+def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colors, airing_img, donate_imgs, bd_toggle, bd_images, is_airing=False, crc_enabled=False, kage=False, dvd=False):
     out_lines = []
 
     # single s2If opens once for all show content
@@ -591,7 +601,7 @@ def build_html_block(folders1080, folders720, non_bd_folders, mal_ids, span_colo
         out_lines.append(f'<a class="coverImage"><img title="{display_name}" src="{airing_src}"></a>')
 
         # --- Full non-BD block ---
-        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage)
+        nonbd_block = build_nonbd_block(folder, heading_color, mal_id, is_airing=is_airing, crc_enabled=crc_enabled, kage=kage, dvd=dvd)
 
         # --- Encoding table for non-BD above episodes ---
         enc_table = build_encoding_table(folder, display_name, heading_color)
@@ -727,7 +737,8 @@ def main():
     parser.add_argument("--span-color", "-c", nargs="+", required=True, help="List of colors for table headings")
     parser.add_argument("--airing-image", "-a", nargs="+", required=True, help="URL to airing image")
     parser.add_argument("--donation-image", "-d", nargs="+", required=True, help="Donation image URLs")
-    parser.add_argument("--bd", "-b", action="store_true", help="Enable BD 1080p/720p toggle")
+    parser.add_argument("--bd", "-b", action="store_true", help="Enable the BD 1080p/720p resolution toggle")
+    parser.add_argument("--dvd", "-dvd", action="store_true", help="Enable the DVD resolution toggle")
     parser.add_argument("--bd-image", "-bi", nargs="+", metavar="BD_IMG", help="BD image URLs in pairs (1080p,720p) per season")
     parser.add_argument("--seasonal", "-s", action="store_true", help="When set, group episodes by series (airing-style)")
     parser.add_argument("--output", "-o", help="Output TXT filename (optional)")
@@ -837,7 +848,8 @@ def main():
         args.bd_image,
         is_airing=args.seasonal,
         crc_enabled=args.crc,
-        kage=args.kage
+        kage=args.kage,
+        dvd=args.dvd
     )
 
     OUTPUT_DIR = Path.cwd() / "output"
