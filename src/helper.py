@@ -187,7 +187,7 @@ TORRENT_IMAGE = "http://i.imgur.com/CBig9hc.png"
 DDL_IMAGE = "http://i.imgur.com/UjCePGg.png"
 ENCODER_NAME = SETTINGS["ENCODER_NAME"]
 AUTO_UPDATE = SETTINGS["AUTO_UPDATE"]
-VERSION = "0.71.1"
+VERSION = "0.71"
 
 KB = 1024
 MB = KB * 1024
@@ -408,44 +408,409 @@ def check_for_github_update(force=False):
 
     # ---- Portable EXE handling ----
     if is_portable():
-        base_dir = Path(sys.executable).resolve().parent
-        exe_path = Path(sys.executable).resolve()
-
-        print(f"[Update] Portable build detected.")
-        print(f"[Update] Extracting files directly to {base_dir} ...")
-
-        try:
-            with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-                for member in z.namelist():
-                    if member.endswith("/"):
-                        continue  # skip directories
-
-                    relative_path = Path(member)
-                    target_path = base_dir / relative_path
-
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                    backup_file(target_path)
-
-                    with z.open(member) as src, open(target_path, "wb") as dst:
-                        dst.write(src.read())
-
-                    print(f"[Update] Updated: {target_path}")
-
-            print("[Update] Update complete — restarting portable EXE...")
-
-            restart_args = [
-                arg for arg in ORIGINAL_ARGV[1:]
-                if arg.lower() not in ("-u", "--update")
-            ]
-
-            os.execv(
-                str(exe_path),
-                [str(exe_path), *restart_args],
+        print("[Update] Portable updater launched. Exiting current program...")
+    
+        updater_bat = base_dir / "update_portable.bat"
+    
+        exe_name = Path(sys.executable).name
+        temp_dir_str = str(temp_dir)
+        base_dir_str = str(base_dir)
+    
+        # ------------------------------------------------------------
+        # Preserve the original command-line arguments, except for
+        # the update flag.
+        #
+        # This prevents:
+        #
+        #     python_postar.exe -u
+        #
+        # from causing another update check after the application
+        # has been updated and relaunched.
+        # ------------------------------------------------------------
+    
+        restart_args = [
+            arg
+            for arg in ORIGINAL_ARGV[1:]
+            if arg.lower() not in ("-u", "--update")
+        ]
+    
+        original_args = subprocess.list2cmdline(restart_args)
+    
+        # ------------------------------------------------------------
+        # Escape characters that are special inside a batch file.
+        # ------------------------------------------------------------
+    
+        def bat_escape(value):
+            return (
+                value
+                .replace("^", "^^")
+                .replace("&", "^&")
+                .replace("|", "^|")
+                .replace("<", "^<")
+                .replace(">", "^>")
+                .replace("(", "^(")
+                .replace(")", "^)")
             )
-
-        except Exception as e:
-            print(f"[Update] Failed to extract ZIP: {e}")
-            return
+    
+        exe_name_bat = bat_escape(exe_name)
+        temp_dir_bat = bat_escape(temp_dir_str)
+        base_dir_bat = bat_escape(base_dir_str)
+        original_args_bat = bat_escape(original_args)
+    
+        # ------------------------------------------------------------
+        # Generate portable updater
+        # ------------------------------------------------------------
+    
+        bat_text = f"""@echo off
+    setlocal EnableExtensions EnableDelayedExpansion
+    
+    REM ============================================================
+    REM Configuration
+    REM ============================================================
+    
+    set "TEMP_DIR={temp_dir_bat}"
+    set "BASE_DIR={base_dir_bat}"
+    set "EXE_NAME={exe_name_bat}"
+    set "BACKUP_DIR=%BASE_DIR%\\backup"
+    set "SOURCE_ROOT=%TEMP_DIR%"
+    
+    echo [Updater] Starting portable updater...
+    echo [Updater] Temporary directory:
+    echo [Updater] "%TEMP_DIR%"
+    echo [Updater] Base directory:
+    echo [Updater] "%BASE_DIR%"
+    
+    REM ============================================================
+    REM Wait for the main application to exit
+    REM ============================================================
+    
+    echo [Updater] Waiting for %EXE_NAME% to exit...
+    
+    :WAIT_FOR_APP
+    
+    tasklist /FI "IMAGENAME eq %EXE_NAME%" 2>NUL | find /I "%EXE_NAME%" >NUL
+    
+    if not errorlevel 1 (
+        timeout /t 1 /nobreak >NUL
+        goto WAIT_FOR_APP
+    )
+    
+    echo [Updater] Application has exited.
+    
+    REM ============================================================
+    REM Verify temporary update directory
+    REM ============================================================
+    
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] ERROR: Update directory does not exist:
+        echo [Updater] "%TEMP_DIR%"
+        goto FAILED
+    )
+    
+    REM ============================================================
+    REM Detect correct extraction root
+    REM
+    REM If the ZIP extracted into a single directory, use that
+    REM directory as the source root.
+    REM Otherwise use TEMP_DIR directly.
+    REM ============================================================
+    
+    set "ENTRY_COUNT=0"
+    set "ONLY_ENTRY="
+    
+    for /f "delims=" %%A in ('dir /b /a "%TEMP_DIR%" 2^>nul') do (
+        set /a ENTRY_COUNT+=1
+        set "ONLY_ENTRY=%%A"
+    )
+    
+    if "!ENTRY_COUNT!"=="1" (
+        if exist "%TEMP_DIR%\\!ONLY_ENTRY!\\NUL" (
+            set "SOURCE_ROOT=%TEMP_DIR%\\!ONLY_ENTRY!"
+        )
+    )
+    
+    echo [Updater] Source root:
+    echo [Updater] "%SOURCE_ROOT%"
+    
+    if not exist "%SOURCE_ROOT%" (
+        echo [Updater] ERROR: Source root does not exist.
+        goto FAILED
+    )
+    
+    REM ============================================================
+    REM Create backup directory
+    REM ============================================================
+    
+    if not exist "%BACKUP_DIR%" (
+        mkdir "%BACKUP_DIR%"
+    )
+    
+    if errorlevel 1 (
+        echo [Updater] ERROR: Could not create backup directory.
+        goto FAILED
+    )
+    
+    echo [Updater] Backup directory:
+    echo [Updater] "%BACKUP_DIR%"
+    
+    REM ============================================================
+    REM PROCESS TOP-LEVEL FILES ONLY
+    REM
+    REM /a-d means:
+    REM     Files only
+    REM
+    REM Directories are completely excluded from this loop.
+    REM ============================================================
+    
+    for /f "delims=" %%A in ('dir /b /a-d "%SOURCE_ROOT%" 2^>nul') do (
+        call :UPDATE_FILE "%%A"
+    )
+    
+    REM ============================================================
+    REM PROCESS TOP-LEVEL DIRECTORIES ONLY
+    REM
+    REM /ad means:
+    REM     Directories only
+    REM
+    REM Directories are copied/merged but NEVER backed up.
+    REM ============================================================
+    
+    for /f "delims=" %%A in ('dir /b /ad "%SOURCE_ROOT%" 2^>nul') do (
+        call :UPDATE_DIRECTORY "%%A"
+    )
+    
+    echo [Updater] All update files processed.
+    
+    REM ============================================================
+    REM Relaunch application
+    REM ============================================================
+    
+    echo [Updater] Relaunching application...
+    
+    set "POSTAR_APP_DIR=%BASE_DIR%"
+    
+    start "" /D "%BASE_DIR%" "%BASE_DIR%\\%EXE_NAME%" {original_args_bat}
+    
+    if errorlevel 1 (
+        echo [Updater] ERROR: Failed to relaunch application.
+        goto FAILED
+    )
+    
+    echo [Updater] Application relaunched.
+    
+    REM ============================================================
+    REM Cleanup
+    REM ============================================================
+    
+    echo [Updater] Cleaning temporary update directory...
+    
+    set /a CLEANUP_ATTEMPT=0
+    
+    :CLEANUP
+    
+    set /a CLEANUP_ATTEMPT+=1
+    
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] Temporary directory removed.
+        goto FINISHED
+    )
+    
+    rmdir /S /Q "%TEMP_DIR%" >NUL 2>&1
+    
+    if not exist "%TEMP_DIR%" (
+        echo [Updater] Temporary directory removed.
+        goto FINISHED
+    )
+    
+    if !CLEANUP_ATTEMPT! GEQ 10 (
+        echo [Updater] WARNING: Could not remove temporary directory.
+        goto FINISHED
+    )
+    
+    echo [Updater] Cleanup attempt !CLEANUP_ATTEMPT!/10 failed.
+    
+    timeout /t 1 /nobreak >NUL
+    goto CLEANUP
+    
+    
+    REM ============================================================
+    REM UPDATE TOP-LEVEL FILE
+    REM ============================================================
+    
+    :UPDATE_FILE
+    
+    set "ITEM=%~1"
+    
+    REM ------------------------------------------------------------
+    REM Never update the updater itself.
+    REM ------------------------------------------------------------
+    
+    if /I "%ITEM%"=="update_portable.bat" (
+        echo [Updater] Skipping update_portable.bat
+        exit /B 0
+    )
+    
+    REM ------------------------------------------------------------
+    REM Only EXE files are backed up.
+    REM
+    REM Everything else is simply copied:
+    REM
+    REM     .dll
+    REM     .json
+    REM     .txt
+    REM     .py
+    REM     etc.
+    REM ------------------------------------------------------------
+    
+    if /I "%~x1"==".exe" (
+    
+        if exist "%BASE_DIR%\\%ITEM%" (
+    
+            echo [Updater] Backing up EXE: %ITEM%
+    
+            copy /Y ^
+                "%BASE_DIR%\\%ITEM%" ^
+                "%BACKUP_DIR%\\%ITEM%" >NUL
+    
+            if errorlevel 1 (
+                echo [Updater] WARNING: Backup failed for %ITEM%
+            ) else (
+                echo [Updater] Backup created:
+                echo [Updater] "%BACKUP_DIR%\\%ITEM%"
+            )
+        )
+    )
+    
+    REM ------------------------------------------------------------
+    REM Copy the file
+    REM ------------------------------------------------------------
+    
+    echo [Updater] Copying file: %ITEM%
+    
+    copy /Y ^
+        "%SOURCE_ROOT%\\%ITEM%" ^
+        "%BASE_DIR%\\%ITEM%" >NUL
+    
+    if errorlevel 1 (
+        echo [Updater] ERROR: Copy failed for %ITEM%
+    ) else (
+        echo [Updater] File copied: %ITEM%
+    )
+    
+    exit /B 0
+    
+    
+    REM ============================================================
+    REM UPDATE TOP-LEVEL DIRECTORY
+    REM ============================================================
+    
+    :UPDATE_DIRECTORY
+    
+    set "ITEM=%~1"
+    
+    REM ------------------------------------------------------------
+    REM Never copy the backup directory.
+    REM ------------------------------------------------------------
+    
+    if /I "%ITEM%"=="backup" (
+        echo [Updater] Skipping backup directory
+        exit /B 0
+    )
+    
+    REM ------------------------------------------------------------
+    REM Copy/merge directory.
+    REM
+    REM No backup is created for directories.
+    REM This matches the original Python updater:
+    REM
+    REM     shutil.copytree(
+    REM         item,
+    REM         dest,
+    REM         dirs_exist_ok=True
+    REM     )
+    REM ------------------------------------------------------------
+    
+    echo [Updater] Copying directory: %ITEM%
+    
+    robocopy ^
+        "%SOURCE_ROOT%\\%ITEM%" ^
+        "%BASE_DIR%\\%ITEM%" ^
+        /E ^
+        /COPY:DAT ^
+        /DCOPY:DAT ^
+        /R:2 ^
+        /W:1 ^
+        /NFL ^
+        /NDL ^
+        /NJH ^
+        /NJS ^
+        /NP >NUL
+    
+    set "ROBOCOPY_RESULT=!ERRORLEVEL!"
+    
+    if !ROBOCOPY_RESULT! GEQ 8 (
+        echo [Updater] ERROR: Directory copy failed for %ITEM%
+    ) else (
+        echo [Updater] Directory copied: %ITEM%
+    )
+    
+    exit /B 0
+    
+    
+    REM ============================================================
+    REM FAILED
+    REM ============================================================
+    
+    :FAILED
+    
+    echo.
+    echo [Updater] ==========================================
+    echo [Updater] UPDATE FAILED
+    echo [Updater] ==========================================
+    echo.
+    
+    pause
+    
+    endlocal
+    exit /B 1
+    
+    
+    REM ============================================================
+    REM FINISHED
+    REM ============================================================
+    
+    :FINISHED
+    
+    echo [Updater] Updater finished successfully.
+    
+    endlocal
+    exit /B 0
+    """
+    
+        # ------------------------------------------------------------
+        # Write updater BAT
+        # ------------------------------------------------------------
+    
+        with open(
+            updater_bat,
+            "w",
+            encoding="utf-8",
+            newline="\r\n",
+        ) as f:
+            f.write(bat_text)
+            f.flush()
+            os.fsync(f.fileno())
+    
+        # ------------------------------------------------------------
+        # Launch updater through cmd.exe
+        # ------------------------------------------------------------
+    
+        subprocess.Popen(
+            ["cmd", "/k", str(updater_bat)],
+            cwd=str(base_dir),
+        )
+    
+        sys.exit(0)
 
     # ---- Source (.py) handling ----
     else:
