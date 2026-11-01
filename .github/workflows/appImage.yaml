@@ -24,9 +24,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
 
-      - name: Download and extract portable Python 3.14.7
+      - name: Download and extract portable Python 3.15.2
         run: |
-          wget https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.14.7+20260814-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
+          wget https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
 
           mkdir -p AppDir/usr
           tar --strip-components=1 -xzf python.tar.gz -C AppDir/usr
