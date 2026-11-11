@@ -97,14 +97,22 @@ If you happen to get a message about updating pip after installing the needed de
 # Verifying the AppImage downloads
 Starting from v0.71 onward, appImages will included embedded and detached signatures to verify the appImages come from me and haven't been modified.
 
-Run this command in a terminal in the same location as the appImage:
-`./python_postar_gui-x86_64.AppImage \
-  --appimage-signature`
-  
-It should show this as the fingerprint:
-`4DD0 8910 E854 B398 7005 7B23 DC0F FF2A 62B9 A074`
+Run this command in a terminal in the same location as the appImage. You'll need to download the signature key from the release, or the command will fail:
 
-If you get anything else, either the appImage is corrupted or you got it from someone else who tampered with my program.
+`gpg --import python_postar-signing-public.asc`
+
+`gpg --verify \
+       python_postar_gui-x86_64.AppImage.asc \
+       python_postar_gui-x86_64.AppImage`
+
+Alternatively, you can test the embedded signature, but this requires the validate appImage tool, or it will report a bad signature. <a href="https://github.com/AppImageCommunity/AppImageUpdate/releases/" alt="validate tool">validate_tool</a>
+
+`./validate-x86_64.AppImage python_postar_gui-x86_64.AppImage`
+
+It should show this as the signature fingerprint:
+`4DD08910E854B39870057B23DC0FFF2A62B9A074`
+
+If you get anything else, either the appImage is corrupted, or you got it from someone else who tampered with my program.
 
 # Translation Setup/Submitting Translations
 While you can use a basic editing tool like Notepad++, Qt-Linguist is the preferred method for working on translations as it includes many basic tools/helpers for that exact purpose.
