@@ -145,6 +145,7 @@ jobs:
 
           ./appimagetool-x86_64.AppImage \
             -u "$UPDATE_INFO" \
+            --sign \
             --sign-key "$SIGNING_KEY" \
             AppDir python_postar_gui-$ARCH.AppImage
 
