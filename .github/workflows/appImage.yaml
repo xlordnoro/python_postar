@@ -1,3 +1,4 @@
+
 name: Build Linux AppImage
 
 on:
@@ -24,6 +25,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync gnupg
 
+      # =============================
+      # PYTHON SETUP
+      # =============================
+
       - name: Download and extract portable Python 3.15.2
         run: |
           wget https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.15.2+20261026-x86_64-unknown-linux-gnu-install_only.tar.gz -O python.tar.gz
@@ -38,6 +43,10 @@ jobs:
           # Remove metadata that changes every build
           find AppDir -name "*.dist-info" -type d -exec rm -rf {} +
           find AppDir -name "*.egg-info" -type d -exec rm -rf {} +
+
+      # =============================
+      # PREPARE APPDIR
+      # =============================
 
       - name: Prepare AppDir
         run: |
@@ -64,6 +73,10 @@ jobs:
           cp AppRun AppDir/
           chmod +x AppDir/AppRun
 
+      # =============================
+      # PRECOMPILE PYTHON
+      # =============================
+
       - name: Precompile Python code
         run: |
           APPDIR=AppDir
@@ -76,35 +89,33 @@ jobs:
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/app
           $PYTHON_BIN -m compileall -b -f -d $APPDIR/__pycache__ $APPDIR/usr/lib/python3.14/site-packages || true
 
+      # =============================
+      # REPRODUCIBLE BUILD
+      # =============================
+
       - name: Normalize timestamps for reproducible build
         run: |
           find AppDir -exec touch -h -d "@1700000000" {} +
+
+      # =============================
+      # DOWNLOAD APPIMAGETOOL
+      # =============================
 
       - name: Download appimagetool
         run: |
           wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
 
-      - name: Build AppImage
-        run: |
-          ARCH=x86_64
-          UPDATE_INFO="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-$ARCH.AppImage.zsync"
-
-          ./appimagetool-x86_64.AppImage \
-            -u "$UPDATE_INFO" \
-            AppDir python_postar_gui-$ARCH.AppImage
-
-          mkdir -p python_postar_linux
-          mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
-
       # =============================
-      # GPG APPIMAGE SIGNING
+      # IMPORT GPG SIGNING KEY
       # =============================
 
       - name: Import GPG signing key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
+          set -euo pipefail
+
           mkdir -p "$HOME/.gnupg"
           chmod 700 "$HOME/.gnupg"
 
@@ -112,11 +123,94 @@ jobs:
 
           echo "GPG signing key imported successfully."
 
-      - name: Sign AppImages
+          gpg --list-secret-keys \
+            4DD08910E854B39870057B23DC0FFF2A62B9A074
+
+      # =============================
+      # BUILD WITH EMBEDDED SIGNATURE
+      # =============================
+
+      - name: Build and sign AppImage
+        env:
+          APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          APPIMAGETOOL_FORCE_SIGN: "1"
+        run: |
+          set -euo pipefail
+
+          ARCH=x86_64
+
+          SIGNING_KEY="4DD08910E854B39870057B23DC0FFF2A62B9A074"
+
+          UPDATE_INFO="gh-releases-zsync|xlordnoro|python_postar|latest|python_postar_gui-$ARCH.AppImage.zsync"
+
+          ./appimagetool-x86_64.AppImage \
+            -u "$UPDATE_INFO" \
+            --sign-key "$SIGNING_KEY" \
+            AppDir python_postar_gui-$ARCH.AppImage
+
+          mkdir -p python_postar_linux
+
+          mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
+
+          echo "AppImage built with embedded GPG signature."
+
+      # =============================
+      # VERIFY EMBEDDED SIGNATURE EXISTS
+      # =============================
+
+      - name: Check embedded AppImage signature
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          files=(python_postar_linux/*.AppImage)
+
+          if (( ${#files[@]} == 0 )); then
+            echo "ERROR: No AppImages found."
+            exit 1
+          fi
+
+          for file in "${files[@]}"; do
+            echo "Checking embedded signature: $file"
+
+            "$file" --appimage-signature > embedded-signature.txt
+
+            if ! grep -q "BEGIN PGP SIGNATURE" embedded-signature.txt; then
+              echo "ERROR: Embedded signature not found!"
+              exit 1
+            fi
+
+            echo "Embedded signature found successfully."
+          done
+
+      # =============================
+      # EXPORT PUBLIC KEY
+      # =============================
+
+      - name: Export public signing key
+        run: |
+          set -euo pipefail
+
+          gpg --armor --export \
+            4DD08910E854B39870057B23DC0FFF2A62B9A074 \
+            > python_postar_linux/python_postar-signing-public.asc
+
+          test -s python_postar_linux/python_postar-signing-public.asc
+
+          echo "Public signing key exported successfully."
+
+      # =============================
+      # CREATE DETACHED SIGNATURE
+      # =============================
+
+      - name: Sign AppImages with detached GPG signature
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         shell: bash
         run: |
+          set -euo pipefail
+
           shopt -s nullglob
 
           files=(python_postar_linux/*.AppImage)
@@ -128,7 +222,7 @@ jobs:
 
           for file in "${files[@]}"; do
 
-            echo "Signing: $file"
+            echo "Creating detached signature: $file"
 
             printf '%s\n' "$GPG_PASSPHRASE" | \
               gpg --batch \
@@ -140,21 +234,28 @@ jobs:
                   --output "$file.asc" \
                   "$file"
 
-            echo "Successfully signed: $file"
+            echo "Detached signature created successfully."
+
           done
 
       # =============================
-      # VERIFY SIGNATURES
+      # VERIFY DETACHED SIGNATURES
       # =============================
 
-      - name: Verify AppImage signatures
+      - name: Verify detached GPG signatures
         run: |
+          set -euo pipefail
+
           for signature in python_postar_linux/*.AppImage.asc; do
+
             appimage="${signature%.asc}"
 
             echo "Verifying: $appimage"
 
             gpg --verify "$signature" "$appimage"
+
+            echo "Detached signature verified successfully."
+
           done
 
       # =============================
@@ -168,3 +269,4 @@ jobs:
             python_postar_linux/*.AppImage
             python_postar_linux/*.AppImage.asc
             python_postar_linux/*.zsync
+            python_postar_linux/python_postar-signing-public.asc

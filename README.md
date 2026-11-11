@@ -94,6 +94,18 @@ If you happen to get a message about updating pip after installing the needed de
 ## The Mac/Linux commands are virtually the same. Use python3 and adjust the pathing format.
 `python3 python_postar.py -p "/home/noro/(Hi10)_Airings_Folder_(1080p)/" -a "https://cdnb.artstation.com/p/assets/images/images/054/613/745/large/indy-kaunang-lucy.jpg?1664941163" -d "https://i.imgur.com/Hb0yVs1.jpg" -c blue -m 42310 -o test_v51_airing.txt`
 
+# Verifying the AppImage downloads
+Starting from v0.71 onward, appImages will included embedded and detached signatures to verify the appImages come from me and haven't been modified.
+
+Run this command in a terminal in the same location as the appImage:
+`./python_postar_gui-x86_64.AppImage \
+  --appimage-signature`
+  
+It should show this as the fingerprint:
+`4DD0 8910 E854 B398 7005 7B23 DC0F FF2A 62B9 A074`
+
+If you get anything else, either the appImage is corrupted or you got it from someone else who tampered with my program.
+
 # Translation Setup/Submitting Translations
 While you can use a basic editing tool like Notepad++, Qt-Linguist is the preferred method for working on translations as it includes many basic tools/helpers for that exact purpose.
 
