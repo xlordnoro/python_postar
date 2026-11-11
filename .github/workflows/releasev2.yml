@@ -59,15 +59,20 @@ jobs:
           Copy-Item -Recurse guides python_postar_windows\
           Copy-Item scripts\postar_batch.bat python_postar_windows\scripts\
 
-      - name: Create ZIP
+      - name: Create ZIP and SHA256 checksum
         shell: pwsh
         run: |
-          Compress-Archive -Path python_postar_windows\* -DestinationPath python_postar_windows_${{ github.ref_name }}.zip -Force
+          $zip = "python_postar_windows_${{ github.ref_name }}.zip"
+          Compress-Archive -Path python_postar_windows\* -DestinationPath $zip -Force
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLower()
+          [System.IO.File]::WriteAllText("$zip.sha256", "$hash  $zip", [System.Text.Encoding]::ASCII)
 
-      - name: Upload ZIP to GitHub Release
+      - name: Upload ZIP and SHA256 to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: python_postar_windows_${{ github.ref_name }}.zip
+          files: |
+            python_postar_windows_${{ github.ref_name }}.zip
+            python_postar_windows_${{ github.ref_name }}.zip.sha256
 
   build-macos:
     runs-on: macos-latest
@@ -120,15 +125,18 @@ jobs:
           cp scripts/postar_batch_linux.sh python_postar_macos/scripts/
           chmod +x python_postar_macos/scripts/postar_batch_linux.sh
 
-      - name: Create ZIP
+      - name: Create ZIP and SHA256 checksum
         shell: bash
         run: |
           zip -r python_postar_macos_${{ github.ref_name }}.zip python_postar_macos
+          sha256sum python_postar_macos_${{ github.ref_name }}.zip > python_postar_macos_${{ github.ref_name }}.zip.sha256
 
-      - name: Upload ZIP to GitHub Release
+      - name: Upload ZIP and SHA256 to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: python_postar_macos_${{ github.ref_name }}.zip
+          files: |
+            python_postar_macos_${{ github.ref_name }}.zip
+            python_postar_macos_${{ github.ref_name }}.zip.sha256
 
   build-linux:
     runs-on: ubuntu-latest
@@ -181,12 +189,15 @@ jobs:
           cp scripts/postar_batch_linux.sh python_postar_linux/scripts/
           chmod +x python_postar_linux/scripts/postar_batch_linux.sh
 
-      - name: Create ZIP
+      - name: Create ZIP and SHA256 checksum
         shell: bash
         run: |
           zip -r python_postar_linux_${{ github.ref_name }}.zip python_postar_linux
+          sha256sum python_postar_linux_${{ github.ref_name }}.zip > python_postar_linux_${{ github.ref_name }}.zip.sha256
 
-      - name: Upload ZIP to GitHub Release
+      - name: Upload ZIP and SHA256 to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: python_postar_linux_${{ github.ref_name }}.zip
+          files: |
+            python_postar_linux_${{ github.ref_name }}.zip
+            python_postar_linux_${{ github.ref_name }}.zip.sha256
