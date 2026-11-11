@@ -22,7 +22,7 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync
+          sudo apt-get install -y wget unzip libfuse2 fonts-noto-cjk zsync gnupg
 
       - name: Download and extract portable Python 3.15.2
         run: |
@@ -97,9 +97,74 @@ jobs:
           mkdir -p python_postar_linux
           mv python_postar_gui-$ARCH.AppImage* python_postar_linux/
 
+      # =============================
+      # GPG APPIMAGE SIGNING
+      # =============================
+
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$HOME/.gnupg"
+          chmod 700 "$HOME/.gnupg"
+
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+          echo "GPG signing key imported successfully."
+
+      - name: Sign AppImages
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+
+          files=(python_postar_linux/*.AppImage)
+
+          if (( ${#files[@]} == 0 )); then
+            echo "ERROR: No AppImages found to sign."
+            exit 1
+          fi
+
+          for file in "${files[@]}"; do
+
+            echo "Signing: $file"
+
+            printf '%s\n' "$GPG_PASSPHRASE" | \
+              gpg --batch \
+                  --yes \
+                  --pinentry-mode loopback \
+                  --passphrase-fd 0 \
+                  --armor \
+                  --detach-sign \
+                  --output "$file.asc" \
+                  "$file"
+
+            echo "Successfully signed: $file"
+          done
+
+      # =============================
+      # VERIFY SIGNATURES
+      # =============================
+
+      - name: Verify AppImage signatures
+        run: |
+          for signature in python_postar_linux/*.AppImage.asc; do
+            appimage="${signature%.asc}"
+
+            echo "Verifying: $appimage"
+
+            gpg --verify "$signature" "$appimage"
+          done
+
+      # =============================
+      # UPLOAD RELEASE
+      # =============================
+
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v3
         with:
           files: |
             python_postar_linux/*.AppImage
+            python_postar_linux/*.AppImage.asc
             python_postar_linux/*.zsync
